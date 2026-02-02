@@ -1,0 +1,5 @@
+# allow overrides deny
+*.google.com
+*.googlevideo.com
+*.youtube.com
+github.com

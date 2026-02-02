@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+
+{% include "admin/partials/head.html" %}
+
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+
+<div class="app-wrapper">
+
+  {% include "admin/partials/navbar.html" %}
+  {% include "admin/partials/sidebar.html" %}
+
+  <main class="app-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% include "admin/partials/footer.html" %}
+
+</div>
+
+{% include "admin/partials/scripts.html" %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+    "sector": "school",
+    "locked": true,
+    "lock_reason": "Factory-set deployment configuration",
+    "set_at": "2026-01-27T10:00:00Z",
+    "device_serial": "MINIFW-DEV-001",
+    "_comment": "This file is factory-set and should not be modified by end users"
+}

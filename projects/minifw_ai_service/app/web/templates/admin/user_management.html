@@ -1,0 +1,858 @@
+{% extends "admin/base.html" %}
+
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h3 class="mb-1"><i class="bi bi-people"></i> User Management</h3>
+            <p class="text-muted">Manage user accounts, roles, and permissions</p>
+          </div>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+            <i class="bi bi-plus-circle"></i> Create New User
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="alertContainer"></div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-primary">
+          <div class="inner">
+            <h3 id="totalUsers">-</h3>
+            <p>Total Users</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-people"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-success">
+          <div class="inner">
+            <h3 id="activeUsers">-</h3>
+            <p>Active Users</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-person-check"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-warning">
+          <div class="inner">
+            <h3 id="adminUsers">-</h3>
+            <p>Administrators</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-shield-check"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-danger">
+          <div class="inner">
+            <h3 id="inactiveUsers">-</h3>
+            <p>Inactive Users</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-person-x"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Table Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="bi bi-table"></i> User Accounts</h3>
+        <div class="card-tools">
+          <button type="button" class="btn btn-tool" data-bs-toggle="collapse" data-bs-target="#filterSection">
+            <i class="bi bi-funnel"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search and Filter Section -->
+      <div class="card-body collapse show" id="filterSection">
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control" id="searchInput" 
+                     placeholder="Search username, email, or name..." 
+                     onkeyup="filterUsers()">
+            </div>
+          </div>
+          <div class="col-md-3">
+            <select class="form-select" id="roleFilter" onchange="filterUsers()">
+              <option value="">All Roles</option>
+              <option value="super_admin">Super Admin</option>
+              <option value="admin">Admin</option>
+              <option value="operator">Operator</option>
+              <option value="auditor">Auditor</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select class="form-select" id="sectorFilter" onchange="filterUsers()">
+              <option value="">All Sectors</option>
+              <option value="general">General</option>
+              <option value="hospital">Hospital</option>
+              <option value="school">School</option>
+              <option value="government">Government</option>
+              <option value="corporate">Corporate</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <select class="form-select" id="statusFilter" onchange="filterUsers()">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Sector</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th style="width: 250px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="9" class="text-center py-5">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p class="mt-2 text-muted">Loading users...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus"></i> Create New User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="createUserForm" onsubmit="createUser(event)">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Username <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="username" required 
+                     pattern="[a-zA-Z0-9_]{3,50}" 
+                     title="3-50 characters, letters, numbers, and underscore only">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" name="email" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-control" name="full_name">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Department</label>
+              <input type="text" class="form-control" name="department">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Role <span class="text-danger">*</span></label>
+              <select class="form-select" name="role" required>
+                <option value="viewer">Viewer</option>
+                <option value="operator">Operator</option>
+                <option value="auditor">Auditor</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Sector <span class="text-danger">*</span></label>
+              <select class="form-select" name="sector" required>
+                <option value="general">General</option>
+                <option value="hospital">Hospital</option>
+                <option value="school">School</option>
+                <option value="government">Government</option>
+                <option value="corporate">Corporate</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-control" name="phone">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Password <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="password" class="form-control" name="password" id="createPassword" required 
+                     minlength="8" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                     title="Must contain at least one number, one uppercase and lowercase letter, and at least 8 or more characters">
+              <button type="button" class="btn btn-outline-secondary" onclick="generatePassword('createPassword')">
+                <i class="bi bi-key"></i> Generate
+              </button>
+            </div>
+            <div id="generatedPasswordCreate" class="alert alert-success mt-2" style="display: none;">
+              <small><strong>Generated:</strong> <code id="generatedPasswordCreateText"></code></small>
+            </div>
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" name="must_change_password" 
+                   id="mustChangePassword" checked>
+            <label class="form-check-label" for="mustChangePassword">
+              Require password change on first login
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> Create User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil"></i> Edit User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="editUserForm" onsubmit="updateUser(event)">
+        <div class="modal-body">
+          <input type="hidden" name="user_id" id="editUserId">
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control" id="editUsername" readonly>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email <span class="text-danger">*</span></label>
+              <input type="email" class="form-control" name="email" id="editEmail" required>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-control" name="full_name" id="editFullName">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Department</label>
+              <input type="text" class="form-control" name="department" id="editDepartment">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Role <span class="text-danger">*</span></label>
+              <select class="form-select" name="role" id="editRole" required>
+                <option value="viewer">Viewer</option>
+                <option value="operator">Operator</option>
+                <option value="auditor">Auditor</option>
+                <option value="admin">Admin</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Sector <span class="text-danger">*</span></label>
+              <select class="form-select" name="sector" id="editSector" required>
+                <option value="general">General</option>
+                <option value="hospital">Hospital</option>
+                <option value="school">School</option>
+                <option value="government">Government</option>
+                <option value="corporate">Corporate</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Phone</label>
+            <input type="tel" class="form-control" name="phone" id="editPhone">
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" name="is_active" id="editIsActive">
+            <label class="form-check-label" for="editIsActive">
+              Account Active
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-key"></i> Change Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="changePasswordForm" onsubmit="changePassword(event)">
+        <div class="modal-body">
+          <input type="hidden" name="user_id" id="passwordUserId">
+          
+          <div class="mb-3">
+            <label class="form-label">User</label>
+            <input type="text" class="form-control" id="passwordUsername" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">New Password <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="password" class="form-control" name="new_password" id="newPassword" required 
+                     minlength="8" pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                     title="Must contain at least one number, one uppercase and lowercase letter, and at least 8 or more characters">
+              <button type="button" class="btn btn-outline-secondary" onclick="generatePassword('newPassword')">
+                <i class="bi bi-key"></i> Generate
+              </button>
+            </div>
+            <div id="generatedPasswordChange" class="alert alert-success mt-2" style="display: none;">
+              <small><strong>Generated:</strong> <code id="generatedPasswordChangeText"></code></small>
+            </div>
+          </div>
+
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" name="must_change_password" 
+                   id="passwordMustChange" checked>
+            <label class="form-check-label" for="passwordMustChange">
+              Require password change on next login
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-check-circle"></i> Change Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Delete User</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="deleteUserForm" onsubmit="deleteUser(event)">
+        <div class="modal-body">
+          <input type="hidden" name="user_id" id="deleteUserId">
+          
+          <div class="alert alert-warning">
+            <h6><i class="bi bi-exclamation-triangle"></i> Warning</h6>
+            <p class="mb-0">Are you sure you want to delete this user?</p>
+          </div>
+
+          <div class="alert alert-danger">
+            <strong id="deleteUsername"></strong>
+            <p class="mb-0 mt-2"><small>This action cannot be undone. All user data will be permanently deleted.</small></p>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Type <strong>DELETE</strong> to confirm <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="deleteConfirm" required 
+                   pattern="DELETE" placeholder="Type DELETE in capital letters">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash"></i> Delete User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+  .role-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  .role-super_admin { background: #fef3c7; color: #92400e; }
+  .role-admin { background: #dbeafe; color: #1e40af; }
+  .role-operator { background: #d1fae5; color: #065f46; }
+  .role-auditor { background: #e0e7ff; color: #3730a3; }
+  .role-viewer { background: #f3f4f6; color: #374151; }
+
+  .sector-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  .sector-hospital { background: #fce7f3; color: #9f1239; }
+  .sector-school { background: #ddd6fe; color: #5b21b6; }
+  .sector-government { background: #ccfbf1; color: #134e4a; }
+  .sector-corporate { background: #fed7aa; color: #7c2d12; }
+  .sector-general { background: #f3f4f6; color: #374151; }
+</style>
+
+<script>
+// Global state
+let allUsers = [];
+let currentUser = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  checkPermissions();
+  loadUsers();
+});
+
+// Check if user has permission to access this page
+async function checkPermissions() {
+  try {
+    const response = await fetch('/admin/api/auth/current-user');
+    const data = await response.json();
+    
+    if (data.role !== 'super_admin') {
+      showAlert('You do not have permission to access this page', 'danger');
+      setTimeout(() => {
+        window.location.href = '/admin';
+      }, 2000);
+      return;
+    }
+    
+    currentUser = data;
+  } catch (error) {
+    console.error('Permission check failed:', error);
+    showAlert('Failed to verify permissions', 'danger');
+  }
+}
+
+// Load all users
+async function loadUsers() {
+  try {
+    const response = await fetch('/admin/api/users');
+    if (!response.ok) throw new Error('Failed to load users');
+    
+    const data = await response.json();
+    allUsers = data.users || [];
+    updateStatistics(allUsers);
+    displayUsers(allUsers);
+  } catch (error) {
+    console.error('Error loading users:', error);
+    showAlert('Failed to load users: ' + error.message, 'danger');
+    document.getElementById('usersTableBody').innerHTML = 
+      '<tr><td colspan="9" class="text-center text-danger py-4">Failed to load users</td></tr>';
+  }
+}
+
+// Update statistics cards
+function updateStatistics(users) {
+  document.getElementById('totalUsers').textContent = users.length;
+  document.getElementById('activeUsers').textContent = users.filter(u => u.is_active).length;
+  document.getElementById('inactiveUsers').textContent = users.filter(u => !u.is_active).length;
+  document.getElementById('adminUsers').textContent = users.filter(u => 
+    u.role === 'super_admin' || u.role === 'admin'
+  ).length;
+}
+
+// Display users in table
+function displayUsers(users) {
+  const tbody = document.getElementById('usersTableBody');
+  
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No users found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = users.map(user => `
+    <tr>
+      <td><strong>${escapeHtml(user.username)}</strong></td>
+      <td>${escapeHtml(user.full_name || '-')}</td>
+      <td>${escapeHtml(user.email)}</td>
+      <td><span class="role-badge role-${user.role}">${formatRole(user.role)}</span></td>
+      <td><span class="sector-badge sector-${user.sector}">${formatSector(user.sector)}</span></td>
+      <td>${escapeHtml(user.department || '-')}</td>
+      <td>
+        ${user.is_active 
+          ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>' 
+          : '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Inactive</span>'}
+      </td>
+      <td><small>${formatDate(user.last_login)}</small></td>
+      <td>
+        <div class="btn-group btn-group-sm" role="group">
+          <button class="btn btn-primary" onclick="openEditUserModal(${user.id})" 
+                  title="Edit User">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn btn-warning" onclick="openChangePasswordModal(${user.id})" 
+                  title="Change Password">
+            <i class="bi bi-key"></i>
+          </button>
+          <button class="btn btn-danger" onclick="openDeleteUserModal(${user.id})" 
+                  ${user.username === currentUser?.username ? 'disabled' : ''}
+                  title="${user.username === currentUser?.username ? 'Cannot delete your own account' : 'Delete User'}">
+            <i class="bi bi-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Filter users
+function filterUsers() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const roleFilter = document.getElementById('roleFilter').value;
+  const sectorFilter = document.getElementById('sectorFilter').value;
+  const statusFilter = document.getElementById('statusFilter').value;
+  
+  const filtered = allUsers.filter(user => {
+    const matchesSearch = 
+      user.username.toLowerCase().includes(searchTerm) ||
+      user.email.toLowerCase().includes(searchTerm) ||
+      (user.full_name && user.full_name.toLowerCase().includes(searchTerm));
+    
+    const matchesRole = !roleFilter || user.role === roleFilter;
+    const matchesSector = !sectorFilter || user.sector === sectorFilter;
+    const matchesStatus = !statusFilter || 
+      (statusFilter === 'active' && user.is_active) ||
+      (statusFilter === 'inactive' && !user.is_active);
+    
+    return matchesSearch && matchesRole && matchesSector && matchesStatus;
+  });
+  
+  displayUsers(filtered);
+}
+
+// Create new user
+async function createUser(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const userData = {
+    username: formData.get('username'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+    role: formData.get('role'),
+    sector: formData.get('sector'),
+    full_name: formData.get('full_name') || null,
+    department: formData.get('department') || null,
+    phone: formData.get('phone') || null,
+    must_change_password: formData.get('must_change_password') === 'on'
+  };
+  
+  try {
+    const response = await fetch('/admin/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create user');
+    }
+    
+    showAlert('User created successfully', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+    event.target.reset();
+    loadUsers();
+  } catch (error) {
+    console.error('Error creating user:', error);
+    showAlert('Failed to create user: ' + error.message, 'danger');
+  }
+}
+
+// Open edit user modal
+function openEditUserModal(userId) {
+  const user = allUsers.find(u => u.id === userId);
+  if (!user) return;
+  
+  document.getElementById('editUserId').value = user.id;
+  document.getElementById('editUsername').value = user.username;
+  document.getElementById('editEmail').value = user.email;
+  document.getElementById('editFullName').value = user.full_name || '';
+  document.getElementById('editDepartment').value = user.department || '';
+  document.getElementById('editRole').value = user.role;
+  document.getElementById('editSector').value = user.sector;
+  document.getElementById('editPhone').value = user.phone || '';
+  document.getElementById('editIsActive').checked = user.is_active;
+  
+  new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+
+// Update user
+async function updateUser(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const userId = formData.get('user_id');
+  const userData = {
+    email: formData.get('email'),
+    role: formData.get('role'),
+    sector: formData.get('sector'),
+    full_name: formData.get('full_name') || null,
+    department: formData.get('department') || null,
+    phone: formData.get('phone') || null,
+    is_active: formData.get('is_active') === 'on'
+  };
+  
+  try {
+    const response = await fetch(`/admin/api/users/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update user');
+    }
+    
+    showAlert('User updated successfully', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+    loadUsers();
+  } catch (error) {
+    console.error('Error updating user:', error);
+    showAlert('Failed to update user: ' + error.message, 'danger');
+  }
+}
+
+// Open change password modal
+function openChangePasswordModal(userId) {
+  const user = allUsers.find(u => u.id === userId);
+  if (!user) return;
+  
+  document.getElementById('passwordUserId').value = user.id;
+  document.getElementById('passwordUsername').value = user.username;
+  document.getElementById('newPassword').value = '';
+  document.getElementById('passwordMustChange').checked = true;
+  
+  new bootstrap.Modal(document.getElementById('changePasswordModal')).show();
+}
+
+// Change password
+async function changePassword(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const userId = formData.get('user_id');
+  const passwordData = {
+    new_password: formData.get('new_password'),
+    must_change_password: formData.get('must_change_password') === 'on'
+  };
+  
+  try {
+    const response = await fetch(`/admin/api/users/${userId}/password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(passwordData)
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to change password');
+    }
+    
+    showAlert('Password changed successfully', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+    event.target.reset();
+  } catch (error) {
+    console.error('Error changing password:', error);
+    showAlert('Failed to change password: ' + error.message, 'danger');
+  }
+}
+
+// Open delete user modal
+function openDeleteUserModal(userId) {
+  const user = allUsers.find(u => u.id === userId);
+  if (!user) return;
+  
+  if (user.username === currentUser?.username) {
+    showAlert('You cannot delete your own account', 'warning');
+    return;
+  }
+  
+  document.getElementById('deleteUserId').value = user.id;
+  document.getElementById('deleteUsername').textContent = 
+    `${user.username} (${user.email}) - ${formatRole(user.role)}`;
+  document.getElementById('deleteConfirm').value = '';
+  
+  new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
+}
+
+// Delete user
+async function deleteUser(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const userId = formData.get('user_id');
+  const confirm = document.getElementById('deleteConfirm').value;
+  
+  if (confirm !== 'DELETE') {
+    showAlert('Please type DELETE to confirm', 'warning');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/admin/api/users/${userId}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to delete user');
+    }
+    
+    showAlert('User deleted successfully', 'success');
+    bootstrap.Modal.getInstance(document.getElementById('deleteUserModal')).hide();
+    loadUsers();
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    showAlert('Failed to delete user: ' + error.message, 'danger');
+  }
+}
+
+// Generate strong password
+function generatePassword(inputId) {
+  const length = 16;
+  const charset = {
+    lowercase: 'abcdefghijklmnopqrstuvwxyz',
+    uppercase: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    numbers: '0123456789',
+    symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+  };
+  
+  let password = '';
+  password += charset.lowercase[Math.floor(Math.random() * charset.lowercase.length)];
+  password += charset.uppercase[Math.floor(Math.random() * charset.uppercase.length)];
+  password += charset.numbers[Math.floor(Math.random() * charset.numbers.length)];
+  password += charset.symbols[Math.floor(Math.random() * charset.symbols.length)];
+  
+  const allChars = Object.values(charset).join('');
+  for (let i = password.length; i < length; i++) {
+    password += allChars[Math.floor(Math.random() * allChars.length)];
+  }
+  
+  password = password.split('').sort(() => Math.random() - 0.5).join('');
+  
+  document.getElementById(inputId).value = password;
+  
+  const displayId = inputId === 'createPassword' ? 'generatedPasswordCreate' : 'generatedPasswordChange';
+  const textId = inputId === 'createPassword' ? 'generatedPasswordCreateText' : 'generatedPasswordChangeText';
+  
+  document.getElementById(displayId).style.display = 'block';
+  document.getElementById(textId).textContent = password;
+  
+  navigator.clipboard.writeText(password).then(() => {
+    showAlert('Password copied to clipboard', 'info');
+  });
+}
+
+// Show alert message
+function showAlert(message, type = 'success') {
+  const container = document.getElementById('alertContainer');
+  const alert = document.createElement('div');
+  alert.className = `alert alert-${type} alert-dismissible fade show`;
+  alert.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  container.appendChild(alert);
+  
+  setTimeout(() => {
+    alert.remove();
+  }, 5000);
+}
+
+// Utility functions
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatRole(role) {
+  return role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatSector(sector) {
+  return sector.charAt(0).toUpperCase() + sector.slice(1);
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'Never';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+</script>
+{% endblock %}  

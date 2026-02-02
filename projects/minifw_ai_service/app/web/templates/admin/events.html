@@ -1,0 +1,659 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Security Events{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-md-8">
+        <h3 class="mb-1">
+          <i class="bi bi-activity"></i> Security Events & Logs
+        </h3>
+        <p class="text-muted">Real-time monitoring of firewall events</p>
+      </div>
+      <div class="col-md-4 text-end">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-sm btn-success" id="downloadBtn">
+            <i class="bi bi-download"></i> Download
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="autoRefreshToggle">
+            <i class="bi bi-arrow-clockwise"></i> Auto-Refresh: <span id="autoRefreshStatus">ON</span>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshTable()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh Now
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="card text-white bg-success">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white mb-0">Allowed</h6>
+                <h3 class="mb-0" id="stat-allowed">-</h3>
+              </div>
+              <i class="bi bi-check-circle" style="font-size: 2rem; opacity: 0.3;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-danger">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white mb-0">Blocked</h6>
+                <h3 class="mb-0" id="stat-blocked">-</h3>
+              </div>
+              <i class="bi bi-x-circle" style="font-size: 2rem; opacity: 0.3;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-warning">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white mb-0">Threats</h6>
+                <h3 class="mb-0" id="stat-threats">-</h3>
+              </div>
+              <i class="bi bi-exclamation-triangle" style="font-size: 2rem; opacity: 0.3;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card text-white bg-info">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white mb-0">Total Events</h6>
+                <h3 class="mb-0" id="stat-total">-</h3>
+              </div>
+              <i class="bi bi-activity" style="font-size: 2rem; opacity: 0.3;"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events Table -->
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-list-ul"></i> Recent Events
+            </h5>
+            <div class="card-tools">
+              <span class="badge bg-success" id="liveIndicator">
+                <i class="bi bi-circle-fill" style="font-size: 8px;"></i> LIVE
+              </span>
+            </div>
+          </div>
+          <div class="card-body">
+            <table class="table table-bordered table-striped table-hover" id="eventsTable">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Event Type</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th style="width: 100px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Data loaded via AJAX -->
+              </tbody>
+            </table>
+          </div>
+          <div class="card-footer">
+            <small class="text-muted">
+              <i class="bi bi-clock"></i> Last updated: <span id="lastUpdate">-</span>
+              <span class="ms-3">
+                <i class="bi bi-arrow-clockwise"></i> Auto-refresh every <span id="refreshInterval">15</span> seconds
+              </span>
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Live indicator animation */
+@keyframes blink {
+  0%, 50%, 100% { opacity: 1; }
+  25%, 75% { opacity: 0.3; }
+}
+
+#liveIndicator {
+  animation: blink 2s infinite;
+}
+
+/* DataTable Processing Indicator */
+.dataTables_processing {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  margin-left: -100px;
+  margin-top: -26px;
+  text-align: center;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 1000;
+}
+
+/* Custom DataTables styles */
+.dataTables_wrapper .dataTables_length select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+  margin-left: 8px;
+}
+
+.dataTables_wrapper .dataTables_info {
+  padding-top: 8px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  padding: 4px 12px;
+  margin: 0 2px;
+  border-radius: 4px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: #0d6efd;
+  color: white !important;
+  border: 1px solid #0d6efd;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: #e9ecef;
+  border: 1px solid #dee2e6;
+  color: #000 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+  color: #6c757d !important;
+}
+
+/* SweetAlert2 custom styles */
+.swal-wide {
+  max-width: 650px !important;
+}
+
+.swal2-html-container .card {
+  border: 1px solid #dee2e6;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom: 15px;
+}
+
+.swal2-html-container .card-header {
+  font-size: 14px;
+  padding: 10px 15px;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+}
+
+.swal2-html-container .card-body {
+  padding: 15px;
+}
+
+.swal2-html-container code {
+  font-size: 13px;
+  padding: 3px 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.swal2-html-container .badge {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.swal2-html-container .table {
+  margin-bottom: 0;
+}
+
+.swal2-html-container .table td {
+  padding: 8px;
+  border: none;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let table;
+let autoRefresh = true;
+let refreshTimer = null;
+const REFRESH_INTERVAL = 15000; // 15 seconds
+
+$(document).ready(function() {
+  console.log('Initializing Events DataTable...');
+  
+  // Initialize DataTable with server-side processing
+  table = $('#eventsTable').DataTable({
+    processing: true,
+    serverSide: true,
+    ajax: {
+      url: '/admin/api/events',
+      type: 'GET',
+      data: function(d) {
+        return {
+          draw: d.draw,
+          start: d.start,
+          length: d.length,
+          search_value: d.search.value,
+          order_column: d.order[0].column,
+          order_dir: d.order[0].dir
+        };
+      },
+      dataSrc: function(json) {
+        console.log('DataTable loaded:', json.data.length, 'events');
+        updateStatsFromServer();
+        updateLastUpdateTime();
+        return json.data;
+      },
+      error: function(xhr, error, code) {
+        console.error('DataTable error:', error, code);
+      }
+    },
+    columns: [
+      { 
+        data: 'time',
+        render: function(data) {
+          return '<small>' + data + '</small>';
+        }
+      },
+      { 
+        data: null,
+        render: function(data) {
+          return '<span class="badge bg-' + data.type_color + '">' + data.type + '</span>';
+        }
+      },
+      { 
+        data: 'source',
+        render: function(data) {
+          return '<small>' + data + '</small>';
+        }
+      },
+      { 
+        data: 'status',
+        render: function(data) {
+          if (data === 'blocked') {
+            return '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Blocked</span>';
+          } else {
+            return '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Allowed</span>';
+          }
+        }
+      },
+      { 
+        data: null,
+        orderable: false,
+        searchable: false,
+        render: function(data, type, row) {
+          return '<button class="btn btn-sm btn-outline-primary view-details"><i class="bi bi-eye"></i></button>';
+        }
+      }
+    ],
+    order: [[0, 'desc']],
+    pageLength: 25,
+    lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+    language: {
+      processing: '<i class="bi bi-arrow-repeat"></i> Loading events...',
+      search: "Search:",
+      lengthMenu: "Show _MENU_ per page",
+      info: "Showing _START_ to _END_ of _TOTAL_ events",
+      infoEmpty: "No events available",
+      infoFiltered: "(filtered from _MAX_ total)",
+      zeroRecords: "No matching events found",
+      emptyTable: "No events available",
+      paginate: {
+        first: '<i class="bi bi-chevron-bar-left"></i>',
+        last: '<i class="bi bi-chevron-bar-right"></i>',
+        next: '<i class="bi bi-chevron-right"></i>',
+        previous: '<i class="bi bi-chevron-left"></i>'
+      }
+    }
+  });
+
+  // Event delegation for view details button
+  $('#eventsTable tbody').on('click', '.view-details', function() {
+    const row = table.row($(this).parents('tr'));
+    const eventData = row.data();
+    console.log('View details clicked:', eventData);
+    viewEventDetails(eventData);
+  });
+
+  // Auto-refresh toggle
+  $('#autoRefreshToggle').on('click', function() {
+    autoRefresh = !autoRefresh;
+    $('#autoRefreshStatus').text(autoRefresh ? 'ON' : 'OFF');
+    
+    if (autoRefresh) {
+      $(this).removeClass('btn-outline-secondary').addClass('btn-outline-primary');
+      startAutoRefresh();
+    } else {
+      $(this).removeClass('btn-outline-primary').addClass('btn-outline-secondary');
+      stopAutoRefresh();
+    }
+  });
+
+  // Download button handler
+  $('#downloadBtn').on('click', function() {
+    Swal.fire({
+      title: '<strong><i class="bi bi-download"></i> Download Events Report</strong>',
+      html: `
+        <div class="text-start">
+          <p class="mb-3">Select which events to download:</p>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="downloadFilter" id="filterAll" value="all" checked>
+            <label class="form-check-label" for="filterAll">
+              <strong>All Events</strong> - Download all security events
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="downloadFilter" id="filterAllow" value="allow">
+            <label class="form-check-label" for="filterAllow">
+              <strong>Allowed Events</strong> - Only allowed traffic
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="downloadFilter" id="filterDeny" value="deny">
+            <label class="form-check-label" for="filterDeny">
+              <strong>Denied Events</strong> - Only denied traffic
+            </label>
+          </div>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="downloadFilter" id="filterBlock" value="block">
+            <label class="form-check-label" for="filterBlock">
+              <strong>Blocked Events</strong> - Only blocked traffic
+            </label>
+          </div>
+          <hr>
+          <small class="text-muted">
+            <i class="bi bi-info-circle"></i> The report will be downloaded as an Excel (.xlsx) file with statistics and detailed event information.
+          </small>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '<i class="bi bi-download"></i> Download',
+      cancelButtonText: '<i class="bi bi-x-circle"></i> Cancel',
+      confirmButtonColor: '#198754',
+      cancelButtonColor: '#6c757d',
+      width: '500px',
+      preConfirm: () => {
+        const selectedFilter = document.querySelector('input[name="downloadFilter"]:checked').value;
+        return selectedFilter;
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const filter = result.value;
+        downloadEvents(filter);
+      }
+    });
+  });
+
+  // Start auto-refresh
+  if (autoRefresh) {
+    startAutoRefresh();
+  }
+});
+
+// Start auto-refresh
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshTable, REFRESH_INTERVAL);
+  console.log('Auto-refresh started');
+}
+
+// Stop auto-refresh
+function stopAutoRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+    console.log('Auto-refresh stopped');
+  }
+}
+
+// Refresh table
+function refreshTable() {
+  console.log('Refreshing table...');
+  table.ajax.reload(null, false);
+}
+
+// Update stats from server
+function updateStatsFromServer() {
+  $.ajax({
+    url: '/admin/api/events?start=0&length=10000',
+    type: 'GET',
+    success: function(response) {
+      const events = response.data;
+      
+      let allowed = 0;
+      let blocked = 0;
+      let threats = 0;
+      
+      events.forEach(function(event) {
+        if (event.status === 'allowed') {
+          allowed++;
+        } else if (event.status === 'blocked') {
+          blocked++;
+          threats++;
+        }
+      });
+      
+      $('#stat-allowed').text(allowed);
+      $('#stat-blocked').text(blocked);
+      $('#stat-threats').text(threats);
+      $('#stat-total').text(events.length);
+    }
+  });
+}
+
+// Update last update time
+function updateLastUpdateTime() {
+  const now = new Date();
+  const timeString = now.toLocaleTimeString();
+  $('#lastUpdate').text(timeString);
+}
+
+// View event details in modal
+function viewEventDetails(event) {
+  console.log('Opening detail modal for:', event);
+  
+  if (!event) {
+    console.error('No event data provided');
+    return;
+  }
+  
+  // Determine icon and title color based on status
+  let iconType = 'info';
+  let titleColor = 'primary';
+  
+  if (event.status === 'blocked') {
+    iconType = 'error';
+    titleColor = 'danger';
+  } else if (event.status === 'allowed') {
+    iconType = 'success';
+    titleColor = 'success';
+  }
+  
+  if (event.threat_detected) {
+    iconType = 'warning';
+    titleColor = 'warning';
+  }
+  
+  Swal.fire({
+    title: '<strong class="text-' + titleColor + '"><i class="bi bi-info-circle"></i> Event Details</strong>',
+    icon: iconType,
+    width: '650px',
+    html: `
+      <div class="text-start">
+        <div class="card">
+          <div class="card-header">
+            <strong><i class="bi bi-clock"></i> Timestamp</strong>
+          </div>
+          <div class="card-body">
+            <p class="mb-0"><strong>${event.time || 'N/A'}</strong></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <strong><i class="bi bi-tag"></i> Event Information</strong>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr>
+                <td style="width: 40%;"><strong>Event Type:</strong></td>
+                <td><span class="badge bg-${event.type_color || 'secondary'}">${event.type || 'Unknown'}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Status:</strong></td>
+                <td>${event.status === 'blocked' 
+                  ? '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Blocked</span>' 
+                  : '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Allowed</span>'}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Threat Detected:</strong></td>
+                <td>${event.threat_detected 
+                  ? '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> Yes</span>' 
+                  : '<span class="badge bg-success"><i class="bi bi-shield-check"></i> No</span>'}
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Risk Score:</strong></td>
+                <td>
+                  <span class="badge ${event.score > 50 ? 'bg-danger' : event.score > 0 ? 'bg-warning' : 'bg-success'}">
+                    ${event.score || 0}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <strong><i class="bi bi-globe"></i> Source Information</strong>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr>
+                <td style="width: 40%;"><strong>Client IP:</strong></td>
+                <td><code>${event.client_ip || 'N/A'}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Domain:</strong></td>
+                <td><code>${event.domain || 'N/A'}</code></td>
+              </tr>
+              <tr>
+                <td><strong>Segment:</strong></td>
+                <td><span class="badge bg-secondary">${event.segment || 'default'}</span></td>
+              </tr>
+              <tr>
+                <td><strong>Full Source:</strong></td>
+                <td><small class="text-muted">${event.source || 'N/A'}</small></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <strong><i class="bi bi-exclamation-circle"></i> Reason</strong>
+          </div>
+          <div class="card-body">
+            <p class="mb-0 ${event.reason === 'Normal traffic' ? 'text-success' : 'text-danger'}">
+              <i class="bi ${event.reason === 'Normal traffic' ? 'bi-check-circle' : 'bi-shield-x'}"></i>
+              ${event.reason || 'No reason provided'}
+            </p>
+          </div>
+        </div>
+
+        ${event.threat_detected ? `
+        <div class="alert alert-warning mb-0" role="alert">
+          <strong><i class="bi bi-exclamation-triangle"></i> Security Notice:</strong>
+          This event has been flagged as a potential security threat and requires attention.
+        </div>
+        ` : ''}
+      </div>
+    `,
+    showCloseButton: true,
+    showCancelButton: false,
+    confirmButtonText: '<i class="bi bi-x-circle"></i> Close',
+    confirmButtonColor: '#6c757d',
+    customClass: {
+      confirmButton: 'btn btn-secondary',
+      popup: 'swal-wide'
+    }
+  });
+}
+
+// Download events as Excel
+function downloadEvents(filter) {
+  console.log('Downloading events with filter:', filter);
+  
+  // Show loading toast
+  Swal.fire({
+    title: 'Generating Report...',
+    html: 'Please wait while we prepare your download.',
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  // Trigger download
+  const downloadUrl = `/admin/api/events/download?action_filter=${filter}`;
+  
+  // Create temporary link and trigger download
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = '';  // Filename will be set by server
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  // Close loading and show success
+  setTimeout(() => {
+    Swal.fire({
+      title: 'Download Started!',
+      text: 'Your Excel report is being downloaded.',
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }, 500);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+  stopAutoRefresh();
+});
+</script>
+{% endblock %}

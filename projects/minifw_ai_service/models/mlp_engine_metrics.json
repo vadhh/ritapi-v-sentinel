@@ -1,0 +1,62 @@
+{
+  "train": {
+    "accuracy": 0.999,
+    "precision": 0.9967105263157895,
+    "recall": 1.0,
+    "f1": 0.9983525535420099,
+    "auc": 0.9999994081187171
+  },
+  "test": {
+    "accuracy": 0.999,
+    "precision": 1.0,
+    "recall": 0.9966996699669967,
+    "f1": 0.9983471074380166,
+    "auc": 1.0
+  },
+  "metadata": {
+    "trained_at": "2026-01-26T15:30:23.849421",
+    "n_samples": 5000,
+    "n_features": 24,
+    "feature_names": [
+      "duration_sec",
+      "pkt_count_total",
+      "bytes_total",
+      "bytes_per_sec",
+      "pkts_per_sec",
+      "avg_pkt_size",
+      "pkt_size_std",
+      "inbound_outbound_ratio",
+      "max_burst_pkts_1s",
+      "max_burst_bytes_1s",
+      "interarrival_mean_ms",
+      "interarrival_std_ms",
+      "interarrival_p95_ms",
+      "small_pkt_ratio",
+      "tls_seen",
+      "tls_handshake_time_ms",
+      "ja3_hash_bucket",
+      "sni_len",
+      "alpn_h2",
+      "cert_self_signed_suspect",
+      "dns_seen",
+      "fqdn_len",
+      "subdomain_depth",
+      "domain_repeat_5min"
+    ],
+    "accuracy": 0.999,
+    "precision": 1.0,
+    "recall": 0.9966996699669967,
+    "f1_score": 0.9983471074380166,
+    "auc_roc": 1.0,
+    "class_distribution": {
+      "normal": 3485,
+      "threat": 1515
+    },
+    "model_type": "MLPClassifier",
+    "hidden_layers": [
+      32,
+      16
+    ],
+    "iterations": 22
+  }
+}

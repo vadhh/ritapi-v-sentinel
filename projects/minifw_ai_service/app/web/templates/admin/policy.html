@@ -1,0 +1,557 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Policy Configuration - MiniFW AI{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    
+    <!-- Segments Configuration -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Network Segments</h3>
+        <div class="card-tools">
+          <button class="btn btn-sm btn-primary" id="addSegmentBtn">
+            <i class="bi bi-plus-circle"></i> Add Segment
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table id="segmentsTable" class="table table-striped table-bordered align-middle w-100">
+          <thead>
+            <tr>
+              <th style="width: 60px" class="text-center">No</th>
+              <th>Segment Name</th>
+              <th>Block Threshold</th>
+              <th>Monitor Threshold</th>
+              <th>Subnets</th>
+              <th style="width: 180px">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for segment_name, segment_data in segments.items() %}
+            <tr>
+              <td class="text-center">{{ loop.index }}</td>
+              <td><strong>{{ segment_name }}</strong></td>
+              <td>{{ segment_data.block_threshold }}</td>
+              <td>{{ segment_data.monitor_threshold }}</td>
+              <td>
+                {% if segment_subnets.get(segment_name) %}
+                  {% for subnet in segment_subnets.get(segment_name) %}
+                    <span class="badge text-bg-info">{{ subnet }}</span>
+                  {% endfor %}
+                {% else %}
+                  <span class="text-muted">No subnets</span>
+                {% endif %}
+              </td>
+              <td>
+                <button class="btn btn-sm btn-warning btn-edit-segment" 
+                        data-name="{{ segment_name }}" 
+                        data-block="{{ segment_data.block_threshold }}" 
+                        data-monitor="{{ segment_data.monitor_threshold }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-info btn-edit-subnets" 
+                        data-name="{{ segment_name }}" 
+                        data-subnets="{{ segment_subnets.get(segment_name, []) | tojson | escape }}">
+                  <i class="bi bi-hdd-network"></i>
+                </button>
+                {% if segment_name != 'default' %}
+                <button class="btn btn-sm btn-danger btn-delete-segment" 
+                        data-name="{{ segment_name }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Feature Weights -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h3 class="card-title">Feature Weights (Must sum to 100)</h3>
+      </div>
+      <div class="card-body">
+        <form id="featuresForm">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">DNS Weight</label>
+                <input type="number" class="form-control weight-input" id="dns_weight" name="dns_weight" value="{{ features.dns_weight }}" min="0" max="100">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">SNI Weight</label>
+                <input type="number" class="form-control weight-input" id="sni_weight" name="sni_weight" value="{{ features.sni_weight }}" min="0" max="100">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">ASN Weight</label>
+                <input type="number" class="form-control weight-input" id="asn_weight" name="asn_weight" value="{{ features.asn_weight }}" min="0" max="100">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="mb-3">
+                <label class="form-label">Burst Weight</label>
+                <input type="number" class="form-control weight-input" id="burst_weight" name="burst_weight" value="{{ features.burst_weight }}" min="0" max="100">
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-info" id="totalWeightAlert">
+            <strong>Total:</strong> <span id="totalWeight">{{ features.dns_weight + features.sni_weight + features.asn_weight + features.burst_weight }}</span> / 100
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Update Weights
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Burst Detection -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h3 class="card-title">Burst Detection</h3>
+      </div>
+      <div class="card-body">
+        <form id="burstForm">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">DNS Queries/Min (Monitor)</label>
+                <input type="number" class="form-control" id="monitor_qpm" name="monitor_qpm" value="{{ burst.dns_queries_per_minute_monitor }}" min="0">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">DNS Queries/Min (Block)</label>
+                <input type="number" class="form-control" id="block_qpm" name="block_qpm" value="{{ burst.dns_queries_per_minute_block }}" min="0">
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-save"></i> Update Burst Settings
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Enforcement -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h3 class="card-title">Enforcement Configuration</h3>
+      </div>
+      <div class="card-body">
+        <form id="enforcementForm">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">IPSet Name (IPv4)</label>
+                <input type="text" class="form-control" id="ipset_name" name="ipset_name" value="{{ enforcement.ipset_name_v4 }}">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">IP Timeout (seconds)</label>
+                <input type="number" class="form-control" id="ip_timeout" name="ip_timeout" value="{{ enforcement.ip_timeout_seconds }}" min="0">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">NFT Table</label>
+                <input type="text" class="form-control" id="nft_table" name="nft_table" value="{{ enforcement.nft_table }}">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">NFT Chain</label>
+                <input type="text" class="form-control" id="nft_chain" name="nft_chain" value="{{ enforcement.nft_chain }}">
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-save"></i> Update Enforcement
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Collectors -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h3 class="card-title">Data Collectors</h3>
+      </div>
+      <div class="card-body">
+        <form id="collectorsForm">
+          <div class="mb-3">
+            <label class="form-label">DNSmasq Log Path</label>
+            <input type="text" class="form-control" id="dnsmasq_log" name="dnsmasq_log" value="{{ collectors.dnsmasq_log_path }}">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Zeek SSL Log Path</label>
+            <input type="text" class="form-control" id="zeek_log" name="zeek_log" value="{{ collectors.zeek_ssl_log_path }}">
+          </div>
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input type="checkbox" class="form-check-input" id="use_zeek" name="use_zeek" {% if collectors.use_zeek_sni %}checked{% endif %}>
+              <label class="form-check-label" for="use_zeek">Enable Zeek SNI Collection</label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-save"></i> Update Collectors
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add/Edit Segment Modal -->
+<div class="modal fade" id="segmentModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Segment Configuration</h5>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="oldSegmentName" />
+        <div class="mb-3">
+          <label class="form-label">Segment Name</label>
+          <input type="text" class="form-control" id="segment_name" placeholder="student" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Block Threshold (0-100)</label>
+          <input type="number" class="form-control" id="block_threshold" min="0" max="100" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Monitor Threshold (0-100)</label>
+          <input type="number" class="form-control" id="monitor_threshold" min="0" max="100" required>
+          <small class="form-text text-muted">Must be less than block threshold</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="saveSegment">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Subnets Modal -->
+<div class="modal fade" id="subnetsModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Subnets for <span id="subnet_segment_name"></span></h5>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="subnet_segment" />
+        <div class="mb-3">
+          <label class="form-label">Subnets (one per line, CIDR format)</label>
+          <textarea class="form-control" id="subnets" rows="5" placeholder="10.10.0.0/16&#10;192.168.1.0/24"></textarea>
+          <small class="form-text text-muted">Example: 10.10.0.0/16 or 192.168.1.0/24</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="saveSubnets">Save Subnets</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Check jQuery
+  if (typeof jQuery === 'undefined') {
+    console.error('jQuery NOT loaded!');
+    return;
+  }
+  
+  // Initialize DataTable
+  var segmentsTable = jQuery("#segmentsTable").DataTable({
+    responsive: true,
+    pageLength: 10,
+    lengthChange: false,
+    ordering: true,
+    language: {
+      search: "Search Segment:",
+      zeroRecords: "No segments found"
+    }
+  });
+  
+  // Initialize modals
+  var segmentModalEl = document.getElementById('segmentModal');
+  var segmentModal = new bootstrap.Modal(segmentModalEl);
+  
+  var subnetsModalEl = document.getElementById('subnetsModal');
+  var subnetsModal = new bootstrap.Modal(subnetsModalEl);
+  
+  // Calculate total weight
+  function updateTotalWeight() {
+    var dns = parseInt(jQuery('#dns_weight').val()) || 0;
+    var sni = parseInt(jQuery('#sni_weight').val()) || 0;
+    var asn = parseInt(jQuery('#asn_weight').val()) || 0;
+    var burst = parseInt(jQuery('#burst_weight').val()) || 0;
+    var total = dns + sni + asn + burst;
+    
+    jQuery('#totalWeight').text(total);
+    
+    var alertDiv = jQuery('#totalWeightAlert');
+    alertDiv.removeClass('alert-info alert-success alert-danger');
+    
+    if (total === 100) {
+      alertDiv.addClass('alert-success');
+    } else {
+      alertDiv.addClass('alert-danger');
+    }
+  }
+  
+  jQuery('.weight-input').on('input', updateTotalWeight);
+  
+  // Add Segment button
+  jQuery('#addSegmentBtn').on('click', function() {
+    jQuery('#oldSegmentName').val('');
+    jQuery('#segment_name').val('').prop('readonly', false);
+    jQuery('#block_threshold').val('');
+    jQuery('#monitor_threshold').val('');
+    segmentModal.show();
+  });
+  
+  // Save Segment button
+  jQuery('#saveSegment').on('click', function() {
+    var segmentName = jQuery('#segment_name').val().trim();
+    var blockThreshold = parseInt(jQuery('#block_threshold').val());
+    var monitorThreshold = parseInt(jQuery('#monitor_threshold').val());
+    
+    if (!segmentName) {
+      Swal.fire('Error', 'Segment name is required', 'error');
+      return;
+    }
+    
+    if (monitorThreshold >= blockThreshold) {
+      Swal.fire('Error', 'Monitor threshold must be less than block threshold', 'error');
+      return;
+    }
+    
+    jQuery.ajax({
+      url: '/admin/policy/segment',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        segment_name: segmentName,
+        block_threshold: blockThreshold,
+        monitor_threshold: monitorThreshold
+      }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success').then(function() {
+          location.reload();
+        });
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON?.detail || 'Failed to save segment', 'error');
+      }
+    });
+  });
+  
+  // Edit segment button
+  jQuery('#segmentsTable tbody').on('click', '.btn-edit-segment', function() {
+    var name = jQuery(this).data('name');
+    var block = jQuery(this).data('block');
+    var monitor = jQuery(this).data('monitor');
+    
+    jQuery('#oldSegmentName').val(name);
+    jQuery('#segment_name').val(name).prop('readonly', name === 'default');
+    jQuery('#block_threshold').val(block);
+    jQuery('#monitor_threshold').val(monitor);
+    segmentModal.show();
+  });
+  
+  // Edit subnets button
+  jQuery('#segmentsTable tbody').on('click', '.btn-edit-subnets', function() {
+    var name = jQuery(this).data('name');
+    var subnets = jQuery(this).data('subnets');
+    
+    jQuery('#subnet_segment_name').text(name);
+    jQuery('#subnet_segment').val(name);
+    
+    if (Array.isArray(subnets) && subnets.length > 0) {
+      jQuery('#subnets').val(subnets.join('\n'));
+    } else {
+      jQuery('#subnets').val('');
+    }
+    
+    subnetsModal.show();
+  });
+  
+  // Save Subnets button
+  jQuery('#saveSubnets').on('click', function() {
+    var segment = jQuery('#subnet_segment').val();
+    var subnetsText = jQuery('#subnets').val();
+    var subnets = subnetsText.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    
+    jQuery.ajax({
+      url: '/admin/policy/segment/subnets',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        segment_name: segment,
+        subnets: subnets
+      }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success').then(function() {
+          location.reload();
+        });
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON?.detail || 'Failed to update subnets', 'error');
+      }
+    });
+  });
+  
+  // Delete segment button
+  jQuery('#segmentsTable tbody').on('click', '.btn-delete-segment', function() {
+    var name = jQuery(this).data('name');
+    
+    Swal.fire({
+      title: 'Delete Segment?',
+      text: name,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete'
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        jQuery.ajax({
+          url: '/admin/policy/segment/' + name,
+          method: 'DELETE',
+          success: function(res) {
+            Swal.fire('Deleted', res.message, 'success').then(function() {
+              location.reload();
+            });
+          },
+          error: function(err) {
+            Swal.fire('Error', err.responseJSON?.detail || 'Failed to delete segment', 'error');
+          }
+        });
+      }
+    });
+  });
+  
+  // Features Form
+  jQuery('#featuresForm').submit(function(e) {
+    e.preventDefault();
+    
+    var total = parseInt(jQuery('#dns_weight').val()) + 
+                parseInt(jQuery('#sni_weight').val()) + 
+                parseInt(jQuery('#asn_weight').val()) + 
+                parseInt(jQuery('#burst_weight').val());
+    
+    if (total !== 100) {
+      Swal.fire('Error', 'Total weights must equal 100 (current: ' + total + ')', 'error');
+      return;
+    }
+    
+    jQuery.ajax({
+      url: '/admin/policy/features',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        dns_weight: parseInt(jQuery('#dns_weight').val()),
+        sni_weight: parseInt(jQuery('#sni_weight').val()),
+        asn_weight: parseInt(jQuery('#asn_weight').val()),
+        burst_weight: parseInt(jQuery('#burst_weight').val())
+      }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success');
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON?.detail || 'Failed to update weights', 'error');
+      }
+    });
+  });
+  
+  // Burst Form
+  jQuery('#burstForm').submit(function(e) {
+    e.preventDefault();
+    
+    var monitor = parseInt(jQuery('#monitor_qpm').val());
+    var block = parseInt(jQuery('#block_qpm').val());
+    
+    if (monitor >= block) {
+      Swal.fire('Error', 'Monitor threshold must be less than block threshold', 'error');
+      return;
+    }
+    
+    jQuery.ajax({
+      url: '/admin/policy/burst',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        dns_queries_per_minute_monitor: monitor,
+        dns_queries_per_minute_block: block
+      }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success');
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON?.detail || 'Failed to update burst settings', 'error');
+      }
+    });
+  });
+  
+  // Enforcement Form
+  jQuery('#enforcementForm').submit(function(e) {
+    e.preventDefault();
+    
+    jQuery.ajax({
+      url: '/admin/policy/enforcement',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        ipset_name_v4: jQuery('#ipset_name').val(),
+        ip_timeout_seconds: parseInt(jQuery('#ip_timeout').val()),
+        nft_table: jQuery('#nft_table').val(),
+        nft_chain: jQuery('#nft_chain').val()
+      }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success');
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON?.detail || 'Failed to update enforcement', 'error');
+      }
+    });
+  });
+  
+  // Collectors Form
+  jQuery('#collectorsForm').submit(function(e) {
+    e.preventDefault();
+    
+    jQuery.ajax({
+      url: '/admin/policy/collectors',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        dnsmasq_log_path: jQuery('#dnsmasq_log').val(),
+        zeek_ssl_log_path: jQuery('#zeek_log').val(),
+        use_zeek_sni: jQuery('#use_zeek').is(':checked')
+      }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success');
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON?.detail || 'Failed to update collectors', 'error');
+      }
+    });
+  });
+});
+</script>
+{% endblock %}  

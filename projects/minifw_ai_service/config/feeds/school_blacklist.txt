@@ -1,0 +1,103 @@
+# =============================================================================
+# SCHOOL SECTOR BLACKLIST
+# VPN, Proxy, and Inappropriate Content Domains
+# =============================================================================
+# This feed is automatically loaded when SECTOR=school
+# 
+# Categories:
+# - VPN Services (bypass filtering)
+# - Proxy Sites (bypass filtering)
+# - Gaming/Gambling (distraction/inappropriate)
+# - Adult Content Indicators
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# VPN Services
+# -----------------------------------------------------------------------------
+*.nordvpn.com
+nordvpn.com
+*.expressvpn.com
+expressvpn.com
+*.surfshark.com
+surfshark.com
+*.cyberghostvpn.com
+cyberghostvpn.com
+*.privateinternetaccess.com
+privateinternetaccess.com
+*.protonvpn.com
+protonvpn.com
+*.hide.me
+hide.me
+*.windscribe.com
+windscribe.com
+*.tunnelbear.com
+tunnelbear.com
+*.hotspotshield.com
+hotspotshield.com
+*.ipvanish.com
+ipvanish.com
+*.mullvad.net
+mullvad.net
+*.vyprvpn.com
+vyprvpn.com
+*.purevpn.com
+purevpn.com
+
+# -----------------------------------------------------------------------------
+# Web Proxy Sites
+# -----------------------------------------------------------------------------
+*.hidemyass.com
+hidemyass.com
+*.proxybrowser.com
+proxybrowser.com
+*.kproxy.com
+kproxy.com
+*.filterbypass.me
+filterbypass.me
+*.hidester.com
+hidester.com
+*.proxysite.com
+proxysite.com
+*.unblockvideos.com
+unblockvideos.com
+*.croxyproxy.com
+croxyproxy.com
+*.webproxy.to
+webproxy.to
+
+# -----------------------------------------------------------------------------
+# Gambling Sites (Inappropriate for Schools)
+# -----------------------------------------------------------------------------
+*slot-gacor*
+*judi-online*
+*casino-online*
+*poker-online*
+*.bet365.com
+*.888casino.com
+*.pokerstars.com
+*.draftkings.com
+*.fanduel.com
+
+# -----------------------------------------------------------------------------
+# Gaming Sites (Optional - Uncomment if needed)
+# -----------------------------------------------------------------------------
+# *.twitch.tv
+# *.discord.com
+# *.steampowered.com
+# *.epicgames.com
+# *.roblox.com
+
+# -----------------------------------------------------------------------------
+# Social Media (Optional - Uncomment if policy requires)
+# -----------------------------------------------------------------------------
+# *.tiktok.com
+# *.snapchat.com
+# *.instagram.com
+
+# -----------------------------------------------------------------------------
+# Adult Content Indicators (Pattern Matching)
+# -----------------------------------------------------------------------------
+*porn*
+*xxx*
+*adult-content*
+*nsfw*

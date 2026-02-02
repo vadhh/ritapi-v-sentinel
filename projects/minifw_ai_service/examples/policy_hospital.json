@@ -1,0 +1,306 @@
+{
+  "policy_metadata": {
+    "policy_id": "POL-HOSP001",
+    "version": "1.0.0",
+    "sector": "hospital",
+    "status": "active",
+    "created_at": "2026-01-22T07:00:00Z",
+    "created_by": "admin",
+    "description": "Healthcare sector policy with HIPAA compliance, protecting patient data systems and medical devices",
+    "compliance_tags": ["HIPAA", "ISO27001", "HITECH"]
+  },
+  
+  "sector_config": {
+    "network_segments": {
+      "medical_devices": {
+        "subnets": ["10.10.0.0/16"],
+        "block_threshold": 30,
+        "monitor_threshold": 15,
+        "description": "Critical medical equipment (MRI, monitors, infusion pumps)"
+      },
+      "ehr_systems": {
+        "subnets": ["10.20.0.0/16"],
+        "block_threshold": 40,
+        "monitor_threshold": 20,
+        "description": "Electronic Health Record systems and patient databases"
+      },
+      "staff_workstations": {
+        "subnets": ["10.30.0.0/16"],
+        "block_threshold": 60,
+        "monitor_threshold": 35,
+        "description": "Medical staff computers and workstations"
+      },
+      "guest_wifi": {
+        "subnets": ["10.99.0.0/16"],
+        "block_threshold": 50,
+        "monitor_threshold": 30,
+        "description": "Patient and visitor WiFi access"
+      }
+    },
+    "operating_hours": {
+      "business_hours": {
+        "start": "00:00",
+        "end": "23:59"
+      },
+      "timezone": "Asia/Jakarta",
+      "after_hours_strictness": "strict",
+      "note": "Hospitals operate 24/7, always strict enforcement"
+    },
+    "risk_tolerance": "very_low",
+    "critical_systems": [
+      "10.20.1.1",
+      "10.20.1.2",
+      "ehr-primary.hospital.local",
+      "ehr-backup.hospital.local",
+      "pacs.hospital.local"
+    ]
+  },
+  
+  "ai_detection": {
+    "feature_weights": {
+      "dns_weight": 35,
+      "sni_weight": 30,
+      "asn_weight": 20,
+      "burst_weight": 10,
+      "behavioral_weight": 5
+    },
+    "threat_categories": {
+      "gambling": {
+        "enabled": true,
+        "base_score": 85,
+        "action": "block",
+        "feed_sources": ["kominfo", "curated_gambling_list"]
+      },
+      "malware": {
+        "enabled": true,
+        "base_score": 95,
+        "action": "block"
+      },
+      "api_abuse": {
+        "enabled": true,
+        "detection_threshold": 100,
+        "action": "throttle"
+      },
+      "social_media": {
+        "enabled": true,
+        "action": "alert",
+        "allowed_hours": [
+          {
+            "start": "12:00",
+            "end": "13:00",
+            "note": "Lunch break only"
+          }
+        ]
+      }
+    },
+    "burst_detection": {
+      "dns_queries_per_minute_monitor": 80,
+      "dns_queries_per_minute_block": 150,
+      "connection_rate_limit": 200
+    }
+  },
+  
+  "enforcement_rules": [
+    {
+      "rule_id": "RULE-H001",
+      "priority": 1,
+      "name": "Critical Medical Device Protection",
+      "description": "Zero tolerance for any threats to medical devices",
+      "enabled": true,
+      "conditions": {
+        "ai_score_min": 20,
+        "source_segments": ["medical_devices"],
+        "threat_categories": ["malware", "gambling", "api_abuse"]
+      },
+      "action": {
+        "type": "block",
+        "duration_seconds": 86400,
+        "alert_channels": ["email", "syslog", "dashboard"],
+        "escalate_after": {
+          "violations": 1,
+          "time_window_minutes": 60,
+          "escalate_to_action": "quarantine"
+        }
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["critical", "medical_devices", "zero_tolerance"]
+      }
+    },
+    {
+      "rule_id": "RULE-H002",
+      "priority": 2,
+      "name": "EHR System High Protection",
+      "description": "Alert first, then block if repeated for EHR systems",
+      "enabled": true,
+      "conditions": {
+        "ai_score_min": 40,
+        "ai_score_max": 69,
+        "source_segments": ["ehr_systems"],
+        "threat_categories": ["gambling", "malware"]
+      },
+      "action": {
+        "type": "alert",
+        "alert_channels": ["email", "dashboard"],
+        "escalate_after": {
+          "violations": 2,
+          "time_window_minutes": 30,
+          "escalate_to_action": "block"
+        }
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["ehr", "graduated_response"]
+      }
+    },
+    {
+      "rule_id": "RULE-H003",
+      "priority": 3,
+      "name": "EHR System Immediate Block",
+      "description": "Immediate block for high-score threats to EHR",
+      "enabled": true,
+      "conditions": {
+        "ai_score_min": 70,
+        "source_segments": ["ehr_systems"]
+      },
+      "action": {
+        "type": "block",
+        "duration_seconds": 172800,
+        "alert_channels": ["email", "syslog", "dashboard", "webhook"]
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["ehr", "immediate_block", "high_risk"]
+      }
+    },
+    {
+      "rule_id": "RULE-H004",
+      "priority": 4,
+      "name": "Staff Workstation Gambling Block",
+      "description": "Block gambling sites immediately on staff workstations",
+      "enabled": true,
+      "conditions": {
+        "ai_score_min": 60,
+        "source_segments": ["staff_workstations"],
+        "threat_categories": ["gambling"]
+      },
+      "action": {
+        "type": "block",
+        "duration_seconds": 86400,
+        "alert_channels": ["dashboard"]
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["staff", "gambling", "productivity"]
+      }
+    },
+    {
+      "rule_id": "RULE-H005",
+      "priority": 5,
+      "name": "Guest WiFi Moderate Protection",
+      "description": "More lenient for guest network but still protect against major threats",
+      "enabled": true,
+      "conditions": {
+        "ai_score_min": 75,
+        "source_segments": ["guest_wifi"]
+      },
+      "action": {
+        "type": "block",
+        "duration_seconds": 3600,
+        "alert_channels": ["dashboard"]
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["guest", "moderate_protection"]
+      }
+    },
+    {
+      "rule_id": "RULE-H006",
+      "priority": 6,
+      "name": "API Abuse Throttling",
+      "description": "Throttle suspicious API behavior before blocking",
+      "enabled": true,
+      "conditions": {
+        "threat_categories": ["api_abuse"],
+        "ai_score_min": 50
+      },
+      "action": {
+        "type": "throttle",
+        "throttle_rate": 20,
+        "duration_seconds": 600,
+        "alert_channels": ["dashboard"],
+        "escalate_after": {
+          "violations": 3,
+          "time_window_minutes": 15,
+          "escalate_to_action": "block"
+        }
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["api_abuse", "rate_limiting"]
+      }
+    },
+    {
+      "rule_id": "RULE-H007",
+      "priority": 7,
+      "name": "Repeat Offender Escalation",
+      "description": "Escalate to longer blocks for repeat offenders",
+      "enabled": true,
+      "conditions": {
+        "ai_score_min": 40,
+        "repeat_offender": {
+          "violations_count": 3,
+          "time_window_minutes": 60
+        }
+      },
+      "action": {
+        "type": "block",
+        "duration_seconds": 604800,
+        "alert_channels": ["email", "dashboard"],
+        "note": "7-day block for repeat offenders"
+      },
+      "metadata": {
+        "created_by": "security_admin",
+        "created_at": "2026-01-22T07:00:00Z",
+        "tags": ["repeat_offender", "escalation"]
+      }
+    }
+  ],
+  
+  "audit_config": {
+    "retention_days": 2555,
+    "log_level": "info",
+    "log_all_decisions": true,
+    "export_format": ["json", "csv", "syslog", "cef"],
+    "compliance_reporting": {
+      "enabled": true,
+      "report_frequency": "weekly",
+      "recipients": [
+        "security@hospital.local",
+        "compliance@hospital.local",
+        "ciso@hospital.local"
+      ]
+    }
+  },
+  
+  "collectors": {
+    "dnsmasq_log_path": "/var/log/dnsmasq.log",
+    "zeek_ssl_log_path": "/var/log/zeek/ssl.log",
+    "use_zeek_sni": true,
+    "netflow_enabled": true
+  },
+  
+  "enforcement": {
+    "ipset_name_v4": "minifw_hospital_block_v4",
+    "ipset_name_v6": "minifw_hospital_block_v6",
+    "ip_timeout_seconds": 86400,
+    "nft_table": "inet",
+    "nft_chain": "forward"
+  }
+}

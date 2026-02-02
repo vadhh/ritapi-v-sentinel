@@ -1,0 +1,6 @@
+# one pattern per line (fnmatch)
+*.casino*
+*.judionline*
+*.slot*
+*malware*
+*slot*

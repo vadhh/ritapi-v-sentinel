@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+    /* Label "Show entries" */
+    .dataTables_length label {
+        color: #ffffff !important;
+    }
+
+    /* Label "Search" */
+    .dataTables_filter label {
+        color: #ffffff !important;
+    }
+
+    /* Info text "Showing 1 to 10 of ..." */
+    .dataTables_info {
+        color: #ffffff !important;
+    }
+
+</style>
+{% endblock %}
+{% block title %}Request Logs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {# Menghapus blok Chart agar lebih fokus pada list logs, seperti yang disarankan di views. #}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="card-title">
+                        <i class="fas fa-list"></i> Request Logs
+                    </h3>
+                    <div class="card-tools">
+                        <a id="export-btn" href="{% url 'export_requestlog_excel' %}" class="btn btn-success">
+                            <i class="fas fa-file-excel"></i> Export
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card-body rounded-4">
+                    <div class="d-flex mb-3">
+                        <input type="text" id="filter-ip" class="form-control me-2" placeholder="Search IP..." style="width: 200px;">
+                        
+                        {# Diubah: filter-decision menjadi filter-action #}
+                        <select id="filter-action" class="form-select me-2" style="width: 150px;">
+                            <option value="">All Actions</option>
+                            <option value="allow">Allow</option>
+                            <option value="block">Block</option>
+                            <option value="monitor">Monitor</option>
+                        </select>
+                        
+                        {# Dihapus: filter-service #}
+                        {# Dihapus: dropdown options for services #}
+
+                        <button id="apply-filter" class="btn btn-primary">Apply</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="requestlog-table" class="table table-bordered table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>No.</th>
+                                    <th>IP Address</th>
+                                    <th>Path</th>
+                                    <th>Method</th>
+                                    {# Dihapus: Kolom Service #}
+                                    <th>Score</th>
+                                    <th>Label</th>                 {# Field Baru #}
+                                    <th>Action</th>                {# Diubah: Decision menjadi Action #}
+                                    <th>Session Dur. (ms)</th>     {# Field Baru #}
+                                    <th>Reasons</th>               {# Diubah: Reason menjadi Reasons #}
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script nonce="{{ request.csp_nonce }}">
+// Fungsi Chart sekarang menggunakan struktur data 'datasets' yang disiapkan di views
+async function loadRequestChart() {
+    // Tambahkan filter action/ip jika ada kebutuhan untuk memfilter chart
+    const response = await fetch("{% url 'requestlog_chart_data' %}");
+    const data = await response.json();
+
+    const ctx = document.getElementById('requestChart').getContext('2d');
+
+    if (window.requestChartInstance) {
+        window.requestChartInstance.destroy();
+    }
+
+    window.requestChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: data.datasets, // Menggunakan datasets array dari JSON
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#fff'
+                    }
+                },
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#fff' },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: '#fff' },
+                    grid: { color: 'rgba(255,255,255,0.1)' }
+                }
+            }
+        }
+    });
+}
+// Kode untuk chart ini dikomentari di HTML, namun fungsinya tetap dipertahankan
+// $(document).ready(function() {
+//     loadRequestChart();
+//     setInterval(loadRequestChart, 30000);
+// });
+</script>
+
+<script nonce="{{ request.csp_nonce }}">
+$(document).ready(function() {
+    let table = $('#requestlog-table').DataTable({
+        ajax: {
+            url: "{% url 'requestlog_data' %}",
+            data: function(d) {
+                d.q = $('#filter-ip').val();
+                // Diubah: decision menjadi action
+                d.action = $('#filter-action').val(); 
+                // Dihapus: d.service_id = $('#filter-service').val();
+            }
+        },
+        columns: [
+            { data: null, defaultContent: "" },          // 0. Kolom No (auto)
+            { data: "ip_address" },                      // 1. IP Address
+            { data: "path" },                            // 2. Path
+            { data: "method" },                          // 3. Method
+            { data: "score" },                           // 4. Score
+            { data: "label" },                           // 5. Label (Baru)
+            {                                            // 6. Action (Diubah dari Decision)
+                data: "action",
+                render: function(data) {
+                    const status = data.toLowerCase();
+                    if (status === "block") {
+                        return '<span class="badge bg-danger">BLOCK</span>';
+                    } else if (status === "monitor") {
+                        return '<span class="badge bg-warning">MONITOR</span>';
+                    } else { // allow
+                        return '<span class="badge bg-success">ALLOW</span>';
+                    }
+                }
+            },
+            { data: "session_duration_ms" },             // 7. Session Duration (Baru)
+            { data: "reasons" },                         // 8. Reasons (Diubah dari Reason)
+            { data: "timestamp" }                        // 9. Timestamp
+        ],
+        order: [[9, "desc"]],
+        pageLength: 10,
+        responsive: true,
+        createdRow: function(row, data, dataIndex) {
+            const pageInfo = $('#requestlog-table').DataTable().page.info();
+            const index = pageInfo.start + dataIndex + 1;
+            $('td:eq(0)', row).html(index);
+        }
+    });
+
+    // Apply filter button
+    $('#apply-filter').on('click', function() {
+        table.ajax.reload();
+    });
+
+    // Auto refresh every 30s
+    setInterval(function() {
+        table.ajax.reload(null, false);
+    }, 30000);
+    
+    // Export Button Handler
+    $('#export-btn').on('click', function(e) {
+        e.preventDefault();
+
+        // Ambil nilai dari filter yang benar
+        const q = $('#filter-ip').val() || '';
+        // Diubah: decision menjadi action
+        const action = $('#filter-action').val() || ''; 
+
+        const baseUrl = "{% url 'export_requestlog_excel' %}";
+        const params = new URLSearchParams();
+
+        if (q) params.append('q', q);
+        // Diubah: decision menjadi action
+        if (action) params.append('action', action); 
+
+        // Dihapus: service_id filter
+        
+        const finalUrl = params.toString() ? `${baseUrl}?${params}` : baseUrl;
+        window.location.href = finalUrl;
+    });
+});
+</script>
+
+{% endblock %}

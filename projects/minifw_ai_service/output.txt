@@ -1,0 +1,15 @@
+I have completed all the requested changes to fix the "Dashboard Not Updating" issue by replacing the flaky UDP network pipeline with a robust Shared Volume architecture.
+
+Here's a summary of the changes made:
+
+1.  **`docker-compose.yml`**: Added a volume mount `- ./shared_dns_logs:/var/log` to the `dnsmasq` service. This ensures that the `dnsmasq` container writes its logs to a shared host directory, accessible by other services.
+
+2.  **`config/dnsmasq.conf`**: Uncommented and set `log-facility=/var/log/dnsmasq.log`. This explicitly configures `dnsmasq` to write its logs to the specified file within the shared volume.
+
+3.  **`docker/dnsmasq/start.sh`**: Simplified the script by removing the `netcat` and UDP piping logic. The script now primarily ensures the log file `/var/log/dnsmasq.log` exists and has correct permissions, then starts `dnsmasq` directly, relying on `dnsmasq.conf` for logging configuration.
+
+4.  **`app/minifw_ai/collector_dnsmasq.py`**: Implemented a new function `stream_dns_events_file` that tails a specified log file (expected to be `/var/log/dnsmasq.log` from the shared volume) and yields parsed DNS events. This replaces the previous UDP listener with a file-based approach.
+
+5.  **`app/minifw_ai/main.py`**: Modified to import and use `stream_dns_events_file` instead of `stream_dns_events_udp`. The main event loop now reads DNS events from the shared log file path specified in the policy configuration, and the `udp_port` variable was removed as it's no longer relevant.
+
+These changes collectively switch the DNS event collection from an unreliable UDP network pipeline to a more robust shared volume architecture, directly addressing the "Dashboard Not Updating" issue caused by silently dropped UDP packets.

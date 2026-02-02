@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MiniFW-AI Feed Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-list-alt"></i> Feed Management</h2>
+        
+        {% if service_status.active %}
+            <span class="badge bg-success"><i class="fas fa-check-circle"></i> Service Running</span>
+        {% else %}
+            <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Service Stopped</span>
+        {% endif %}
+    </div>
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> 
+        <strong>About Feeds:</strong> Feeds are lists of domains, IPs, and ASNs that control MiniFW-AI's blocking behavior. 
+        After updating any feed, the service will be restarted automatically to apply changes.
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="feedsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="allow-domains-tab" data-bs-toggle="tab" data-bs-target="#allow-domains" type="button">
+                <i class="fas fa-check-circle text-success"></i> Allow Domains
+                <span class="badge bg-success">{{ allow_domains|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="deny-domains-tab" data-bs-toggle="tab" data-bs-target="#deny-domains" type="button">
+                <i class="fas fa-ban text-danger"></i> Deny Domains
+                <span class="badge bg-danger">{{ deny_domains|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="deny-ips-tab" data-bs-toggle="tab" data-bs-target="#deny-ips" type="button">
+                <i class="fas fa-network-wired text-danger"></i> Deny IPs
+                <span class="badge bg-danger">{{ deny_ips|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="deny-asn-tab" data-bs-toggle="tab" data-bs-target="#deny-asn" type="button">
+                <i class="fas fa-globe text-danger"></i> Deny ASNs
+                <span class="badge bg-danger">{{ deny_asn|length }}</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="feedsTabsContent">
+        <!-- Allow Domains Tab -->
+        <div class="tab-pane fade show active" id="allow-domains" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-check-circle"></i> Allow Domains (Whitelist)</h5>
+                    <small>Domains in this list will NEVER be blocked, even if they appear in deny lists</small>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Add Form -->
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_entry">
+                        <input type="hidden" name="feed_name" value="allow_domains">
+                        <div class="input-group">
+                            <input type="text" name="entry" class="form-control" placeholder="example.com or *.example.com" required>
+                            <button class="btn btn-success" type="submit">
+                                <i class="fas fa-plus"></i> Add Domain
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Current Entries -->
+                    <div class="card">
+                        <div class="card-header">
+                            Current Entries ({{ allow_domains|length }})
+                        </div>
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            {% if allow_domains %}
+                                <ul class="list-group">
+                                    {% for domain in allow_domains %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <code>{{ domain }}</code>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_entry">
+                                            <input type="hidden" name="feed_name" value="allow_domains">
+                                            <input type="hidden" name="entry" value="{{ domain }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted text-center">No entries yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Bulk Edit -->
+                    <hr>
+                    <h6>Bulk Edit</h6>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_feed">
+                        <input type="hidden" name="feed_name" value="allow_domains">
+                        <textarea name="entries" class="form-control font-monospace" rows="10" placeholder="One domain per line&#10;example.com&#10;*.google.com">{% for domain in allow_domains %}{{ domain }}
+{% endfor %}</textarea>
+                        <button type="submit" class="btn btn-warning mt-2">
+                            <i class="fas fa-sync"></i> Save & Restart Service
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deny Domains Tab -->
+        <div class="tab-pane fade" id="deny-domains" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-ban"></i> Deny Domains (Blacklist)</h5>
+                    <small>Domains in this list will be scored as malicious</small>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Add Form -->
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_entry">
+                        <input type="hidden" name="feed_name" value="deny_domains">
+                        <div class="input-group">
+                            <input type="text" name="entry" class="form-control" placeholder="malicious.com or *.phishing.com" required>
+                            <button class="btn btn-danger" type="submit">
+                                <i class="fas fa-plus"></i> Add Domain
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Current Entries -->
+                    <div class="card">
+                        <div class="card-header">
+                            Current Entries ({{ deny_domains|length }})
+                        </div>
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            {% if deny_domains %}
+                                <ul class="list-group">
+                                    {% for domain in deny_domains %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <code>{{ domain }}</code>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_entry">
+                                            <input type="hidden" name="feed_name" value="deny_domains">
+                                            <input type="hidden" name="entry" value="{{ domain }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted text-center">No entries yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Bulk Edit -->
+                    <hr>
+                    <h6>Bulk Edit</h6>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_feed">
+                        <input type="hidden" name="feed_name" value="deny_domains">
+                        <textarea name="entries" class="form-control font-monospace" rows="10" placeholder="One domain per line&#10;malware.com&#10;*.phishing.net">{% for domain in deny_domains %}{{ domain }}
+{% endfor %}</textarea>
+                        <button type="submit" class="btn btn-warning mt-2">
+                            <i class="fas fa-sync"></i> Save & Restart Service
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deny IPs Tab -->
+        <div class="tab-pane fade" id="deny-ips" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-network-wired"></i> Deny IPs (Blacklist)</h5>
+                    <small>IP addresses in this list will be scored as malicious</small>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Add Form -->
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_entry">
+                        <input type="hidden" name="feed_name" value="deny_ips">
+                        <div class="input-group">
+                            <input type="text" name="entry" class="form-control" placeholder="192.168.1.100" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$" required>
+                            <button class="btn btn-danger" type="submit">
+                                <i class="fas fa-plus"></i> Add IP
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Current Entries -->
+                    <div class="card">
+                        <div class="card-header">
+                            Current Entries ({{ deny_ips|length }})
+                        </div>
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            {% if deny_ips %}
+                                <ul class="list-group">
+                                    {% for ip in deny_ips %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <code>{{ ip }}</code>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_entry">
+                                            <input type="hidden" name="feed_name" value="deny_ips">
+                                            <input type="hidden" name="entry" value="{{ ip }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted text-center">No entries yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Bulk Edit -->
+                    <hr>
+                    <h6>Bulk Edit</h6>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_feed">
+                        <input type="hidden" name="feed_name" value="deny_ips">
+                        <textarea name="entries" class="form-control font-monospace" rows="10" placeholder="One IP per line&#10;192.168.1.100&#10;10.0.0.50">{% for ip in deny_ips %}{{ ip }}
+{% endfor %}</textarea>
+                        <button type="submit" class="btn btn-warning mt-2">
+                            <i class="fas fa-sync"></i> Save & Restart Service
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deny ASNs Tab -->
+        <div class="tab-pane fade" id="deny-asn" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-globe"></i> Deny ASNs (Blacklist)</h5>
+                    <small>Autonomous System Numbers in this list will be scored as malicious</small>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Add Form -->
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_entry">
+                        <input type="hidden" name="feed_name" value="deny_asn">
+                        <div class="input-group">
+                            <input type="text" name="entry" class="form-control" placeholder="AS12345" pattern="^AS[0-9]+$" required>
+                            <button class="btn btn-danger" type="submit">
+                                <i class="fas fa-plus"></i> Add ASN
+                            </button>
+                        </div>
+                        <small class="text-muted">Format: AS followed by number (e.g., AS12345)</small>
+                    </form>
+
+                    <!-- Current Entries -->
+                    <div class="card">
+                        <div class="card-header">
+                            Current Entries ({{ deny_asn|length }})
+                        </div>
+                        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                            {% if deny_asn %}
+                                <ul class="list-group">
+                                    {% for asn in deny_asn %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <code>{{ asn }}</code>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_entry">
+                                            <input type="hidden" name="feed_name" value="deny_asn">
+                                            <input type="hidden" name="entry" value="{{ asn }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted text-center">No entries yet</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Bulk Edit -->
+                    <hr>
+                    <h6>Bulk Edit</h6>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_feed">
+                        <input type="hidden" name="feed_name" value="deny_asn">
+                        <textarea name="entries" class="form-control font-monospace" rows="10" placeholder="One ASN per line&#10;AS12345&#10;AS67890">{% for asn in deny_asn %}{{ asn }}
+{% endfor %}</textarea>
+                        <button type="submit" class="btn btn-warning mt-2">
+                            <i class="fas fa-sync"></i> Save & Restart Service
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

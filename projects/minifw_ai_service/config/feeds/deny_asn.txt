@@ -1,0 +1,2 @@
+# one ASN per line like AS12345
+AS12345

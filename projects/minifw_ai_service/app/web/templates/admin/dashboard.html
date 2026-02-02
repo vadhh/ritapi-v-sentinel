@@ -1,0 +1,258 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <h3 class="mb-1">Minifw-AI Dashboard</h3>
+        <p class="text-muted">Web Application Firewall with AI-Powered Threat Detection</p>
+      </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row">
+      <!-- Allow Domains Card -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card text-white bg-success mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-title text-white mb-0">Allow Domains</h6>
+                <h2 class="mb-0">{{ stats.allow_domains }}</h2>
+                <small>Whitelisted</small>
+              </div>
+              <div>
+                <i class="bi bi-shield-check" style="font-size: 3rem; opacity: 0.3;"></i>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-0">
+            <a href="/admin/allow-domain" class="text-white text-decoration-none">
+              <small>View Details <i class="bi bi-arrow-right"></i></small>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deny IPs Card -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card text-white bg-danger mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-title text-white mb-0">Deny IPs</h6>
+                <h2 class="mb-0">{{ stats.deny_ips }}</h2>
+                <small>Blocked IPs</small>
+              </div>
+              <div>
+                <i class="bi bi-shield-x" style="font-size: 3rem; opacity: 0.3;"></i>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-0">
+            <a href="/admin/deny-ip" class="text-white text-decoration-none">
+              <small>View Details <i class="bi bi-arrow-right"></i></small>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deny ASNs Card -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card text-white bg-warning mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-title text-white mb-0">Deny ASNs</h6>
+                <h2 class="mb-0">{{ stats.deny_asns }}</h2>
+                <small>Blocked Networks</small>
+              </div>
+              <div>
+                <i class="bi bi-diagram-3" style="font-size: 3rem; opacity: 0.3;"></i>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-0">
+            <a href="/admin/deny-asn" class="text-white text-decoration-none">
+              <small>View Details <i class="bi bi-arrow-right"></i></small>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deny Domains Card -->
+      <div class="col-lg-3 col-md-6">
+        <div class="card text-white bg-dark mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="card-title text-white mb-0">Deny Domains</h6>
+                <h2 class="mb-0">{{ stats.deny_domains }}</h2>
+                <small>Blocked Domains</small>
+              </div>
+              <div>
+                <i class="bi bi-globe" style="font-size: 3rem; opacity: 0.3;"></i>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer bg-transparent border-0">
+            <a href="/admin/deny-domain" class="text-white text-decoration-none">
+              <small>View Details <i class="bi bi-arrow-right"></i></small>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events & Activity -->
+    <div class="row">
+      <!-- Recent Events -->
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0">Recent Security Events</h5>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Event Type</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if events %}
+                    {% for event in events %}
+                    <tr>
+                      <td><small>{{ event.time }}</small></td>
+                      <td>
+                        <span class="badge bg-{{ event.type_color }}">{{ event.type }}</span>
+                      </td>
+                      <td><small>{{ event.source }}</small></td>
+                      <td>
+                        {% if event.status == 'blocked' %}
+                          <span class="badge bg-danger">Blocked</span>
+                        {% else %}
+                          <span class="badge bg-success">Allowed</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="4" class="text-center text-muted">
+                        <i class="bi bi-info-circle"></i> No recent events
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer">
+            <small class="text-muted">
+              <i class="bi bi-clock"></i> Last updated: {{ last_update }}
+            </small>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Status & Quick Actions -->
+      <div class="col-lg-4">
+        <!-- System Status -->
+        <div class="card mb-3">
+          <div class="card-header">
+            <h5 class="card-title mb-0">Firewall Status</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span>Firewall Engine</span>
+              <span class="badge bg-success">Active</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span>AI Detection</span>
+              <span class="badge bg-success">Enabled</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span>Burst Protection</span>
+              <span class="badge bg-success">Active</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span>Threat Feeds</span>
+              <span class="badge bg-info">Updating</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0">Quick Actions</h5>
+          </div>
+          <div class="card-body">
+            <div class="d-grid gap-2">
+              <a href="/admin/allow-domain" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Add Allow Domain
+              </a>
+              <a href="/admin/deny-ip" class="btn btn-outline-danger btn-sm">
+                <i class="bi bi-plus-circle"></i> Block IP Address
+              </a>
+              <a href="/admin/deny-asn" class="btn btn-outline-warning btn-sm">
+                <i class="bi bi-plus-circle"></i> Block ASN
+              </a>
+              <a href="/admin/deny-domain" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-plus-circle"></i> Block Domain
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Protection Summary -->
+    <div class="row mt-3">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title mb-0">Protection Summary</h5>
+          </div>
+          <div class="card-body">
+            <div class="row text-center">
+              <div class="col-md-3">
+                <div class="border-end">
+                  <h3 class="text-success">{{ stats.total_allowed }}</h3>
+                  <small class="text-muted">Total Allowed</small>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="border-end">
+                  <h3 class="text-danger">{{ stats.total_blocked }}</h3>
+                  <small class="text-muted">Total Blocked</small>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="border-end">
+                  <h3 class="text-warning">{{ stats.threats_detected }}</h3>
+                  <small class="text-muted">Threats Detected</small>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <h3 class="text-info">{{ stats.uptime }}</h3>
+                <small class="text-muted">Uptime</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

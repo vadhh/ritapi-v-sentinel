@@ -1,0 +1,164 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Deny Domains{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Deny Domains</h3>
+        <div class="card-tools">
+          <button class="btn btn-sm btn-primary" id="addDomainBtn">
+            <i class="bi bi-plus-circle"></i> Add Domain
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table id="denyDomainTable" class="table table-striped table-bordered align-middle w-100">
+          <thead>
+            <tr>
+              <th style="width: 60px" class="text-center">No</th>
+              <th>Domain</th>
+              <th style="width: 150px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for domain in domains %}
+            <tr>
+              <td class="text-center">{{ loop.index }}</td>
+              <td>{{ domain.name }}</td>
+              <td>
+                <button class="btn btn-sm btn-warning btn-edit" data-domain="{{ domain.name }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger btn-delete" data-domain="{{ domain.name }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="domainModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Domain</h5>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="oldDomain" />
+          <input type="text" id="domainInput" class="form-control" placeholder="example.com" style="text-transform: lowercase;" />
+          <small class="form-text text-muted">Enter domain name (e.g., example.com)</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" id="saveDomain">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Check jQuery
+  if (typeof jQuery === 'undefined') {
+    console.error('jQuery NOT loaded!');
+    return;
+  }
+  
+  // Initialize DataTable
+  var table = jQuery("#denyDomainTable").DataTable({
+    responsive: true,
+    pageLength: 10,
+    lengthChange: false,
+    ordering: true,
+    language: {
+      search: "Search domain:",
+      zeroRecords: "No domain found"
+    }
+  });
+  
+  // Initialize modal
+  var modalEl = document.getElementById('domainModal');
+  var modal = new bootstrap.Modal(modalEl);
+  
+  // Auto-lowercase input
+  jQuery('#domainInput').on('input', function() {
+    this.value = this.value.toLowerCase();
+  });
+  
+  // Add Domain button
+  jQuery('#addDomainBtn').on('click', function() {
+    jQuery('#oldDomain').val('');
+    jQuery('#domainInput').val('');
+    modal.show();
+  });
+  
+  // Save Domain button
+  jQuery('#saveDomain').on('click', function() {
+    var oldDomain = jQuery('#oldDomain').val();
+    var domain = jQuery('#domainInput').val().toLowerCase();
+    var method = oldDomain ? 'PUT' : 'POST';
+    
+    jQuery.ajax({
+      url: '/admin/deny-domain',
+      method: method,
+      contentType: 'application/json',
+      data: JSON.stringify(oldDomain ? { old: oldDomain, new: domain } : { domain: domain }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success').then(function() {
+          location.reload();
+        });
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON.detail, 'error');
+      }
+    });
+  });
+  
+  // Edit button
+  jQuery('#denyDomainTable tbody').on('click', '.btn-edit', function() {
+    var domain = jQuery(this).data('domain');
+    jQuery('#oldDomain').val(domain);
+    jQuery('#domainInput').val(domain);
+    modal.show();
+  });
+  
+  // Delete button
+  jQuery('#denyDomainTable tbody').on('click', '.btn-delete', function() {
+    var domain = jQuery(this).data('domain');
+    
+    Swal.fire({
+      title: 'Delete domain?',
+      text: domain,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete'
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        jQuery.ajax({
+          url: '/admin/deny-domain',
+          method: 'DELETE',
+          contentType: 'application/json',
+          data: JSON.stringify({ domain: domain }),
+          success: function(res) {
+            Swal.fire('Deleted', res.message, 'success').then(function() {
+              location.reload();
+            });
+          }
+        });
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

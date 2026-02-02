@@ -1,0 +1,159 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Deny IPs{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Deny IP Addresses</h3>
+        <div class="card-tools">
+          <button class="btn btn-sm btn-primary" id="addIpBtn">
+            <i class="bi bi-plus-circle"></i> Add IP
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table id="denyIpTable" class="table table-striped table-bordered align-middle w-100">
+          <thead>
+            <tr>
+              <th style="width: 60px" class="text-center">No</th>
+              <th>IP Address</th>
+              <th style="width: 150px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ip in ips %}
+            <tr>
+              <td class="text-center">{{ loop.index }}</td>
+              <td>{{ ip.ip }}</td>
+              <td>
+                <button class="btn btn-sm btn-warning btn-edit" data-ip="{{ ip.ip }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger btn-delete" data-ip="{{ ip.ip }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="ipModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">IP Address</h5>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="oldIp" />
+          <input type="text" id="ipInput" class="form-control" placeholder="192.168.1.1" />
+          <small class="form-text text-muted">Enter a valid IPv4 address</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" id="saveIp">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Check jQuery
+  if (typeof jQuery === 'undefined') {
+    console.error('jQuery NOT loaded!');
+    return;
+  }
+  
+  // Initialize DataTable
+  var table = jQuery("#denyIpTable").DataTable({
+    responsive: true,
+    pageLength: 10,
+    lengthChange: false,
+    ordering: true,
+    language: {
+      search: "Search IP:",
+      zeroRecords: "No IP address found"
+    }
+  });
+  
+  // Initialize modal
+  var modalEl = document.getElementById('ipModal');
+  var modal = new bootstrap.Modal(modalEl);
+  
+  // Add IP button
+  jQuery('#addIpBtn').on('click', function() {
+    jQuery('#oldIp').val('');
+    jQuery('#ipInput').val('');
+    modal.show();
+  });
+  
+  // Save IP button
+  jQuery('#saveIp').on('click', function() {
+    var oldIp = jQuery('#oldIp').val();
+    var ip = jQuery('#ipInput').val();
+    var method = oldIp ? 'PUT' : 'POST';
+    
+    jQuery.ajax({
+      url: '/admin/deny-ip',
+      method: method,
+      contentType: 'application/json',
+      data: JSON.stringify(oldIp ? { old: oldIp, new: ip } : { ip: ip }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success').then(function() {
+          location.reload();
+        });
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON.detail, 'error');
+      }
+    });
+  });
+  
+  // Edit button
+  jQuery('#denyIpTable tbody').on('click', '.btn-edit', function() {
+    var ip = jQuery(this).data('ip');
+    jQuery('#oldIp').val(ip);
+    jQuery('#ipInput').val(ip);
+    modal.show();
+  });
+  
+  // Delete button
+  jQuery('#denyIpTable tbody').on('click', '.btn-delete', function() {
+    var ip = jQuery(this).data('ip');
+    
+    Swal.fire({
+      title: 'Delete IP address?',
+      text: ip,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete'
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        jQuery.ajax({
+          url: '/admin/deny-ip',
+          method: 'DELETE',
+          contentType: 'application/json',
+          data: JSON.stringify({ ip: ip }),
+          success: function(res) {
+            Swal.fire('Deleted', res.message, 'success').then(function() {
+              location.reload();
+            });
+          }
+        });
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

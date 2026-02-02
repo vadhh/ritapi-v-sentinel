@@ -1,0 +1,452 @@
+{% extends "base.html" %} {% load static %} {% block title %}MiniFW-AI Policy
+Configuration{% endblock %} {% block content %}
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-cogs"></i> Policy Configuration</h2>
+
+    {% if service_status.active %}
+    <span class="badge bg-success"
+      ><i class="fas fa-check-circle"></i> Service Running</span
+    >
+    {% else %}
+    <span class="badge bg-danger"
+      ><i class="fas fa-times-circle"></i> Service Stopped</span
+    >
+    {% endif %}
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-4" id="policyTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link active"
+        id="segments-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#segments"
+        type="button"
+      >
+        <i class="fas fa-layer-group"></i> Segments & Thresholds
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link"
+        id="subnets-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#subnets"
+        type="button"
+      >
+        <i class="fas fa-network-wired"></i> Segment Subnets
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link"
+        id="features-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#features"
+        type="button"
+      >
+        <i class="fas fa-weight-hanging"></i> Feature Weights
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button
+        class="nav-link"
+        id="advanced-tab"
+        data-bs-toggle="tab"
+        data-bs-target="#advanced"
+        type="button"
+      >
+        <i class="fas fa-tools"></i> Advanced
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="policyTabsContent">
+    <!-- Segments & Thresholds Tab -->
+    <div class="tab-pane fade show active" id="segments" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-layer-group"></i> Segment Thresholds
+          </h5>
+          <small class="text-muted"
+            >Configure block and monitor thresholds for each network
+            segment</small
+          >
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_segments" />
+
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>How it works:</strong> When a client's risk score reaches
+              the <strong>monitor threshold</strong>, the activity is logged.
+              When it reaches the <strong>block threshold</strong>, the IP is
+              automatically blocked.
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Segment</th>
+                    <th>Monitor Threshold (0-100)</th>
+                    <th>Block Threshold (0-100)</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for segment_name, config in segments.items %}
+                  <tr>
+                    <td>
+                      <strong>{{ segment_name|title }}</strong>
+                      {% if segment_name == 'default' %}
+                      <span class="badge bg-secondary">Default</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        name="segment_{{ segment_name }}_monitor_threshold"
+                        value="{{ config.monitor_threshold }}"
+                        min="0"
+                        max="100"
+                        class="form-control"
+                        required
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        name="segment_{{ segment_name }}_block_threshold"
+                        value="{{ config.block_threshold }}"
+                        min="0"
+                        max="100"
+                        class="form-control"
+                        required
+                      />
+                    </td>
+                    <td>
+                        <small class="text-muted">
+                            {% if segment_name == 'student' %}
+                                For student network – more restrictive
+                            {% elif segment_name == 'staff' %}
+                                For staff network – moderate restrictions
+                            {% elif segment_name == 'admin' %}
+                                For admin network – less restrictive
+                            {% else %}
+                                Fallback for unmatched IPs
+                            {% endif %}
+                        </small>
+
+                    </td>   
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save"></i> Save Segment Thresholds
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segment Subnets Tab -->
+    <div class="tab-pane fade" id="subnets" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-network-wired"></i> Segment Subnet Mapping
+          </h5>
+          <small class="text-muted">Map IP subnets to network segments</small>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_subnets" />
+
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>Important:</strong> After changing subnets, the service
+              will be restarted automatically. Enter one subnet per line in CIDR
+              notation (e.g., 10.10.0.0/16).
+            </div>
+
+            <div class="row">
+              {% for segment_name, subnets_list in segment_subnets.items %}
+              <div class="col-md-6 mb-3">
+                <div class="card">
+                  <div class="card-header bg-light">
+                    <strong>{{ segment_name|title }} Segment</strong>
+                  </div>
+                  <div class="card-body">
+                    <label class="form-label">Subnets (one per line):</label>
+                    <textarea
+                      name="subnet_{{ segment_name }}"
+                      class="form-control font-monospace"
+                      rows="5"
+                      placeholder="10.10.0.0/16&#10;192.168.1.0/24"
+                    >
+{% for subnet in subnets_list %}{{ subnet }}{% if not forloop.last %}
+{% endif %}{% endfor %}</textarea
+                    >
+                    <small class="text-muted"
+                      >Current: {{ subnets_list|length }} subnet(s)</small
+                    >
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+
+            <button type="submit" class="btn btn-warning">
+              <i class="fas fa-sync"></i> Save & Restart Service
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Weights Tab -->
+    <div class="tab-pane fade" id="features" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-weight-hanging"></i> Feature Scoring Weights
+          </h5>
+          <small class="text-muted"
+            >Adjust the importance of each detection signal</small
+          >
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_features" />
+
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i>
+              <strong>Scoring System:</strong> When malicious activity is
+              detected, each feature contributes to the total risk score. The
+              weights below determine how much each feature contributes.
+            </div>
+
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="fas fa-server"></i> DNS Weight
+                    <span class="badge bg-primary"
+                      >{{ features.dns_weight }}</span
+                    >
+                  </label>
+                  <input
+                    type="range"
+                    name="dns_weight"
+                    value="{{ features.dns_weight }}"
+                    min="0"
+                    max="100"
+                    class="form-range"
+                    id="dnsWeightRange"
+                  />
+                  <small class="text-muted"
+                    >Weight for DNS domain deny list matches</small
+                  >
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="fas fa-lock"></i> SNI Weight
+                    <span class="badge bg-primary"
+                      >{{ features.sni_weight }}</span
+                    >
+                  </label>
+                  <input
+                    type="range"
+                    name="sni_weight"
+                    value="{{ features.sni_weight }}"
+                    min="0"
+                    max="100"
+                    class="form-range"
+                    id="sniWeightRange"
+                  />
+                  <small class="text-muted"
+                    >Weight for TLS SNI deny list matches</small
+                  >
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="fas fa-globe"></i> ASN Weight
+                    <span class="badge bg-primary"
+                      >{{ features.asn_weight }}</span
+                    >
+                  </label>
+                  <input
+                    type="range"
+                    name="asn_weight"
+                    value="{{ features.asn_weight }}"
+                    min="0"
+                    max="100"
+                    class="form-range"
+                    id="asnWeightRange"
+                  />
+                  <small class="text-muted"
+                    >Weight for ASN deny list matches</small
+                  >
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">
+                    <i class="fas fa-bolt"></i> Burst Weight
+                    <span class="badge bg-primary"
+                      >{{ features.burst_weight }}</span
+                    >
+                  </label>
+                  <input
+                    type="range"
+                    name="burst_weight"
+                    value="{{ features.burst_weight }}"
+                    min="0"
+                    max="100"
+                    class="form-range"
+                    id="burstWeightRange"
+                  />
+                  <small class="text-muted"
+                    >Weight for burst behavior detection</small
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="alert alert-warning">
+              <i class="fas fa-calculator"></i>
+              <strong>Total Weight:</strong>
+              <span id="totalWeight">
+                {{ features.dns_weight|default_if_none:0
+                |add:features.sni_weight|default_if_none:0
+                |add:features.asn_weight|default_if_none:0
+                |add:features.burst_weight|default_if_none:0 }}
+              </span>
+
+              (Recommended: 100)
+            </div>
+
+            <button type="submit" class="btn btn-warning">
+              <i class="fas fa-sync"></i> Save & Restart Service
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced Tab -->
+    <div class="tab-pane fade" id="advanced" role="tabpanel">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-tools"></i> Advanced Configuration
+          </h5>
+        </div>
+        <div class="card-body">
+          <h6>Burst Detection</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <tr>
+                <th>Monitor Threshold</th>
+                <td>
+                  <code>{{ burst.dns_queries_per_minute_monitor }}</code>
+                  queries/minute
+                </td>
+              </tr>
+              <tr>
+                <th>Block Threshold</th>
+                <td>
+                  <code>{{ burst.dns_queries_per_minute_block }}</code>
+                  queries/minute
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          <hr />
+
+          <h6>Enforcement</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered">
+              <tr>
+                <th>ipset Name</th>
+                <td><code>{{ enforcement.ipset_name_v4 }}</code></td>
+              </tr>
+              <tr>
+                <th>IP Timeout</th>
+                <td>
+                  <code>{{ enforcement.ip_timeout_seconds }}</code> seconds ({{
+                  enforcement.ip_timeout_seconds|floatformat:0|add:"0"|divisibleby:"86400"
+                  }} hours)
+                </td>
+              </tr>
+              <tr>
+                <th>nftables Table</th>
+                <td><code>{{ enforcement.nft_table }}</code></td>
+              </tr>
+              <tr>
+                <th>nftables Chain</th>
+                <td><code>{{ enforcement.nft_chain }}</code></td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Warning:</strong> These settings are read-only. To modify,
+            edit <code>/opt/minifw_ai/config/policy.json</code> directly.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Update weight display and total calculation
+  document.addEventListener("DOMContentLoaded", function () {
+    const ranges = ["dnsWeight", "sniWeight", "asnWeight", "burstWeight"];
+
+    ranges.forEach((id) => {
+      const range = document.getElementById(id + "Range");
+      if (range) {
+        range.addEventListener("input", function () {
+          const badge = this.previousElementSibling.querySelector(".badge");
+          if (badge) {
+            badge.textContent = this.value;
+          }
+          updateTotal();
+        });
+      }
+    });
+
+    function updateTotal() {
+      const dns =
+        parseInt(document.getElementById("dnsWeightRange").value) || 0;
+      const sni =
+        parseInt(document.getElementById("sniWeightRange").value) || 0;
+      const asn =
+        parseInt(document.getElementById("asnWeightRange").value) || 0;
+      const burst =
+        parseInt(document.getElementById("burstWeightRange").value) || 0;
+
+      document.getElementById("totalWeight").textContent =
+        dns + sni + asn + burst;
+    }
+  });
+</script>
+{% endblock %}

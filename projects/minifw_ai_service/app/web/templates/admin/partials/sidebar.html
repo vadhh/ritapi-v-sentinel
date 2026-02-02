@@ -1,0 +1,138 @@
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+  <div class="sidebar-brand">
+    <a href="/admin" class="brand-link">
+      <img
+        src="{{ url_for('static', path='adminLTE/dist/assets/img/AdminLTELogo.png') }}"
+        class="brand-image opacity-75 shadow"
+      />
+      <span class="brand-text fw-light">MINIFW-AI</span>
+    </a>
+  </div>
+
+  <div class="sidebar-wrapper">
+    <nav>
+      <ul class="nav sidebar-menu flex-column">
+        <li class="nav-item">
+          <a
+            href="/admin/"
+            class="nav-link {% if request.url.path == '/admin/' or request.url.path == '/admin' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-speedometer2"></i>
+            <p>Dashboard</p>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a
+            href="/admin/events"
+            class="nav-link {% if request.url.path == '/admin/events' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-activity"></i>
+            <p>
+              Security Events
+              <span class="badge badge-success right" id="events-live-badge">
+                <i class="bi bi-circle-fill" style="font-size: 6px"></i> Live
+              </span>
+            </p>
+          </a>
+        </li>
+
+        <!-- Divider -->
+        <li class="nav-header">FIREWALL RULES</li>
+
+        <!-- Allow Domains -->
+        <li class="nav-item">
+          <a
+            href="/admin/allow-domain"
+            class="nav-link {% if request.url.path == '/admin/allow-domain' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-shield-check"></i>
+            <p>Allow Domains</p>
+          </a>
+        </li>
+
+        <!-- Deny IPs -->
+        <li class="nav-item">
+          <a
+            href="/admin/deny-ip"
+            class="nav-link {% if request.url.path == '/admin/deny-ip' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-shield-x"></i>
+            <p>Deny IPs</p>
+          </a>
+        </li>
+
+        <!-- Deny ASNs -->
+        <li class="nav-item">
+          <a
+            href="/admin/deny-asn"
+            class="nav-link {% if request.url.path == '/admin/deny-asn' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-diagram-3"></i>
+            <p>Deny ASNs</p>
+          </a>
+        </li>
+
+        <!-- Deny Domains -->
+        <li class="nav-item">
+          <a
+            href="/admin/deny-domain"
+            class="nav-link {% if request.url.path == '/admin/deny-domain' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-shield-x"></i>
+            <p>Deny Domains</p>
+          </a>
+        </li>
+
+        <!-- Divider -->
+        <li class="nav-header">CONFIGURATION</li>
+
+        <!-- Policy Configuration -->
+        <li class="nav-item">
+          <a
+            href="/admin/policy"
+            class="nav-link {% if request.url.path == '/admin/policy' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-gear"></i>
+            <p>Policy Configuration</p>
+          </a>
+        </li>
+
+        <!-- Divider -->
+        <li class="nav-header">ADMINISTRATION</li>
+
+        <!-- User Management (Super Admin Only) -->
+        <li class="nav-item">
+          <a
+            href="/admin/users"
+            class="nav-link {% if request.url.path == '/admin/users' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-people"></i>
+            <p>
+              User Management
+              <span class="badge badge-warning right">
+                <i class="bi bi-shield-lock"></i>
+              </span>
+            </p>
+          </a>
+        </li>
+
+        <!-- Audit Logs -->
+        <li class="nav-item">
+          <a
+            href="/admin/audit-logs"
+            class="nav-link {% if request.url.path == '/admin/audit-logs' %}active{% endif %}"
+          >
+            <i class="nav-icon bi bi-file-text"></i>
+            <p>
+              Audit Logs
+              <span class="badge badge-info right">
+                <i class="bi bi-eye"></i>
+              </span>
+            </p>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</aside>

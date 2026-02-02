@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MiniFW-AI Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-shield-alt"></i> MiniFW-AI Dashboard</h2>
+        
+        <!-- Service Status Badge -->
+        <div>
+            {% if service_status.active %}
+                <span class="badge bg-success">
+                    <i class="fas fa-check-circle"></i> Service Running
+                </span>
+            {% else %}
+                <span class="badge bg-danger">
+                    <i class="fas fa-times-circle"></i> Service Stopped
+                </span>
+            {% endif %}
+            
+            <!-- Service Control Buttons -->
+            <div class="btn-group ms-2">
+                <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="restart">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="fas fa-sync"></i> Restart
+                    </button>
+                </form>
+                
+                {% if service_status.active %}
+                <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="stop">
+                    <button type="submit" class="btn btn-sm btn-danger">
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="start">
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fas fa-play"></i> Start
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title text-uppercase mb-0">Blocked</h6>
+                            <h2 class="mb-0">{{ stats.blocked }}</h2>
+                        </div>
+                        <div class="display-4">
+                            <i class="fas fa-ban"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title text-uppercase mb-0">Monitored</h6>
+                            <h2 class="mb-0">{{ stats.monitored }}</h2>
+                        </div>
+                        <div class="display-4">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title text-uppercase mb-0">Allowed</h6>
+                            <h2 class="mb-0">{{ stats.allowed }}</h2>
+                        </div>
+                        <div class="display-4">
+                            <i class="fas fa-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title text-uppercase mb-0">Currently Blocked IPs</h6>
+                            <h2 class="mb-0">{{ blocked_ips_count }}</h2>
+                        </div>
+                        <div class="display-4">
+                            <i class="fas fa-network-wired"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics by Segment -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Actions by Network Segment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Segment</th>
+                                    <th class="text-danger">Blocked</th>
+                                    <th class="text-warning">Monitored</th>
+                                    <th class="text-success">Allowed</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for segment, counts in stats.by_segment.items %}
+                                <tr>
+                                    <td><strong>{{ segment|title }}</strong></td>
+                                    <td class="text-danger">{{ counts.blocked|default:0 }}</td>
+                                    <td class="text-warning">{{ counts.monitored|default:0 }}</td>
+                                    <td class="text-success">{{ counts.allowed|default:0 }}</td>
+                                    <td>{{ counts.blocked|default:0|add:counts.monitored|default:0|add:counts.allowed|default:0 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No data available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Top Blocked IPs -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list-ol"></i> Top Blocked IPs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th class="text-end">Block Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ip, count in stats.top_blocked_ips.items %}
+                                <tr>
+                                    <td><code>{{ ip }}</code></td>
+                                    <td class="text-end"><span class="badge bg-danger">{{ count }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center">No blocked IPs</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Blocked Domains -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-globe"></i> Top Blocked Domains</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th class="text-end">Block Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for domain, count in stats.top_blocked_domains.items %}
+                                <tr>
+                                    <td><code>{{ domain }}</code></td>
+                                    <td class="text-end"><span class="badge bg-danger">{{ count }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="2" class="text-center">No blocked domains</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Events -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Events (Last 50)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Segment</th>
+                                    <th>Client IP</th>
+                                    <th>Domain</th>
+                                    <th>Score</th>
+                                    <th>Action</th>
+                                    <th>Reasons</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in recent_events %}
+                                <tr>
+                                    <td><small>{{ event.ts }}</small></td>
+                                    <td><span class="badge bg-secondary">{{ event.segment }}</span></td>
+                                    <td><code>{{ event.client_ip }}</code></td>
+                                    <td><small>{{ event.domain }}</small></td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if event.score >= 60 %}bg-danger
+                                            {% elif event.score >= 40 %}bg-warning
+                                            {% else %}bg-success{% endif %}">
+                                            {{ event.score }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if event.action == 'block' %}
+                                            <span class="badge bg-danger"><i class="fas fa-ban"></i> Block</span>
+                                        {% elif event.action == 'monitor' %}
+                                            <span class="badge bg-warning"><i class="fas fa-eye"></i> Monitor</span>
+                                        {% else %}
+                                            <span class="badge bg-success"><i class="fas fa-check"></i> Allow</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small>{{ event.reasons|join:", " }}</small></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No events yet</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

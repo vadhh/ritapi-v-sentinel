@@ -1,0 +1,16 @@
+[Unit]
+Description=MiniFW-AI (RitAPI-AI V-Sentinel - Gateway Metadata Layer)
+After=network.target dnsmasq.service
+Wants=dnsmasq.service
+
+[Service]
+Type=simple
+Environment=MINIFW_POLICY=/opt/minifw_ai/config/policy.json
+Environment=MINIFW_FEEDS=/opt/minifw_ai/config/feeds
+Environment=MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl
+ExecStart=/opt/minifw_ai/run_minifw.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

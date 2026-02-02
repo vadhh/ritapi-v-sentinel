@@ -1,0 +1,632 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Audit Logs{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h3 class="mb-1"><i class="bi bi-file-text"></i> Audit Logs</h3>
+            <p class="text-muted">System activity and security event monitoring</p>
+          </div>
+          <button class="btn btn-success" onclick="exportLogs()">
+            <i class="bi bi-download"></i> Export Logs
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert Messages -->
+    <div id="alertContainer"></div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-info">
+          <div class="inner">
+            <h3 id="totalLogs">-</h3>
+            <p>Total Logs (7 days)</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-file-text"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-danger">
+          <div class="inner">
+            <h3 id="criticalLogs">-</h3>
+            <p>Critical Events</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-exclamation-triangle"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-warning">
+          <div class="inner">
+            <h3 id="warningLogs">-</h3>
+            <p>Warnings</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-exclamation-circle"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-3 col-md-6">
+        <div class="small-box text-bg-success">
+          <div class="inner">
+            <h3 id="infoLogs">-</h3>
+            <p>Info Events</p>
+          </div>
+          <div class="small-box-icon">
+            <i class="bi bi-info-circle"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title"><i class="bi bi-funnel"></i> Filters</h3>
+        <div class="card-tools">
+          <button type="button" class="btn btn-tool" data-bs-toggle="collapse" data-bs-target="#filterSection">
+            <i class="bi bi-chevron-down"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body collapse show" id="filterSection">
+        <div class="row">
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Action Type</label>
+            <select class="form-select" id="actionFilter" onchange="applyFilters()">
+              <option value="">All Actions</option>
+              <option value="user_login">User Login</option>
+              <option value="user_logout">User Logout</option>
+              <option value="user_created">User Created</option>
+              <option value="user_updated">User Updated</option>
+              <option value="user_deleted">User Deleted</option>
+              <option value="policy_created">Policy Created</option>
+              <option value="policy_updated">Policy Updated</option>
+              <option value="policy_deleted">Policy Deleted</option>
+              <option value="ip_blocked">IP Blocked</option>
+              <option value="ip_unblocked">IP Unblocked</option>
+              <option value="unauthorized_access">Unauthorized Access</option>
+            </select>
+          </div>
+
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Severity</label>
+            <select class="form-select" id="severityFilter" onchange="applyFilters()">
+              <option value="">All Severities</option>
+              <option value="info">Info</option>
+              <option value="warning">Warning</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" id="usernameFilter" 
+                   placeholder="Filter by username..." onkeyup="applyFilters()">
+          </div>
+
+          <div class="col-md-3 mb-3">
+            <label class="form-label">Resource Type</label>
+            <select class="form-select" id="resourceFilter" onchange="applyFilters()">
+              <option value="">All Resources</option>
+              <option value="user">User</option>
+              <option value="policy">Policy</option>
+              <option value="enforcement">Enforcement</option>
+              <option value="audit_logs">Audit Logs</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Start Date</label>
+            <input type="datetime-local" class="form-control" id="startDateFilter" onchange="applyFilters()">
+          </div>
+
+          <div class="col-md-6 mb-3">
+            <label class="form-label">End Date</label>
+            <input type="datetime-local" class="form-control" id="endDateFilter" onchange="applyFilters()">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-12">
+            <button class="btn btn-secondary btn-sm" onclick="resetFilters()">
+              <i class="bi bi-x-circle"></i> Reset Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs Table Card -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="bi bi-list"></i> Audit Log Entries</h3>
+        <div class="card-tools">
+          <span class="badge bg-primary" id="logCount">0 logs</span>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover mb-0">
+            <thead>
+              <tr>
+                <th style="width: 160px;">Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Severity</th>
+                <th>Resource</th>
+                <th>Description</th>
+                <th>IP Address</th>
+                <th style="width: 80px;">Status</th>
+                <th style="width: 80px;">Details</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <tr>
+                <td colspan="9" class="text-center py-5">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                  <p class="mt-2 text-muted">Loading audit logs...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="card-footer">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="text-muted">Showing <span id="showingRange">0-0</span> of <span id="totalLogs">0</span></span>
+          </div>
+          <nav>
+            <ul class="pagination pagination-sm mb-0" id="pagination">
+              <!-- Pagination will be generated by JavaScript -->
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Log Details Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-info-circle"></i> Log Entry Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <strong>Timestamp:</strong>
+            <p id="detailTimestamp" class="text-muted">-</p>
+          </div>
+          <div class="col-md-6">
+            <strong>User:</strong>
+            <p id="detailUser" class="text-muted">-</p>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <strong>Action:</strong>
+            <p id="detailAction" class="text-muted">-</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Severity:</strong>
+            <p id="detailSeverity" class="text-muted">-</p>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <strong>Resource Type:</strong>
+            <p id="detailResourceType" class="text-muted">-</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Resource ID:</strong>
+            <p id="detailResourceId" class="text-muted">-</p>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-12">
+            <strong>Description:</strong>
+            <p id="detailDescription" class="text-muted">-</p>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <strong>IP Address:</strong>
+            <p id="detailIP" class="text-muted">-</p>
+          </div>
+          <div class="col-md-6">
+            <strong>Status:</strong>
+            <p id="detailStatus" class="text-muted">-</p>
+          </div>
+        </div>
+
+        <div id="beforeAfterSection" style="display: none;">
+          <hr>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <strong>Before Value:</strong>
+              <pre id="detailBefore" class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;"></pre>
+            </div>
+            <div class="col-md-6">
+              <strong>After Value:</strong>
+              <pre id="detailAfter" class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div id="extraDataSection" style="display: none;">
+          <hr>
+          <div class="row">
+            <div class="col-12">
+              <strong>Additional Data:</strong>
+              <pre id="detailExtraData" class="bg-light p-2 rounded" style="max-height: 200px; overflow-y: auto;"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+  .severity-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  .severity-info { background: #d1ecf1; color: #0c5460; }
+  .severity-warning { background: #fff3cd; color: #856404; }
+  .severity-critical { background: #f8d7da; color: #721c24; }
+
+  .action-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  .action-user { background: #cfe2ff; color: #084298; }
+  .action-policy { background: #e7e9fc; color: #3730a3; }
+  .action-enforcement { background: #f8d7da; color: #721c24; }
+  .action-system { background: #e2e3e5; color: #41464b; }
+</style>
+
+<script>
+// Global state
+let allLogs = [];
+let currentPage = 1;
+let logsPerPage = 50;
+let totalLogs = 0;
+let currentFilters = {};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  loadStatistics();
+  loadLogs();
+});
+
+// Load statistics
+async function loadStatistics() {
+  try {
+    const response = await fetch('/admin/api/audit/statistics');
+    if (!response.ok) throw new Error('Failed to load statistics');
+    
+    const data = await response.json();
+    
+    document.getElementById('totalLogs').textContent = data.total_logs;
+    document.getElementById('criticalLogs').textContent = data.by_severity.critical;
+    document.getElementById('warningLogs').textContent = data.by_severity.warning;
+    document.getElementById('infoLogs').textContent = data.by_severity.info;
+  } catch (error) {
+    console.error('Error loading statistics:', error);
+  }
+}
+
+// Load logs with filters
+async function loadLogs(page = 1) {
+  try {
+    currentPage = page;
+    const offset = (page - 1) * logsPerPage;
+    
+    // Build query parameters
+    const params = new URLSearchParams({
+      limit: logsPerPage,
+      offset: offset
+    });
+    
+    // Add filters
+    if (currentFilters.action) params.append('action', currentFilters.action);
+    if (currentFilters.severity) params.append('severity', currentFilters.severity);
+    if (currentFilters.username) params.append('username', currentFilters.username);
+    if (currentFilters.resource_type) params.append('resource_type', currentFilters.resource_type);
+    if (currentFilters.start_date) params.append('start_date', currentFilters.start_date);
+    if (currentFilters.end_date) params.append('end_date', currentFilters.end_date);
+    
+    const response = await fetch(`/admin/api/audit/logs?${params}`);
+    if (!response.ok) throw new Error('Failed to load logs');
+    
+    const data = await response.json();
+    allLogs = data.logs || [];
+    totalLogs = data.total || 0;
+    
+    displayLogs(allLogs);
+    updatePagination();
+  } catch (error) {
+    console.error('Error loading logs:', error);
+    showAlert('Failed to load audit logs: ' + error.message, 'danger');
+    document.getElementById('logsTableBody').innerHTML = 
+      '<tr><td colspan="9" class="text-center text-danger py-4">Failed to load logs</td></tr>';
+  }
+}
+
+// Display logs in table
+function displayLogs(logs) {
+  const tbody = document.getElementById('logsTableBody');
+  document.getElementById('logCount').textContent = `${totalLogs} logs`;
+  
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No audit logs found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = logs.map(log => `
+    <tr>
+      <td><small>${formatDate(log.timestamp)}</small></td>
+      <td>
+        <strong>${escapeHtml(log.username || 'System')}</strong>
+        ${log.user_role ? `<br><small class="text-muted">${log.user_role}</small>` : ''}
+      </td>
+      <td><span class="action-badge action-${getActionCategory(log.action)}">${formatAction(log.action)}</span></td>
+      <td><span class="severity-badge severity-${log.severity}">${log.severity.toUpperCase()}</span></td>
+      <td>
+        ${log.resource_type ? `<small><strong>${log.resource_type}</strong></small>` : '-'}
+        ${log.resource_id ? `<br><small class="text-muted">${log.resource_id}</small>` : ''}
+      </td>
+      <td><small>${escapeHtml(log.description)}</small></td>
+      <td><small>${log.ip_address || '-'}</small></td>
+      <td>
+        ${log.success === 'success' 
+          ? '<span class="badge bg-success">Success</span>' 
+          : '<span class="badge bg-danger">Failed</span>'}
+      </td>
+      <td>
+        <button class="btn btn-sm btn-info" onclick="showLogDetails(${log.id})" title="View Details">
+          <i class="bi bi-eye"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// Apply filters
+function applyFilters() {
+  currentFilters = {
+    action: document.getElementById('actionFilter').value,
+    severity: document.getElementById('severityFilter').value,
+    username: document.getElementById('usernameFilter').value,
+    resource_type: document.getElementById('resourceFilter').value,
+    start_date: document.getElementById('startDateFilter').value,
+    end_date: document.getElementById('endDateFilter').value
+  };
+  
+  loadLogs(1);
+}
+
+// Reset filters
+function resetFilters() {
+  document.getElementById('actionFilter').value = '';
+  document.getElementById('severityFilter').value = '';
+  document.getElementById('usernameFilter').value = '';
+  document.getElementById('resourceFilter').value = '';
+  document.getElementById('startDateFilter').value = '';
+  document.getElementById('endDateFilter').value = '';
+  
+  currentFilters = {};
+  loadLogs(1);
+}
+
+// Update pagination
+function updatePagination() {
+  const totalPages = Math.ceil(totalLogs / logsPerPage);
+  const start = (currentPage - 1) * logsPerPage + 1;
+  const end = Math.min(currentPage * logsPerPage, totalLogs);
+  
+  document.getElementById('showingRange').textContent = `${start}-${end}`;
+  document.getElementById('totalLogs').textContent = totalLogs;
+  
+  const pagination = document.getElementById('pagination');
+  let html = '';
+  
+  // Previous button
+  html += `
+    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="loadLogs(${currentPage - 1}); return false;">Previous</a>
+    </li>
+  `;
+  
+  // Page numbers (show 5 pages max)
+  const startPage = Math.max(1, currentPage - 2);
+  const endPage = Math.min(totalPages, startPage + 4);
+  
+  for (let i = startPage; i <= endPage; i++) {
+    html += `
+      <li class="page-item ${i === currentPage ? 'active' : ''}">
+        <a class="page-link" href="#" onclick="loadLogs(${i}); return false;">${i}</a>
+      </li>
+    `;
+  }
+  
+  // Next button
+  html += `
+    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="loadLogs(${currentPage + 1}); return false;">Next</a>
+    </li>
+  `;
+  
+  pagination.innerHTML = html;
+}
+
+// Show log details
+function showLogDetails(logId) {
+  const log = allLogs.find(l => l.id === logId);
+  if (!log) return;
+  
+  document.getElementById('detailTimestamp').textContent = formatDate(log.timestamp);
+  document.getElementById('detailUser').textContent = `${log.username || 'System'} (${log.user_role || '-'})`;
+  document.getElementById('detailAction').textContent = formatAction(log.action);
+  document.getElementById('detailSeverity').innerHTML = `<span class="severity-badge severity-${log.severity}">${log.severity.toUpperCase()}</span>`;
+  document.getElementById('detailResourceType').textContent = log.resource_type || '-';
+  document.getElementById('detailResourceId').textContent = log.resource_id || '-';
+  document.getElementById('detailDescription').textContent = log.description;
+  document.getElementById('detailIP').textContent = log.ip_address || '-';
+  document.getElementById('detailStatus').innerHTML = log.success === 'success' 
+    ? '<span class="badge bg-success">Success</span>' 
+    : '<span class="badge bg-danger">Failed</span>';
+  
+  // Show before/after values if available
+  const beforeAfterSection = document.getElementById('beforeAfterSection');
+  if (log.before_value || log.after_value) {
+    beforeAfterSection.style.display = 'block';
+    document.getElementById('detailBefore').textContent = JSON.stringify(log.before_value, null, 2);
+    document.getElementById('detailAfter').textContent = JSON.stringify(log.after_value, null, 2);
+  } else {
+    beforeAfterSection.style.display = 'none';
+  }
+  
+  // Show extra data if available
+  const extraDataSection = document.getElementById('extraDataSection');
+  if (log.extra_data) {
+    extraDataSection.style.display = 'block';
+    document.getElementById('detailExtraData').textContent = JSON.stringify(log.extra_data, null, 2);
+  } else {
+    extraDataSection.style.display = 'none';
+  }
+  
+  new bootstrap.Modal(document.getElementById('logDetailsModal')).show();
+}
+
+// Export logs
+async function exportLogs() {
+  try {
+    // Build query parameters with current filters
+    const params = new URLSearchParams({
+      format: 'json'
+    });
+    
+    if (currentFilters.start_date) params.append('start_date', currentFilters.start_date);
+    if (currentFilters.end_date) params.append('end_date', currentFilters.end_date);
+    
+    const response = await fetch(`/admin/api/audit/export?${params}`);
+    if (!response.ok) throw new Error('Failed to export logs');
+    
+    const data = await response.json();
+    
+    // Download as JSON file
+    const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    showAlert(`Successfully exported ${data.count} logs`, 'success');
+  } catch (error) {
+    console.error('Error exporting logs:', error);
+    showAlert('Failed to export logs: ' + error.message, 'danger');
+  }
+}
+
+// Show alert message
+function showAlert(message, type = 'success') {
+  const container = document.getElementById('alertContainer');
+  const alert = document.createElement('div');
+  alert.className = `alert alert-${type} alert-dismissible fade show`;
+  alert.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  container.appendChild(alert);
+  
+  setTimeout(() => {
+    alert.remove();
+  }, 5000);
+}
+
+// Utility functions
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+}
+
+function formatAction(action) {
+  if (!action) return '-';
+  return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getActionCategory(action) {
+  if (!action) return 'system';
+  if (action.includes('user')) return 'user';
+  if (action.includes('policy')) return 'policy';
+  if (action.includes('block') || action.includes('alert')) return 'enforcement';
+  return 'system';
+}
+</script>
+{% endblock %}

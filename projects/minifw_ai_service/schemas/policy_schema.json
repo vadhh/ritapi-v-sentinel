@@ -1,0 +1,565 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniFW V-Sentinel Sector Policy Schema",
+  "description": "Enhanced policy schema for sector-specific AI firewall enforcement",
+  "type": "object",
+  "required": ["policy_metadata", "sector_config", "ai_detection", "enforcement_rules", "audit_config"],
+  
+  "properties": {
+    "policy_metadata": {
+      "type": "object",
+      "required": ["policy_id", "version", "sector", "created_at"],
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "description": "Unique identifier for this policy",
+          "pattern": "^POL-[A-Z0-9]{8}$",
+          "example": "POL-12AB34CD"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of this policy",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "example": "1.2.3"
+        },
+        "sector": {
+          "type": "string",
+          "enum": ["hospital", "school", "government", "corporate", "general"],
+          "description": "Target sector for this policy"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "active", "deprecated", "archived"],
+          "default": "draft"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "Username who created this policy"
+        },
+        "activated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "compliance_tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Regulatory compliance tags (e.g., HIPAA, GDPR, ISO27001)"
+        }
+      }
+    },
+    
+    "sector_config": {
+      "type": "object",
+      "description": "Sector-specific configuration parameters",
+      "required": ["network_segments", "operating_hours", "risk_tolerance"],
+      "properties": {
+        "network_segments": {
+          "type": "object",
+          "description": "Network segmentation for different user groups",
+          "patternProperties": {
+            "^[a-z_]+$": {
+              "type": "object",
+              "required": ["subnets", "block_threshold", "monitor_threshold"],
+              "properties": {
+                "subnets": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/\\d{1,2}$"
+                  }
+                },
+                "block_threshold": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "AI score threshold for automatic blocking"
+                },
+                "monitor_threshold": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "AI score threshold for monitoring/alerting"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "operating_hours": {
+          "type": "object",
+          "properties": {
+            "business_hours": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "example": "08:00"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+                  "example": "17:00"
+                }
+              }
+            },
+            "timezone": {
+              "type": "string",
+              "default": "Asia/Jakarta",
+              "example": "Asia/Jakarta"
+            },
+            "after_hours_strictness": {
+              "type": "string",
+              "enum": ["relaxed", "normal", "strict"],
+              "description": "How strict enforcement is outside business hours"
+            }
+          }
+        },
+        "risk_tolerance": {
+          "type": "string",
+          "enum": ["very_low", "low", "medium", "high"],
+          "description": "Overall risk tolerance level for this sector"
+        },
+        "critical_systems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of critical system IPs or domains that should never be blocked"
+        }
+      }
+    },
+    
+    "ai_detection": {
+      "type": "object",
+      "description": "AI V-Sentinel detection configuration",
+      "required": ["feature_weights", "threat_categories"],
+      "properties": {
+        "feature_weights": {
+          "type": "object",
+          "description": "Weights for different detection features (must sum to 100)",
+          "required": ["dns_weight", "sni_weight", "asn_weight", "burst_weight"],
+          "properties": {
+            "dns_weight": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Weight for DNS query pattern analysis"
+            },
+            "sni_weight": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Weight for SNI (Server Name Indication) analysis"
+            },
+            "asn_weight": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Weight for ASN reputation analysis"
+            },
+            "burst_weight": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Weight for traffic burst detection"
+            },
+            "behavioral_weight": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Weight for behavioral pattern analysis"
+            }
+          }
+        },
+        "threat_categories": {
+          "type": "object",
+          "description": "Configuration for specific threat categories",
+          "properties": {
+            "gambling": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "base_score": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "Base AI score for detected gambling sites"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": ["block", "alert", "monitor", "throttle"]
+                },
+                "feed_sources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "malware": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "base_score": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "action": {
+                  "type": "string",
+                  "enum": ["block", "alert", "monitor", "throttle"]
+                }
+              }
+            },
+            "api_abuse": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "detection_threshold": {
+                  "type": "integer",
+                  "description": "Requests per minute threshold"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": ["block", "alert", "monitor", "throttle"]
+                }
+              }
+            },
+            "social_media": {
+              "type": "object",
+              "description": "Social media access control (sector-specific)",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": ["block", "alert", "monitor", "throttle", "allow"]
+                },
+                "allowed_hours": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "start": {
+                        "type": "string",
+                        "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                      },
+                      "end": {
+                        "type": "string",
+                        "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "burst_detection": {
+          "type": "object",
+          "properties": {
+            "dns_queries_per_minute_monitor": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "dns_queries_per_minute_block": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "connection_rate_limit": {
+              "type": "integer",
+              "description": "Max new connections per minute per IP"
+            }
+          }
+        }
+      }
+    },
+    
+    "enforcement_rules": {
+      "type": "array",
+      "description": "Ordered list of enforcement rules (evaluated by priority)",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "priority", "conditions", "action"],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "pattern": "^RULE-[A-Z0-9]{8}$"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Lower number = higher priority"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "conditions": {
+            "type": "object",
+            "description": "Conditions that must be met for this rule to apply",
+            "properties": {
+              "ai_score_min": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "ai_score_max": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "threat_categories": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["gambling", "malware", "api_abuse", "phishing", "c2", "social_media"]
+                }
+              },
+              "source_segments": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "time_windows": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "days": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+                      }
+                    },
+                    "start_time": {
+                      "type": "string",
+                      "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    },
+                    "end_time": {
+                      "type": "string",
+                      "pattern": "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    }
+                  }
+                }
+              },
+              "repeat_offender": {
+                "type": "object",
+                "properties": {
+                  "violations_count": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "time_window_minutes": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          },
+          "action": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["block", "alert", "throttle", "quarantine", "allow"]
+              },
+              "duration_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "How long the action persists (for block, throttle)"
+              },
+              "alert_channels": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": ["email", "syslog", "webhook", "dashboard"]
+                }
+              },
+              "throttle_rate": {
+                "type": "integer",
+                "description": "Rate limit in requests per minute (for throttle action)"
+              },
+              "escalate_after": {
+                "type": "object",
+                "properties": {
+                  "violations": {
+                    "type": "integer"
+                  },
+                  "time_window_minutes": {
+                    "type": "integer"
+                  },
+                  "escalate_to_action": {
+                    "type": "string",
+                    "enum": ["block", "quarantine"]
+                  }
+                }
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "created_by": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "last_modified_by": {
+                "type": "string"
+              },
+              "last_modified_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "audit_config": {
+      "type": "object",
+      "description": "Audit and logging configuration",
+      "required": ["retention_days", "log_level"],
+      "properties": {
+        "retention_days": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 3650,
+          "description": "How long to retain audit logs"
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error", "critical"],
+          "default": "info"
+        },
+        "log_all_decisions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Log every enforcement decision made by AI"
+        },
+        "export_format": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["json", "csv", "syslog", "cef"]
+          }
+        },
+        "compliance_reporting": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "report_frequency": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly"]
+            },
+            "recipients": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "email"
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    "collectors": {
+      "type": "object",
+      "description": "Data collection sources",
+      "properties": {
+        "dnsmasq_log_path": {
+          "type": "string"
+        },
+        "zeek_ssl_log_path": {
+          "type": "string"
+        },
+        "use_zeek_sni": {
+          "type": "boolean",
+          "default": false
+        },
+        "netflow_enabled": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    
+    "enforcement": {
+      "type": "object",
+      "description": "Technical enforcement configuration",
+      "properties": {
+        "ipset_name_v4": {
+          "type": "string",
+          "default": "minifw_block_v4"
+        },
+        "ipset_name_v6": {
+          "type": "string",
+          "default": "minifw_block_v6"
+        },
+        "ip_timeout_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "default": 86400
+        },
+        "nft_table": {
+          "type": "string",
+          "default": "inet"
+        },
+        "nft_chain": {
+          "type": "string",
+          "default": "forward"
+        }
+      }
+    }
+  }
+}

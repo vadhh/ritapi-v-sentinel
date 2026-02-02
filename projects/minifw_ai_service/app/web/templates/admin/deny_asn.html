@@ -1,0 +1,164 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Deny ASNs{% endblock %}
+
+{% block content %}
+<div class="app-content">
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Deny ASN (Autonomous System Numbers)</h3>
+        <div class="card-tools">
+          <button class="btn btn-sm btn-primary" id="addAsnBtn">
+            <i class="bi bi-plus-circle"></i> Add ASN
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table id="denyAsnTable" class="table table-striped table-bordered align-middle w-100">
+          <thead>
+            <tr>
+              <th style="width: 60px" class="text-center">No</th>
+              <th>ASN</th>
+              <th style="width: 150px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for asn in asns %}
+            <tr>
+              <td class="text-center">{{ loop.index }}</td>
+              <td>{{ asn.asn }}</td>
+              <td>
+                <button class="btn btn-sm btn-warning btn-edit" data-asn="{{ asn.asn }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-danger btn-delete" data-asn="{{ asn.asn }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal fade" id="asnModal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">ASN</h5>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="oldAsn" />
+          <input type="text" id="asnInput" class="form-control" placeholder="AS12345" style="text-transform: uppercase;" />
+          <small class="form-text text-muted">Enter ASN in format: AS12345</small>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" id="saveAsn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Check jQuery
+  if (typeof jQuery === 'undefined') {
+    console.error('jQuery NOT loaded!');
+    return;
+  }
+  
+  // Initialize DataTable
+  var table = jQuery("#denyAsnTable").DataTable({
+    responsive: true,
+    pageLength: 10,
+    lengthChange: false,
+    ordering: true,
+    language: {
+      search: "Search ASN:",
+      zeroRecords: "No ASN found"
+    }
+  });
+  
+  // Initialize modal
+  var modalEl = document.getElementById('asnModal');
+  var modal = new bootstrap.Modal(modalEl);
+  
+  // Auto-uppercase input
+  jQuery('#asnInput').on('input', function() {
+    this.value = this.value.toUpperCase();
+  });
+  
+  // Add ASN button
+  jQuery('#addAsnBtn').on('click', function() {
+    jQuery('#oldAsn').val('');
+    jQuery('#asnInput').val('');
+    modal.show();
+  });
+  
+  // Save ASN button
+  jQuery('#saveAsn').on('click', function() {
+    var oldAsn = jQuery('#oldAsn').val();
+    var asn = jQuery('#asnInput').val().toUpperCase();
+    var method = oldAsn ? 'PUT' : 'POST';
+    
+    jQuery.ajax({
+      url: '/admin/deny-asn',
+      method: method,
+      contentType: 'application/json',
+      data: JSON.stringify(oldAsn ? { old: oldAsn, new: asn } : { asn: asn }),
+      success: function(res) {
+        Swal.fire('Success', res.message, 'success').then(function() {
+          location.reload();
+        });
+      },
+      error: function(err) {
+        Swal.fire('Error', err.responseJSON.detail, 'error');
+      }
+    });
+  });
+  
+  // Edit button
+  jQuery('#denyAsnTable tbody').on('click', '.btn-edit', function() {
+    var asn = jQuery(this).data('asn');
+    jQuery('#oldAsn').val(asn);
+    jQuery('#asnInput').val(asn);
+    modal.show();
+  });
+  
+  // Delete button
+  jQuery('#denyAsnTable tbody').on('click', '.btn-delete', function() {
+    var asn = jQuery(this).data('asn');
+    
+    Swal.fire({
+      title: 'Delete ASN?',
+      text: asn,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete'
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        jQuery.ajax({
+          url: '/admin/deny-asn',
+          method: 'DELETE',
+          contentType: 'application/json',
+          data: JSON.stringify({ asn: asn }),
+          success: function(res) {
+            Swal.fire('Deleted', res.message, 'success').then(function() {
+              location.reload();
+            });
+          }
+        });
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

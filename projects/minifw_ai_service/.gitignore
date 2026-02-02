@@ -1,0 +1,8 @@
+shared_dns_logs/
+data/*.db
+.env
+logs/
+*.log
+venv/
+__pycache__/
+

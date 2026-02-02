@@ -1,0 +1,201 @@
+[H[2J[3J
+[96m[1m
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   ███╗   ███╗██╗███╗   ██╗██╗███████╗██╗    ██╗      █████╗ ██╗             ║
+║   ████╗ ████║██║████╗  ██║██║██╔════╝██║    ██║     ██╔══██╗██║             ║
+║   ██╔████╔██║██║██╔██╗ ██║██║█████╗  ██║ █╗ ██║     ███████║██║             ║
+║   ██║╚██╔╝██║██║██║╚██╗██║██║██╔══╝  ██║███╗██║     ██╔══██║██║             ║
+║   ██║ ╚═╝ ██║██║██║ ╚████║██║██║     ╚███╔███╔╝     ██║  ██║██║             ║
+║   ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝      ╚══╝╚══╝      ╚═╝  ╚═╝╚═╝             ║
+║                                                                              ║
+║              RITAPI Sentinel - Gateway Metadata Protection Layer             ║
+║                        Feature Demonstration Suite                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+[0m
+
+[1mSelect a test to run:[0m
+
+  [96m[1][0m Sector Lock System      [2m(Factory-set configuration)[0m
+  [96m[2][0m Feed System             [2m(Threat intelligence)[0m
+  [96m[3][0m Flow Collector          [2m(Network traffic analysis)[0m
+  [96m[4][0m MLP Engine              [2m(AI threat detection)[0m
+  [96m[5][0m YARA Scanner            [2m(Payload analysis)[0m
+  [96m[6][0m Scoring Engine          [2m(Decision logic)[0m
+  [96m[7][0m Policy System           [2m(Configuration)[0m
+  [96m[8][0m Burst Tracker           [2m(DDoS detection)[0m
+
+  [92m[A][0m Run ALL Tests
+  [91m[Q][0m Quit
+
+
+  [1mEnter choice:[0m [H[2J[3J
+[96m[1m
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   ███╗   ███╗██╗███╗   ██╗██╗███████╗██╗    ██╗      █████╗ ██╗             ║
+║   ████╗ ████║██║████╗  ██║██║██╔════╝██║    ██║     ██╔══██╗██║             ║
+║   ██╔████╔██║██║██╔██╗ ██║██║█████╗  ██║ █╗ ██║     ███████║██║             ║
+║   ██║╚██╔╝██║██║██║╚██╗██║██║██╔══╝  ██║███╗██║     ██╔══██║██║             ║
+║   ██║ ╚═╝ ██║██║██║ ╚████║██║██║     ╚███╔███╔╝     ██║  ██║██║             ║
+║   ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝      ╚══╝╚══╝      ╚═╝  ╚═╝╚═╝             ║
+║                                                                              ║
+║              RITAPI Sentinel - Gateway Metadata Protection Layer             ║
+║                        Feature Demonstration Suite                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 1: SECTOR LOCK SYSTEM (Factory-Set Configuration)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] Sector loads from environment/config
+           [2mSector = school[0m
+  [92m✓[0m [[92mPASS[0m] Sector is locked (immutable)
+           [2mCannot be changed via UI[0m
+  [92m✓[0m [[92mPASS[0m] Sector config retrieval
+           [2mEducation: Enforces SafeSearch and strict content filtering.[0m
+  [92m✓[0m [[92mPASS[0m] All 6 sectors defined in enum
+
+  [96m▸[0m Current Sector: [1mSCHOOL[0m
+  [96m▸[0m SafeSearch: [1mEnabled[0m
+  [96m▸[0m VPN Blocking: [1mEnabled[0m
+  [96m▸[0m IoMT Priority: [1mDisabled[0m
+  [96m▸[0m Extra Feeds: [1m['school_blacklist.txt'][0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 2: FEED SYSTEM (Threat Intelligence)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] FeedMatcher initialization
+           [2mFeeds dir: /home/stardhoom/minifw-ai/config/feeds[0m
+  [92m✓[0m [[92mPASS[0m] Deny domains loaded
+           [2m5 patterns[0m
+  [92m✓[0m [[92mPASS[0m] Allow domains loaded
+           [2m4 patterns[0m
+  [92m✓[0m [[92mPASS[0m] Domain check: malware.example.com
+           [2mShould be blocked[0m
+  [92m✓[0m [[92mPASS[0m] Domain check: google.com
+           [2mShould be allowed[0m
+  [92m✓[0m [[92mPASS[0m] Domain check: slot-gacor.xyz
+           [2mGambling site[0m
+  [92m✓[0m [[92mPASS[0m] Sector feed loading
+           [2mLoaded 59 patterns from school_blacklist.txt[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 3: FLOW COLLECTOR (Network Traffic Analysis)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] FlowTracker initialization
+  [92m✓[0m [[92mPASS[0m] Flow creation
+           [2mCreated 3 flows[0m
+  [92m✓[0m [[92mPASS[0m] Feature extraction (24 features)
+           [2mDuration: 0.10s, Packets: 21[0m
+  [92m✓[0m [[92mPASS[0m] DNS enrichment
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 4: MLP ENGINE (AI Threat Detection)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] MLP model loaded
+           [2mModel: mlp_engine.pkl[0m
+  [92m✓[0m [[92mPASS[0m] MLP inference
+           [2mThreat: True, Probability: 1.0000[0m
+  [96m▸[0m Threshold: [1m0.5[0m
+  [96m▸[0m Verdict: [1mTHREAT[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 5: YARA SCANNER (Payload Analysis)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] YARA rules loaded
+           [2mTrue rules[0m
+  [96m●[0m [[96mINFO[0m] Scan: Gambling domain
+           [2mClean[0m
+  [96m●[0m [[96mINFO[0m] Scan: Normal domain
+           [2mClean[0m
+  [96m●[0m [[96mINFO[0m] Scan: Suspicious payload
+           [2mClean[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 6: SCORING ENGINE (Threat Decision)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] Clean traffic
+           [2mScore: 0, Action: allow[0m
+  [92m✓[0m [[92mPASS[0m] Blocked domain only
+           [2mScore: 41, Action: monitor[0m
+  [92m✓[0m [[92mPASS[0m] Multi-signal threat
+           [2mScore: 100, Action: block[0m
+  [92m✓[0m [[92mPASS[0m] Hard threat override
+           [2mForces score=100, action=block[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 7: POLICY SYSTEM (Configuration)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] Policy file loaded
+  [92m✓[0m [[92mPASS[0m] Thresholds retrieval
+           [2mBlock: 60, Monitor: 40[0m
+  [92m✓[0m [[92mPASS[0m] Feature weights
+           [2mDNS: 41, MLP: 30[0m
+  [92m✓[0m [[92mPASS[0m] Segment subnets
+           [2m3 segments defined[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST 8: BURST TRACKER (DDoS Detection)[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+  [92m✓[0m [[92mPASS[0m] BurstTracker initialization
+  [92m✓[0m [[92mPASS[0m] Query counting
+           [2m192.168.1.100 has 50 queries/min[0m
+  [92m✓[0m [[92mPASS[0m] Burst threshold check
+           [2mHigh QPM detected[0m
+
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+[1m[94m  TEST SUMMARY[0m
+[1m[94m──────────────────────────────────────────────────────────────────────────────[0m
+
+
+  [92mPassed:[0m   30
+  [91mFailed:[0m    0
+  [93mSkipped:[0m   0
+  ────────────────────
+  [1mTotal:[0m    30
+
+  [92m[1m✓ ALL TESTS PASSED![0m
+
+[2mPress ENTER to continue...[0m
+[H[2J[3J
+[96m[1m
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║   ███╗   ███╗██╗███╗   ██╗██╗███████╗██╗    ██╗      █████╗ ██╗             ║
+║   ████╗ ████║██║████╗  ██║██║██╔════╝██║    ██║     ██╔══██╗██║             ║
+║   ██╔████╔██║██║██╔██╗ ██║██║█████╗  ██║ █╗ ██║     ███████║██║             ║
+║   ██║╚██╔╝██║██║██║╚██╗██║██║██╔══╝  ██║███╗██║     ██╔══██║██║             ║
+║   ██║ ╚═╝ ██║██║██║ ╚████║██║██║     ╚███╔███╔╝     ██║  ██║██║             ║
+║   ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝      ╚══╝╚══╝      ╚═╝  ╚═╝╚═╝             ║
+║                                                                              ║
+║              RITAPI Sentinel - Gateway Metadata Protection Layer             ║
+║                        Feature Demonstration Suite                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+[0m
+
+[1mSelect a test to run:[0m
+
+  [96m[1][0m Sector Lock System      [2m(Factory-set configuration)[0m
+  [96m[2][0m Feed System             [2m(Threat intelligence)[0m
+  [96m[3][0m Flow Collector          [2m(Network traffic analysis)[0m
+  [96m[4][0m MLP Engine              [2m(AI threat detection)[0m
+  [96m[5][0m YARA Scanner            [2m(Payload analysis)[0m
+  [96m[6][0m Scoring Engine          [2m(Decision logic)[0m
+  [96m[7][0m Policy System           [2m(Configuration)[0m
+  [96m[8][0m Burst Tracker           [2m(DDoS detection)[0m
+
+  [92m[A][0m Run ALL Tests
+  [91m[Q][0m Quit
+
+
+  [1mEnter choice:[0m 
+Goodbye!
