@@ -1,0 +1,49 @@
+# RitAPI V-Sentinel Log Rotation Configuration
+# Provides regulator-grade log management for all V-Sentinel components
+
+/var/log/nginx/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 640 root adm
+    postrotate
+        [ ! -f /var/run/nginx.pid ] || kill -USR1 `cat /var/run/nginx.pid`
+    endscript
+}
+
+/opt/ritapi_v_sentinel/logs/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 640 www-data www-data
+}
+
+/opt/minifw_ai/logs/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 640 root root
+}
+
+/var/log/ritapi/*.json /var/log/ritapi/*.jsonl {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 640 root root
+}

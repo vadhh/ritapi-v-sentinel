@@ -603,6 +603,100 @@ show_completion_message() {
 }
 
 ################################################################################
+# V-Sentinel Closure Control Functions
+################################################################################
+
+create_vsentinel_env() {
+    print_header "Creating V-Sentinel Environment Configuration"
+    
+    # Create /etc/ritapi directory
+    print_step "Creating /etc/ritapi directory..."
+    mkdir -p /etc/ritapi
+    
+    # Copy template and create vsentinel.env
+    print_step "Creating vsentinel.env from template..."
+    if [ -f "$SCRIPT_DIR/scripts/vsentinel.env.template" ]; then
+        cp "$SCRIPT_DIR/scripts/vsentinel.env.template" /etc/ritapi/vsentinel.env
+    else
+        # Create default config
+        cat > /etc/ritapi/vsentinel.env << EOF
+# V-Sentinel Environment Configuration - Gambling-Only Network Security
+GAMBLING_ONLY=1
+ALLOWED_DETECTION_TYPES=gambling
+MODEL_NAME=v_sentinel_mlp
+MODEL_VERSION=mlp_v2
+POLICY_ID=V-SENTINEL-GOV-01
+POLICY_VERSION=1.0
+EOF
+    fi
+    
+    # Set restrictive permissions (readable by root only)
+    chmod 640 /etc/ritapi/vsentinel.env
+    
+    print_success "V-Sentinel environment configuration created"
+}
+
+install_runtime_guard() {
+    print_header "Installing Runtime Guard Script"
+    
+    # Create minifw_ai scripts directory if needed
+    mkdir -p /opt/minifw_ai/scripts
+    
+    print_step "Installing vsentinel_runtime_guard.sh..."
+    if [ -f "$SCRIPT_DIR/scripts/vsentinel_runtime_guard.sh" ]; then
+        cp "$SCRIPT_DIR/scripts/vsentinel_runtime_guard.sh" /opt/minifw_ai/scripts/
+    else
+        print_warning "Runtime guard script not found in package"
+    fi
+    
+    # Make executable
+    chmod 755 /opt/minifw_ai/scripts/vsentinel_runtime_guard.sh
+    
+    print_success "Runtime guard script installed"
+}
+
+run_scope_gate() {
+    print_header "Running Scope Gate Validation"
+    
+    if [ -f "$SCRIPT_DIR/scripts/vsentinel_scope_gate.sh" ]; then
+        bash "$SCRIPT_DIR/scripts/vsentinel_scope_gate.sh"
+        if [ $? -ne 0 ]; then
+            print_error "Scope gate validation failed - installation cannot proceed"
+            exit 1
+        fi
+    else
+        print_warning "Scope gate script not found - skipping validation"
+    fi
+}
+
+run_selftest() {
+    print_header "Running Post-Installation Self-Test"
+    
+    if [ -f "$SCRIPT_DIR/scripts/vsentinel_selftest.sh" ]; then
+        bash "$SCRIPT_DIR/scripts/vsentinel_selftest.sh"
+        if [ $? -ne 0 ]; then
+            print_warning "Some self-test checks failed - please review the output above"
+        fi
+    else
+        print_warning "Self-test script not found - skipping verification"
+    fi
+}
+
+install_logrotate() {
+    print_header "Installing Log Rotation Configuration"
+    
+    print_step "Installing logrotate configuration..."
+    if [ -f "$SCRIPT_DIR/scripts/logrotate.d/ritapi-vsentinel" ]; then
+        mkdir -p /etc/logrotate.d
+        cp "$SCRIPT_DIR/scripts/logrotate.d/ritapi-vsentinel" /etc/logrotate.d/
+        chmod 644 /etc/logrotate.d/ritapi-vsentinel
+        print_success "Logrotate configuration installed"
+    else
+        print_warning "Logrotate configuration not found in package"
+    fi
+}
+
+################################################################################
 # Uninstall Function
 ################################################################################
 
@@ -706,14 +800,29 @@ install_full() {
     verify_package_structure
     detect_web_user
     
+    # V-Sentinel Closure Controls - Create environment early
+    create_vsentinel_env
+    
     install_system_dependencies
     install_ritapi_django
     install_minifw_ai
     apply_minifw_crud_fix
     install_gunicorn_service
     configure_nginx
+    
+    # V-Sentinel Closure Controls - Validate before starting services
+    run_scope_gate
+    install_runtime_guard
+    
     create_admin_user
     start_services
+    
+    # V-Sentinel Closure Controls - Verify after services started
+    sleep 3
+    run_selftest
+    
+    # Install log rotation at the end
+    install_logrotate
     
     sleep 2
     show_status
