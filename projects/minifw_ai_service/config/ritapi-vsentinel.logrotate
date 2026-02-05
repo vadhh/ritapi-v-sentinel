@@ -1,0 +1,8 @@
+/var/log/ritapi/*.jsonl {
+    daily
+    rotate 30
+    compress
+    missingok
+    notifempty
+    create 0640 root adm
+}

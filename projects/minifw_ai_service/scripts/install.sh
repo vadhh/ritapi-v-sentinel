@@ -3,6 +3,22 @@ set -euo pipefail
 if [[ $EUID -ne 0 ]]; then echo "Run as root: sudo $0"; exit 1; fi
 
 APP_ROOT="/opt/minifw_ai"
+
+# VSentinel Scope Gate - Fail-Closed Check
+if [ -f "$(dirname "$0")/vsentinel_scope_gate.sh" ]; then
+    chmod +x "$(dirname "$0")/vsentinel_scope_gate.sh"
+    # Export GAMBLING_ONLY if not already set, checking config or default
+    if [ -f "/etc/ritapi/vsentinel.env" ]; then
+        set -a
+        source /etc/ritapi/vsentinel.env
+        set +a
+    fi
+    "$(dirname "$0")/vsentinel_scope_gate.sh"
+else
+    echo "VSentinel Scope Gate missing! Aborting installation."
+    exit 1
+fi
+
 apt-get update
 apt-get install -y python3 python3-venv dnsmasq nftables ipset
 

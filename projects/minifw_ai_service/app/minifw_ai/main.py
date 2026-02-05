@@ -1,5 +1,10 @@
 from __future__ import annotations
 import os
+
+# VSentinel Hard Guard
+if os.getenv("GAMBLING_ONLY") != "1":
+    raise SystemExit("VSentinel Critical: Non-gambling mode detected. Shutting down.")
+
 import json
 import logging
 import subprocess

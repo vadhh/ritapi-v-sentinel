@@ -82,6 +82,57 @@ print_step() {
     echo -e "${CYAN}▶ $1${NC}"
 }
 
+# Run Django manage.py with env loaded from /etc/ritapi/vsentinel.env
+# Why: settings.py reads os.environ (django-environ), so manage.py MUST run with those vars set.
+# Important: sudo resets env by default, so we source the env file inside a shell running as $DJANGO_USER.
+run_django_with_env() {
+    local envfile="/etc/ritapi/vsentinel.env"
+    local py="$DJANGO_PROJECT_DIR/venv/bin/python"
+    local manage="$DJANGO_PROJECT_DIR/manage.py"
+
+    if [ ! -f "$envfile" ]; then
+        print_error "Missing $envfile (environment is required for Django)"
+        return 1
+    fi
+
+    # IMPORTANT:
+    # We expand $envfile/$DJANGO_PROJECT_DIR/$py/$manage in the *outer* shell so the inner bash
+    # receives literal paths. Using single quotes inside the bash -lc string would prevent expansion
+    # and would try to source a file literally named '$envfile' (bug).
+    sudo -u "$DJANGO_USER" bash -lc "set -euo pipefail
+        set -a
+        . \"${envfile}\"
+        set +a
+        cd \"${DJANGO_PROJECT_DIR}\"
+        exec \"${py}\" \"${manage}\" \"\$@\"
+    " -- "$@"
+}
+
+ensure_static_root_setting() {
+    # Django collectstatic requires STATIC_ROOT to be set to a real filesystem path.
+    # This project ships without STATIC_ROOT in settings.py, so collectstatic fails.
+    # We align STATIC_ROOT with the directory we already create and serve via nginx (/opt/ritapi_v_sentinel/static).
+    local settings_file="$DJANGO_PROJECT_DIR/ritapi_v_sentinel/settings.py"
+    if [ ! -f "$settings_file" ]; then
+        print_warning "settings.py not found at $settings_file (skipping STATIC_ROOT patch)"
+        return 0
+    fi
+
+    if grep -qE '^\s*STATIC_ROOT\s*=' "$settings_file"; then
+        return 0
+    fi
+
+    # Append at end to avoid fighting existing config.
+    cat >>"$settings_file" <<'PYEOF'
+
+# --- Installer patch: required for collectstatic ---
+# collectstatic needs STATIC_ROOT; align with nginx alias (/opt/ritapi_v_sentinel/static/)
+import os
+STATIC_ROOT = os.environ.get("STATIC_ROOT", os.path.join(BASE_DIR, "static"))
+PYEOF
+    print_success "Patched settings.py with STATIC_ROOT (for collectstatic)"
+    return 0
+}
 # --- Admin creation (NEVER abort install) ---
 create_admin_maybe() {
     local py="$DJANGO_PROJECT_DIR/venv/bin/python"
@@ -94,11 +145,7 @@ create_admin_maybe() {
         if [[ -z "$DJANGO_SUPERUSER_USERNAME" || -z "$DJANGO_SUPERUSER_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" ]]; then
             echo "[WARN] Incomplete DJANGO_SUPERUSER_* env vars. Skipping non-interactive creation."
         else
-            if ! (cd "$DJANGO_PROJECT_DIR" && sudo -u "$DJANGO_USER" \
-                DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
-                DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
-                DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
-                "$py" "$manage" createsuperuser --noinput); then
+            if ! (run_django_with_env createsuperuser --noinput); then
                 echo "[WARN] createsuperuser (non-interactive) failed (non-fatal)."
                 echo "       You can retry later:"
                 echo "       cd $DJANGO_PROJECT_DIR && sudo -u $DJANGO_USER $py $manage createsuperuser"
@@ -116,7 +163,7 @@ create_admin_maybe() {
     fi
 
     # Interactive attempt, but do NOT let failure cancel install
-    if ! (cd "$DJANGO_PROJECT_DIR" && sudo -u "$DJANGO_USER" "$py" "$manage" createsuperuser); then
+    if ! (run_django_with_env createsuperuser); then
         echo "[WARN] createsuperuser failed (non-fatal)."
         echo "       You can retry later:"
         echo "       cd $DJANGO_PROJECT_DIR && sudo -u $DJANGO_USER $py $manage createsuperuser"
@@ -168,6 +215,8 @@ Environment="PYTHONPATH=/opt/minifw_ai/app"
 
 Environment="MINIFW_POLICY=/opt/minifw_ai/config/policy.json"
 Environment="MINIFW_FEEDS=/opt/minifw_ai/config/feeds"
+EnvironmentFile=/etc/ritapi/vsentinel.env
+
 Environment="MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl"
 
 ExecStart=/opt/minifw_ai/venv/bin/python -m minifw_ai
@@ -183,7 +232,7 @@ EOF
 }
 
 ensure_allowed_hosts() {
-    local env_file="$DJANGO_PROJECT_DIR/.env"
+    local env_file="/etc/ritapi/vsentinel.env"
 
     local ip
     ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')"
@@ -205,7 +254,6 @@ ensure_allowed_hosts() {
     fi
 
     print_success "ALLOWED_HOSTS updated with $ip"
-    systemctl restart ritapi-gunicorn 2>/dev/null || true
 }
 
 post_install_verify() {
@@ -330,10 +378,73 @@ install_system_dependencies() {
         curl \
         wget \
         nginx \
+        postgresql \
+        postgresql-contrib \
         > /dev/null 2>&1
     
     print_success "System dependencies installed"
 }
+
+
+setup_postgres() {
+    print_header "Configuring PostgreSQL for RitAPI"
+
+    local envfile="/etc/ritapi/vsentinel.env"
+    if [ ! -f "$envfile" ]; then
+        print_error "Missing $envfile; cannot configure DB"
+        exit 1
+    fi
+
+    # Load env (export) for this installer process
+    set -a
+    # shellcheck disable=SC1090
+    . "$envfile"
+    set +a
+
+    # Sanity: required vars
+    for v in DB_NAME DB_USER DB_PASSWORD DB_HOST DB_PORT; do
+        if [ -z "${!v:-}" ]; then
+            print_error "Missing $v in $envfile"
+            exit 1
+        fi
+    done
+
+    systemctl enable postgresql >/dev/null 2>&1 || true
+    systemctl start postgresql >/dev/null 2>&1 || true
+
+    # If postgres role already exists from a previous run, our old installer wouldn't update its password.
+    # That causes Django migrations to fail with "password authentication failed".
+    # Fix: idempotently ensure role exists AND always set password to match $DB_PASSWORD.
+    #
+    # SECURITY NOTE:
+    # Use format('%L', ...) to safely quote the password literal (handles quotes safely).
+    sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL >/dev/null
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${DB_USER}') THEN
+        EXECUTE format('CREATE ROLE %I LOGIN', '${DB_USER}');
+    END IF;
+
+    -- Always sync password to current env (fixes reruns)
+    EXECUTE format('ALTER ROLE %I WITH PASSWORD %L', '${DB_USER}', '${DB_PASSWORD}');
+
+    IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}') THEN
+        EXECUTE format('CREATE DATABASE %I OWNER %I', '${DB_NAME}', '${DB_USER}');
+    ELSE
+        EXECUTE format('ALTER DATABASE %I OWNER TO %I', '${DB_NAME}', '${DB_USER}');
+    END IF;
+END
+\$\$;
+SQL
+
+    # We assume local postgres for default config. If DB_HOST is not local, skip local tuning.
+    if [[ "${DB_HOST}" != "localhost" && "${DB_HOST}" != "127.0.0.1" ]]; then
+        print_warning "DB_HOST is not local (${DB_HOST}); skipping local postgres tuning."
+    fi
+
+    print_success "PostgreSQL configured (db=${DB_NAME}, user=${DB_USER})"
+}
+
 
 install_ritapi_django() {
     print_header "Installing RITAPI V-Sentinel (Django Application)"
@@ -371,15 +482,20 @@ install_ritapi_django() {
     print_step "Setting permissions..."
     chown -R "$DJANGO_USER:$DJANGO_GROUP" "$DJANGO_PROJECT_DIR"
     chmod -R 755 "$DJANGO_PROJECT_DIR"
+print_step "Setting permissions..."
+    chown -R "$DJANGO_USER:$DJANGO_GROUP" "$DJANGO_PROJECT_DIR"
+    chmod -R 755 "$DJANGO_PROJECT_DIR"
+
+    # Ensure STATIC_ROOT exists in settings before running collectstatic
+    ensure_static_root_setting
     
     # Run migrations
     print_step "Running Django migrations..."
-    cd "$DJANGO_PROJECT_DIR"
-    "$DJANGO_PROJECT_DIR/venv/bin/python" manage.py migrate --noinput 2>/dev/null || true
+    run_django_with_env migrate --noinput
     
     # Collect static files
     print_step "Collecting static files..."
-    "$DJANGO_PROJECT_DIR/venv/bin/python" manage.py collectstatic --noinput 2>/dev/null || true
+    run_django_with_env collectstatic --noinput
     
     print_success "RITAPI V-Sentinel installed successfully"
 }
@@ -453,7 +569,7 @@ install_minifw_ai() {
   },
   "enforcement": {
     "enabled": true,
-    "ipset_name": "minifw_block_v4",
+    "ipset_name_v4": "minifw_block_v4",
     "ip_timeout_seconds": 86400
   },
   "burst": {
@@ -477,7 +593,9 @@ EOF
     
     # Set permissions
     print_step "Setting MiniFW-AI permissions..."
-    chown -R "$DJANGO_USER:$DJANGO_GROUP" "$MINIFW_AI_DIR"
+    # Keep runtime code owned by root (service runs as root), but allow dashboard (www-data) to edit config.
+    chown -R root:root "$MINIFW_AI_DIR"
+    chown -R "$DJANGO_USER:$DJANGO_GROUP" "$MINIFW_AI_DIR/config" "$MINIFW_AI_DIR/logs" 2>/dev/null || true
     chmod -R 755 "$MINIFW_AI_DIR"
     find "$MINIFW_AI_DIR/config" -type f -exec chmod 644 {} \;
     
@@ -499,21 +617,31 @@ install_gunicorn_service() {
     cat > /etc/systemd/system/ritapi-gunicorn.service << EOF
 [Unit]
 Description=RITAPI V-Sentinel Gunicorn Service
-After=network.target
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
-Type=notify
+Type=simple
 User=$DJANGO_USER
 Group=$DJANGO_GROUP
 WorkingDirectory=$DJANGO_PROJECT_DIR
-Environment="PATH=$DJANGO_PROJECT_DIR/venv/bin"
-ExecStart=$DJANGO_PROJECT_DIR/venv/bin/gunicorn \\
-    --workers 3 \\
-    --bind 127.0.0.1:8000 \\
-    --timeout 120 \\
-    --access-logfile $DJANGO_PROJECT_DIR/logs/gunicorn-access.log \\
-    --error-logfile $DJANGO_PROJECT_DIR/logs/gunicorn-error.log \\
+
+# Single source of truth for runtime config
+EnvironmentFile=/etc/ritapi/vsentinel.env
+Environment="PATH=$DJANGO_PROJECT_DIR/venv/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="DJANGO_SETTINGS_MODULE=ritapi_v_sentinel.settings"
+
+ExecStart=$DJANGO_PROJECT_DIR/venv/bin/gunicorn \
+    --config /dev/null \
+    --workers 3 \
+    --bind 127.0.0.1:8000 \
+    --timeout 120 \
+    --access-logfile $DJANGO_PROJECT_DIR/logs/gunicorn-access.log \
+    --error-logfile $DJANGO_PROJECT_DIR/logs/gunicorn-error.log \
     ritapi_v_sentinel.wsgi:application
+
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
@@ -739,7 +867,7 @@ create_vsentinel_env() {
         cp "$SCRIPT_DIR/scripts/vsentinel.env.template" /etc/ritapi/vsentinel.env
     else
         # Create default config
-        cat > /etc/ritapi/vsentinel.env << EOF
+        cat > /etc/ritapi/vsentinel.env << 'EOF'
 # V-Sentinel Environment Configuration - Gambling-Only Network Security
 GAMBLING_ONLY=1
 ALLOWED_DETECTION_TYPES=gambling
@@ -747,12 +875,68 @@ MODEL_NAME=v_sentinel_mlp
 MODEL_VERSION=mlp_v2
 POLICY_ID=V-SENTINEL-GOV-01
 POLICY_VERSION=1.0
+
+# Django / Database (PostgreSQL local by default)
+DB_NAME=ritapi_vsentinel
+DB_USER=ritapi
+DB_PASSWORD=__AUTO_GENERATE__
+DB_HOST=127.0.0.1
+DB_PORT=5432
+
+# Django security
+SECRET_KEY=__AUTO_GENERATE__
 EOF
     fi
     
-    # Set restrictive permissions (readable by root only)
+    # Restrictive permissions: readable by root + web group (Gunicorn runs as www-data)
+
+# Ensure required DB/Django keys exist even if the template is incomplete.
+# Why: Django-environ reads os.environ; our installer and systemd load from /etc/ritapi/vsentinel.env.
+if ! grep -q '^DB_NAME=' /etc/ritapi/vsentinel.env; then
+    echo 'DB_NAME=ritapi_vsentinel' >> /etc/ritapi/vsentinel.env
+fi
+if ! grep -q '^DB_USER=' /etc/ritapi/vsentinel.env; then
+    echo 'DB_USER=ritapi' >> /etc/ritapi/vsentinel.env
+fi
+if ! grep -q '^DB_PASSWORD=' /etc/ritapi/vsentinel.env; then
+    echo 'DB_PASSWORD=__AUTO_GENERATE__' >> /etc/ritapi/vsentinel.env
+fi
+if ! grep -q '^DB_HOST=' /etc/ritapi/vsentinel.env; then
+    echo 'DB_HOST=127.0.0.1' >> /etc/ritapi/vsentinel.env
+fi
+if ! grep -q '^DB_PORT=' /etc/ritapi/vsentinel.env; then
+    echo 'DB_PORT=5432' >> /etc/ritapi/vsentinel.env
+fi
+if ! grep -q '^SECRET_KEY=' /etc/ritapi/vsentinel.env; then
+    echo 'SECRET_KEY=__AUTO_GENERATE__' >> /etc/ritapi/vsentinel.env
+fi
+if ! grep -q '^ALLOWED_HOSTS=' /etc/ritapi/vsentinel.env; then
+    echo 'ALLOWED_HOSTS=localhost,127.0.0.1' >> /etc/ritapi/vsentinel.env
+fi
+
+    chown root:"$DJANGO_GROUP" /etc/ritapi/vsentinel.env 2>/dev/null || chown root:www-data /etc/ritapi/vsentinel.env
     chmod 640 /etc/ritapi/vsentinel.env
-    
+
+    # Auto-generate secrets if placeholders are present.
+    # Why: avoid shipping hardcoded credentials, and ensure Django has required env vars.
+    local pw sk
+    if grep -q "DB_PASSWORD=__AUTO_GENERATE__" /etc/ritapi/vsentinel.env; then
+        if command -v openssl >/dev/null 2>&1; then
+            pw="$(openssl rand -hex 24)"
+        else
+            pw="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+        fi
+        sed -i "s/^DB_PASSWORD=__AUTO_GENERATE__/DB_PASSWORD=${pw}/" /etc/ritapi/vsentinel.env
+    fi
+    if grep -q "SECRET_KEY=__AUTO_GENERATE__" /etc/ritapi/vsentinel.env; then
+        if command -v openssl >/dev/null 2>&1; then
+            sk="$(openssl rand -hex 48)"
+        else
+            sk="$(python3 -c 'import secrets; print(secrets.token_hex(48))')"
+        fi
+        sed -i "s/^SECRET_KEY=__AUTO_GENERATE__/SECRET_KEY=${sk}/" /etc/ritapi/vsentinel.env
+    fi
+
     print_success "V-Sentinel environment configuration created"
 }
 
@@ -922,14 +1106,15 @@ install_full() {
     
     # V-Sentinel Closure Controls - Create environment early
     create_vsentinel_env
-    
+    ensure_allowed_hosts
+
     install_system_dependencies
     ensure_firewall_deps
+    setup_postgres
     install_ritapi_django
     install_minifw_ai
     apply_minifw_crud_fix
     install_gunicorn_service
-    ensure_allowed_hosts
     configure_nginx
     
     # V-Sentinel Closure Controls - Validate before starting services
