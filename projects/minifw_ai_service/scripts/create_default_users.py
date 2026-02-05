@@ -3,6 +3,7 @@ Create Default Users Script
 Creates initial users for each role and sector for testing
 """
 
+import os
 import sqlite3
 from passlib.context import CryptContext
 from datetime import datetime
@@ -10,8 +11,16 @@ from datetime import datetime
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def _require_default_user_opt_in() -> None:
+    if os.getenv("ALLOW_DEFAULT_USERS") != "1":
+        raise RuntimeError(
+            "Default user creation is disabled. Set ALLOW_DEFAULT_USERS=1 to proceed."
+        )
+
+
 def create_default_users(db_path: str = "minifw.db"):
     """Create default users for each role"""
+    _require_default_user_opt_in()
     
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()

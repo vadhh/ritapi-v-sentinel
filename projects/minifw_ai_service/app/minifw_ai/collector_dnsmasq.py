@@ -139,3 +139,36 @@ def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
                 f = None
             time.sleep(5)  # Wait before reconnecting
             # Continue outer loop - NEVER EXIT
+
+
+# --- Backward compatibility for older tests/modules -------------------------
+def stream_dns_events(
+    source: str = "file",
+    *,
+    log_path: str = "/var/log/dnsmasq.log",
+    udp_port: int = 5514,
+    bind_ip: str = "0.0.0.0",
+):
+    """
+    Compatibility shim.
+    
+    Why this exists:
+    - Older tests import `stream_dns_events` directly.
+    - Internals now expose specific backends (file/udp/journald/none).
+    - This keeps imports stable and prevents pytest collection failures.
+    
+    Design choice:
+    - For `none` / `journald` we return an empty iterator (finite).
+      This avoids "infinite test hangs" under pytest.
+      Production uses the main engine loop, not this shim.
+    """
+    src = (source or "none").lower()
+    
+    if src == "file":
+        return stream_dns_events_file(log_path)
+    if src == "udp":
+        return stream_dns_events_udp(port=udp_port, bind_ip=bind_ip)
+    if src in ("journald", "none"):
+        return iter([])
+    
+    raise ValueError(f"Unknown DNS source: {source}")
