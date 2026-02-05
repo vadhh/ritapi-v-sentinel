@@ -22,13 +22,13 @@ from minifw_ai.collector_zeek import stream_zeek_sni_events
 from minifw_ai.burst import BurstTracker
 
 # NEW: Import flow collector
-from minifw_ai.collector_flow import FlowTracker, build_feature_vector_24
+from minifw_ai.collector_flow import FlowTracker, build_feature_vector_24, stream_conntrack_flows
 
 # NEW: Import MLP engine
 try:
     from minifw_ai.utils.mlp_engine import get_mlp_detector
     MLP_AVAILABLE = True
-except ImportError:
+except Exception:
     MLP_AVAILABLE = False
     get_mlp_detector = None
 
@@ -36,7 +36,7 @@ except ImportError:
 try:
     from minifw_ai.utils.yara_scanner import get_yara_scanner
     YARA_AVAILABLE = True
-except ImportError:
+except Exception:
     YARA_AVAILABLE = False
     get_yara_scanner = None
 
@@ -64,13 +64,22 @@ def _safe_int_cast(value: Any, default: int) -> int:
     except (TypeError, ValueError):
         return default
 
-def score_and_decide(domain: str, denied: bool, sni_denied: bool, asn_denied: bool, burst_hit: int, weights: dict, thresholds, mlp_score: int = 0, yara_score: int = 0, hard_threat_override: bool = False):
+def _env_flag(name: str, default: bool = True) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+def score_and_decide(domain: str, denied: bool, sni_denied: bool, asn_denied: bool, burst_hit: int, weights: dict, thresholds, mlp_score: int = 0, yara_score: int = 0, hard_threat_override: bool = False, hard_threat_reason: str | None = None, pre_reasons: list[str] | None = None):
     score = 0
-    reasons = []
+    reasons = list(pre_reasons) if pre_reasons else []
     
     # CRITICAL: Hard threat override bypasses normal scoring
     if hard_threat_override:
-        return 100, ["hard_threat_gate_override"], "block"
+        if hard_threat_reason:
+            reasons.append(hard_threat_reason)
+        reasons.append("hard_threat_gate_override")
+        return 100, reasons, "block"
 
     if denied:
         score += _safe_int_cast(weights.get("dns_weight"), 40)
@@ -107,6 +116,82 @@ def score_and_decide(domain: str, denied: bool, sni_denied: bool, asn_denied: bo
         return score, reasons, "monitor"
     return score, reasons, "allow"
 
+def evaluate_hard_threat(flows: list, flow_freq: int, flow_freq_threshold: int) -> tuple[bool, str | None]:
+    if flow_freq >= flow_freq_threshold:
+        return True, "flow_frequency"
+
+    for flow in flows:
+        if flow.pkt_count < 5:
+            continue
+
+        # Rule 1: PPS Saturation (>200 packets/sec)
+        if flow.pkts_per_sec > 200:
+            return True, "pps_saturation"
+
+        # Rule 2: Burst Flood (>300 packets in 1 second)
+        if flow.max_burst_pkts_1s > 300:
+            return True, "burst_flood"
+
+        # Rule 3: Bot-like Small Packets (>95% small packets + short duration)
+        if flow.small_pkt_ratio > 0.95 and flow.duration < 3:
+            return True, "bot_like_small_packets"
+
+        # Rule 4: Extreme Interarrival Regularity (std < 5ms with high PPS)
+        if hasattr(flow, 'interarrival_std_ms') and flow.interarrival_std_ms < 5 and flow.pkts_per_sec > 100:
+            return True, "bot_regular_timing"
+
+    return False, None
+
+def init_mlp_detector(ai_enabled: bool) -> tuple[Any, bool]:
+    if not ai_enabled:
+        return None, False
+    if not MLP_AVAILABLE:
+        logging.warning("[MLP] MLP engine not available (install scikit-learn)")
+        return None, False
+
+    mlp_model_path = os.environ.get("MINIFW_MLP_MODEL")
+    mlp_threshold = float(os.environ.get("MINIFW_MLP_THRESHOLD", "0.5"))
+
+    if mlp_model_path and Path(mlp_model_path).exists():
+        try:
+            mlp_detector = get_mlp_detector(
+                model_path=mlp_model_path,
+                threshold=mlp_threshold
+            )
+            if mlp_detector.model_loaded:
+                logging.info(f"[MLP] Loaded model from: {mlp_model_path}")
+                logging.info(f"[MLP] Threshold: {mlp_threshold}")
+                return mlp_detector, True
+        except Exception as e:
+            logging.warning(f"[MLP] Failed to load model: {e}")
+    else:
+        logging.info("[MLP] No model configured (set MINIFW_MLP_MODEL environment variable)")
+
+    return None, False
+
+def init_yara_scanner(ai_enabled: bool) -> tuple[Any, bool]:
+    if not ai_enabled:
+        return None, False
+    if not YARA_AVAILABLE:
+        logging.warning("[YARA] YARA scanner not available (install yara-python)")
+        return None, False
+
+    yara_rules_dir = os.environ.get("MINIFW_YARA_RULES")
+    if yara_rules_dir and Path(yara_rules_dir).exists():
+        try:
+            yara_scanner = get_yara_scanner(rules_dir=yara_rules_dir)
+            if yara_scanner.rules_loaded:
+                stats = yara_scanner.get_stats()
+                logging.info(f"[YARA] Loaded rules from: {yara_rules_dir}")
+                logging.info(f"[YARA] Rules loaded: {stats['rules_loaded']}")
+                return yara_scanner, True
+        except Exception as e:
+            logging.warning(f"[YARA] Failed to load rules: {e}")
+    else:
+        logging.info("[YARA] No rules configured (set MINIFW_YARA_RULES environment variable)")
+
+    return None, False
+
 def run():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -120,6 +205,10 @@ def run():
     pol = Policy(policy_path)
     feeds = FeedMatcher(feeds_dir)
     writer = EventWriter(log_path)
+
+    ai_enabled = _env_flag("AI_ENABLED", True)
+    if not ai_enabled:
+        logging.warning("[AI] AI modules disabled via AI_ENABLED flag")
     
     # NEW: Initialize Sector Lock (Factory-Set Configuration)
     sector_lock = None
@@ -159,53 +248,13 @@ def run():
     else:
         logging.warning("[SECTOR_LOCK] Sector lock module not available")
     
-    # NEW: Initialize flow tracker
-    flow_tracker = FlowTracker(flow_timeout=300)
-    
-    # NEW: Initialize MLP detector if available
-    mlp_detector = None
-    mlp_enabled = False
-    if MLP_AVAILABLE:
-        mlp_model_path = os.environ.get("MINIFW_MLP_MODEL")
-        mlp_threshold = float(os.environ.get("MINIFW_MLP_THRESHOLD", "0.5"))
-        
-        if mlp_model_path and Path(mlp_model_path).exists():
-            try:
-                mlp_detector = get_mlp_detector(
-                    model_path=mlp_model_path,
-                    threshold=mlp_threshold
-                )
-                if mlp_detector.model_loaded:
-                    mlp_enabled = True
-                    print(f"[MLP] Loaded model from: {mlp_model_path}")
-                    print(f"[MLP] Threshold: {mlp_threshold}")
-            except Exception as e:
-                print(f"[MLP] Failed to load model: {e}")
-        else:
-            print("[MLP] No model configured (set MINIFW_MLP_MODEL environment variable)")
-    else:
-        print("[MLP] MLP engine not available (install scikit-learn)")
-    
-    # NEW: Initialize YARA scanner if available
-    yara_scanner = None
-    yara_enabled = False
-    if YARA_AVAILABLE:
-        yara_rules_dir = os.environ.get("MINIFW_YARA_RULES")
-        
-        if yara_rules_dir and Path(yara_rules_dir).exists():
-            try:
-                yara_scanner = get_yara_scanner(rules_dir=yara_rules_dir)
-                if yara_scanner.rules_loaded:
-                    yara_enabled = True
-                    print(f"[YARA] Loaded rules from: {yara_rules_dir}")
-                    stats = yara_scanner.get_stats()
-                    print(f"[YARA] Rules loaded: {stats['rules_loaded']}")
-            except Exception as e:
-                print(f"[YARA] Failed to load rules: {e}")
-        else:
-            print("[YARA] No rules configured (set MINIFW_YARA_RULES environment variable)")
-    else:
-        print("[YARA] YARA scanner not available (install yara-python)")
+    # NEW: Initialize flow tracker with LRU capping
+    max_flows = _safe_int_cast(os.environ.get("MINIFW_MAX_FLOWS"), 20000)
+    flow_tracker = FlowTracker(flow_timeout=300, max_flows=max_flows)
+
+    # NEW: Initialize AI modules (Layer 2) with graceful degradation
+    mlp_detector, mlp_enabled = init_mlp_detector(ai_enabled)
+    yara_scanner, yara_enabled = init_yara_scanner(ai_enabled)
     
     # NEW: Create flow records writer
     flow_records_file = Path(flow_records_path)
@@ -244,8 +293,21 @@ def run():
         try:
             zeek_iter = stream_zeek_sni_events(zeek_ssl)
         except Exception:
-            logging.error("Failed to start Zeek SNI event stream.", exc_info=True)
+            logging.warning("Failed to start Zeek SNI event stream - continuing in degraded mode", exc_info=True)
             zeek_iter = None
+
+    # NEW: Conntrack flow stream for baseline tracking
+    conntrack_path = os.environ.get("MINIFW_CONNTRACK_PATH", "/proc/net/nf_conntrack")
+    flow_iter = None
+    try:
+        flow_iter = stream_conntrack_flows(conntrack_path)
+    except Exception:
+        logging.warning("Failed to start conntrack flow stream - hard gates may be degraded", exc_info=True)
+
+    flow_freq_window = _safe_int_cast(os.environ.get("MINIFW_FLOW_FREQ_WINDOW_SEC"), 60)
+    flow_freq_threshold = _safe_int_cast(os.environ.get("MINIFW_FLOW_FREQ_THRESHOLD"), 200)
+    flow_freq_tracker = BurstTracker(window_seconds=flow_freq_window, max_size=20000)
+    flow_pkt_size = _safe_int_cast(os.environ.get("MINIFW_FLOW_PKT_SIZE_ESTIMATE"), 1500)
 
     def pump_zeek():
         if zeek_iter is None:
@@ -259,13 +321,92 @@ def run():
             except Exception:
                 logging.warning("Error pumping zeek event", exc_info=True)
                 break
+
+    def pump_flows():
+        if flow_iter is None:
+            return
+        for _ in range(5):
+            try:
+                src_ip, dst_ip, dst_port, proto = next(flow_iter)
+                flow_tracker.update_flow(src_ip, dst_ip, dst_port, proto, pkt_size=flow_pkt_size)
+                flow_freq_tracker.add(src_ip)
+            except Exception:
+                logging.warning("Error pumping conntrack flow", exc_info=True)
+                break
     
     # NEW: Counter for flow record exports
     flow_export_counter = 0
     flow_export_interval = 100  # Export flow records every 100 DNS queries
 
-    for client_ip, domain in stream_dns_events_file(dns_log):
+    # PLUGGABLE DNS BACKEND: Support multiple DNS sources
+    dns_events = None
+    dns_source = os.environ.get("MINIFW_DNS_SOURCE", "file")  # file, journald, udp, none
+    degraded_mode = os.environ.get("DEGRADED_MODE", "0") == "1"
+    
+    if dns_source == "none" or degraded_mode:
+        logging.warning(f"[DEGRADED_MODE] DNS telemetry disabled (source={dns_source}, degraded={degraded_mode})")
+        logging.warning(f"[DEGRADED_MODE] Running with flow tracking and hard-threat gates only (Fail-Closed Security)")
+        # Create empty iterator that yields None indefinitely
+        def empty_dns_iterator():
+            import time
+            while True:
+                yield None, None
+                time.sleep(1)  # Yield empty event every second to keep loop alive
+        dns_events = empty_dns_iterator()
+    else:
+        try:
+            if dns_source == "file":
+                logging.info(f"[DNS_COLLECTOR] Using file source: {dns_log}")
+                dns_events = stream_dns_events_file(dns_log)
+            elif dns_source == "journald":
+                logging.warning(f"[DNS_COLLECTOR] journald source not yet implemented, falling back to degraded mode")
+                def empty_dns_iterator():
+                    import time
+                    while True:
+                        yield None, None
+                        time.sleep(1)
+                dns_events = empty_dns_iterator()
+            elif dns_source == "udp":
+                from minifw_ai.collector_dnsmasq import stream_dns_events_udp
+                dns_port = int(os.environ.get("MINIFW_DNS_UDP_PORT", "5514"))
+                logging.info(f"[DNS_COLLECTOR] Using UDP source on port {dns_port}")
+                dns_events = stream_dns_events_udp(port=dns_port)
+            else:
+                logging.warning(f"[DNS_COLLECTOR] Unknown DNS source: {dns_source}, using file as fallback")
+                dns_events = stream_dns_events_file(dns_log)
+            
+            logging.info(f"[DNS_COLLECTOR] Successfully initialized DNS event stream (source={dns_source})")
+        except Exception as e:
+            logging.warning(f"[DEGRADED_MODE] DNS collector failed to initialize: {e}")
+            logging.warning(f"[DEGRADED_MODE] Continuing with IP filtering and flow tracking only (Fail-Closed Security)...")
+            # Create empty generator to keep service running
+            def empty_dns_iterator():
+                import time
+                while True:
+                    yield None, None
+                    time.sleep(1)
+            dns_events = empty_dns_iterator()
+
+    for client_ip, domain in dns_events:
         pump_zeek()
+        pump_flows()
+        
+        # CRITICAL: Skip empty events from degraded mode DNS iterator
+        # But ALWAYS run flow-based hard-threat gates via pump_flows() above
+        if client_ip is None or domain is None:
+            # In degraded mode: only run flow-based detection (no DNS-based scoring)
+            # Hard-threat gates still execute every iteration via pump_flows()
+            continue
+        
+        mlp_score = 0
+        mlp_proba = 0.0
+        yara_score = 0
+        yara_matches = []
+        hard_threat = False
+        hard_threat_reason = None
+        score = 0
+        action = "allow"
+        reasons = []
         try:
             segment = segment_for_ip(client_ip, seg_map)
             thr = pol.thresholds(segment)
@@ -294,83 +435,51 @@ def run():
 
             qpm = burst.add(client_ip)
             burst_hit = 1 if (qpm >= block_qpm or qpm >= monitor_qpm) else 0
-            
-            # NEW: HARD THREAT GATES (Must override MLP)
-            # These are absolute behavioral rules that indicate saturation attacks
-            hard_threat = False
-            hard_threat_reason = None
-            
-            # Get flow for hard threat detection
-            flow = flow_tracker.get_flow(client_ip, "", 0, "tcp") if mlp_enabled or yara_enabled else None
-            
-            if flow and flow.pkt_count >= 5:
-                # Rule 1: PPS Saturation (>200 packets/sec)
-                if flow.pkts_per_sec > 200:
-                    hard_threat = True
-                    hard_threat_reason = "pps_saturation"
-                    logging.warning(f"[HARD_GATE] PPS saturation detected: {flow.pkts_per_sec:.2f} pps from {client_ip}")
-                
-                # Rule 2: Burst Flood (>300 packets in 1 second)
-                elif flow.max_burst_pkts_1s > 300:
-                    hard_threat = True
-                    hard_threat_reason = "burst_flood"
-                    logging.warning(f"[HARD_GATE] Burst flood detected: {flow.max_burst_pkts_1s} pkts/s from {client_ip}")
-                
-                # Rule 3: Bot-like Small Packets (>95% small packets + short duration)
-                elif flow.small_pkt_ratio > 0.95 and flow.duration < 3:
-                    hard_threat = True
-                    hard_threat_reason = "bot_like_small_packets"
-                    logging.warning(f"[HARD_GATE] Bot-like pattern: {flow.small_pkt_ratio:.2%} small pkts from {client_ip}")
-                
-                # Rule 4: Extreme Interarrival Regularity (std < 5ms with high PPS)
-                elif hasattr(flow, 'interarrival_std_ms') and flow.interarrival_std_ms < 5 and flow.pkts_per_sec > 100:
-                    hard_threat = True
-                    hard_threat_reason = "bot_regular_timing"
-                    logging.warning(f"[HARD_GATE] Bot timing pattern: {flow.interarrival_std_ms:.2f}ms std from {client_ip}")
-            
-            # If hard threat detected, force BLOCK regardless of MLP
+
+            # Layer 1: Hard threat gates (mandatory)
+            flows_for_client = flow_tracker.get_flows_for_client(client_ip)
+            flow_freq = flow_freq_tracker.get_rate(client_ip)
+            hard_threat, hard_threat_reason = evaluate_hard_threat(
+                flows_for_client,
+                flow_freq,
+                flow_freq_threshold
+            )
             if hard_threat:
-                # Force maximum score
-                mlp_score = 100
-                mlp_proba = 1.0
-                reasons.append(hard_threat_reason)
-                logging.info(f"[HARD_GATE] Forcing BLOCK: {client_ip} - {hard_threat_reason}")
-            else:
-                # NEW: Get MLP score for this flow (if MLP enabled)
-                mlp_score = 0
-                mlp_proba = 0.0
-                if mlp_enabled and mlp_detector and flow and flow.pkt_count >= 5:
-                    is_threat, proba = mlp_detector.is_suspicious(flow, return_probability=True)
+                logging.warning(f"[HARD_GATE] Triggered: {client_ip} - {hard_threat_reason}")
+
+            # Layer 2: AI risk amplifier (conditional)
+            flow_for_ai = flows_for_client[-1] if flows_for_client else None
+            if ai_enabled and mlp_enabled and mlp_detector and flow_for_ai and flow_for_ai.pkt_count >= 5:
+                try:
+                    is_threat, proba = mlp_detector.is_suspicious(flow_for_ai, return_probability=True)
                     mlp_proba = proba
                     if is_threat:
-                        mlp_score = int(proba * 100)  # Convert to 0-100 scale
-            
-            # NEW: YARA scanning on domain/payload (if YARA enabled)
-            yara_score = 0
-            yara_matches = []
-            if yara_enabled and yara_scanner:
-                # Scan domain name as payload
-                # In real SSL interception, this would be decrypted payload
-                payload = f"{domain} {sni}".encode('utf-8')
-                matches = yara_scanner.scan_payload(payload, timeout=5)
-                
-                if matches:
-                    yara_matches = matches
-                    # Calculate score based on severity
-                    severity_scores = {'critical': 100, 'high': 75, 'medium': 50, 'low': 25}
-                    max_severity_score = max(
-                        severity_scores.get(m.get_severity(), 25) for m in matches
-                    )
-                    yara_score = max_severity_score
-                    
-                    # Add match details to reasons (will be used later)
-                    for match in matches[:3]:  # Top 3 matches
-                        reasons.append(f"yara_{match.rule}")
+                        mlp_score = int(proba * 100)
+                except Exception:
+                    logging.warning("[MLP] Inference failed; continuing without MLP", exc_info=True)
+
+            if ai_enabled and yara_enabled and yara_scanner:
+                try:
+                    payload = f"{domain} {sni}".encode('utf-8')
+                    matches = yara_scanner.scan_payload(payload, timeout=5)
+                    if matches:
+                        yara_matches = matches
+                        severity_scores = {'critical': 100, 'high': 75, 'medium': 50, 'low': 25}
+                        max_severity_score = max(
+                            severity_scores.get(m.get_severity(), 25) for m in matches
+                        )
+                        yara_score = max_severity_score
+                        for match in matches[:3]:
+                            reasons.append(f"yara_{match.rule}")
+                except Exception:
+                    logging.warning("[YARA] Scan failed; continuing without YARA", exc_info=True)
 
             score, reasons, action = score_and_decide(
-                domain, denied, sni_denied, asn_denied, burst_hit, 
-                weights, thr, mlp_score, yara_score, 
-                hard_threat_override=hard_threat
+                domain, denied, sni_denied, asn_denied, burst_hit,
+                weights, thr, mlp_score, yara_score,
+                hard_threat_override=hard_threat,
+                hard_threat_reason=hard_threat_reason,
+                pre_reasons=reasons
             )
 
             if action == "block":
@@ -430,8 +539,8 @@ def run():
                         'action': action if flow.client_ip == client_ip else None,
                         'score': score if flow.client_ip == client_ip else None,
                         # NEW: AI Verdict (auditability)
-                        'ai_verdict': 'threat' if (mlp_score > 50 or yara_score > 50) else 'normal',
-                        'ai_confidence': max(mlp_proba, yara_score / 100.0) if flow.client_ip == client_ip else None,
+                        'ai_verdict': 'threat' if (hard_threat or mlp_score > 50 or yara_score > 50) else 'normal',
+                        'ai_confidence': (1.0 if hard_threat else max(mlp_proba, yara_score / 100.0)) if flow.client_ip == client_ip else None,
                         'hard_threat_override': hard_threat if flow.client_ip == client_ip else None,
                         'hard_threat_reason': hard_threat_reason if (flow.client_ip == client_ip and hard_threat) else None,
                         # NEW: Include MLP prediction if available

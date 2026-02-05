@@ -20,23 +20,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Init environ
 env = environ.Env()
 
-# Load file .env
-env_file = BASE_DIR / ".env"
+# Load unified environment file
+env_file = Path("/etc/ritapi/vsentinel.env")
 if env_file.exists():
     environ.Env.read_env(env_file)
 else:
-    raise Exception(f".env file not found at: {env_file}")
+    raise Exception(f"Unified env file not found at: {env_file}")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-s30+*@8(x@j#38wrkv_d1svrkr1k@tarrm4gz*fbf0imv*&ef_'
+SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env.bool("DJANGO_DEBUG", default=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 
 # Application definition

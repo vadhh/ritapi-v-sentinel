@@ -1,18 +1,30 @@
 [Unit]
 Description=MiniFW-AI (RitAPI-AI V-Sentinel - Gateway Metadata Layer)
-After=network.target dnsmasq.service
-Wants=dnsmasq.service
+After=network.target
+# NOTE: dnsmasq is NOT a hard requirement - DNS telemetry source is configurable
+# If dnsmasq is present, wait for it; otherwise continue without it
+After=dnsmasq.service
+# No Wants= - do not try to start dnsmasq if not configured
 
 [Service]
 Type=simple
-Environment=MINIFW_POLICY=/opt/minifw_ai/config/policy.json
-Environment=MINIFW_FEEDS=/opt/minifw_ai/config/feeds
-Environment=MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl
+
+# Load unified environment configuration
+EnvironmentFile=-/etc/ritapi/vsentinel.env
+
+ExecStartPre=/usr/bin/python3 /opt/minifw_ai/scripts/config_check.py
 ExecStartPre=/bin/bash /opt/minifw_ai/scripts/vsentinel_runtime_guard.sh
 ExecStart=/opt/minifw_ai/run_minifw.sh
+
+# Task 3: Stability Hardening - Prevent restart storms
+# Fail-Open Telemetry: Service continues even without DNS source
+# Fail-Closed Security: Enforcement rules remain active
 Restart=always
-RestartSec=2
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target
 
+        

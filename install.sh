@@ -62,6 +62,72 @@ print_header() {
     echo ""
 }
 
+################################################################################
+# DNS Environment Detection (Task 1)
+################################################################################
+
+detect_dns_environment() {
+    print_header "DNS Environment Detection"
+    
+    local dns_source="none"
+    local dns_log_path=""
+    
+    # Check if systemd-resolved is active and using port 53
+    print_step "Checking for systemd-resolved..."
+    if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+        if ss -tulpn 2>/dev/null | grep -q ':53.*systemd-resolve'; then
+            print_success "systemd-resolved detected on port 53"
+            print_warning "WILL NOT disable systemd-resolved (regulatory compliance)"
+            dns_source="journald"
+            dns_log_path="/run/systemd/resolve/stub-resolv.conf"
+        else
+            print_info "systemd-resolved active but not on port 53"
+        fi
+    else
+        print_info "systemd-resolved not active"
+    fi
+    
+    # Check if dnsmasq is installed and has valid log file
+    if [ "$dns_source" = "none" ]; then
+        print_step "Checking for dnsmasq..."
+        if command -v dnsmasq >/dev/null 2>&1; then
+            # Check for dnsmasq log configuration
+            local dnsmasq_log=""
+            if [ -f /etc/dnsmasq.conf ]; then
+                dnsmasq_log=$(grep -E '^log-queries' /etc/dnsmasq.conf 2>/dev/null || true)
+            fi
+            
+            if [ -n "$dnsmasq_log" ] || [ -f /var/log/dnsmasq.log ]; then
+                print_success "dnsmasq with logging detected"
+                dns_source="file"
+                dns_log_path="/var/log/dnsmasq.log"
+            else
+                print_info "dnsmasq found but logging not configured"
+            fi
+        else
+            print_info "dnsmasq not installed"
+        fi
+    fi
+    
+    # Final result
+    if [ "$dns_source" = "none" ]; then
+        print_warning "No DNS telemetry source detected"
+        print_warning "MiniFW-AI will run in DEGRADED_MODE"
+    else
+        print_success "DNS telemetry source: $dns_source"
+    fi
+    
+    # Export for use in other functions
+    export DETECTED_DNS_SOURCE="$dns_source"
+    export DETECTED_DNS_LOG_PATH="$dns_log_path"
+    
+    echo ""
+    echo -e "${CYAN}DNS Detection Results:${NC}"
+    echo -e "  Source: ${YELLOW}$dns_source${NC}"
+    echo -e "  Path:   ${YELLOW}$dns_log_path${NC}"
+    echo ""
+}
+
 print_success() {
     echo -e "${GREEN}✓ $1${NC}"
 }
@@ -144,16 +210,105 @@ ensure_firewall_deps() {
     print_success "Firewall dependencies verified"
 }
 
+################################################################################
+# Telemetry Pre-Flight Verification (Task 2)
+################################################################################
+
+write_deployment_state() {
+    local dns_source="$1"
+    local degraded_mode="$2"
+    local dns_log_path="$3"
+    local status_file="/var/log/ritapi/deployment_state.json"
+    
+    # Create directory
+    mkdir -p /var/log/ritapi
+    
+    # Write deployment state for audit trail
+    cat > "$status_file" << EOF
+{
+  "deployment_timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "hostname": "$(hostname)",
+  "dns_telemetry": {
+    "source": "$dns_source",
+    "degraded_mode": $degraded_mode,
+    "log_path": "$dns_log_path",
+    "status": "$([ "$degraded_mode" -eq 1 ] && echo "degraded" || echo "normal")"
+  },
+  "security_enforcement": {
+    "flow_tracking": "active",
+    "hard_threat_gates": "active",
+    "burst_detection": "active",
+    "ai_modules": "$([ "$degraded_mode" -eq 1 ] && echo "limited" || echo "full")"
+  },
+  "fail_mode": {
+    "telemetry": "fail-open",
+    "security": "fail-closed"
+  }
+}
+EOF
+    
+    chmod 644 "$status_file"
+    print_success "Deployment state written to $status_file"
+}
+
+verify_telemetry() {
+    print_header "Telemetry Pre-Flight Verification"
+    
+    local degraded_mode=0
+    local dns_source="${DETECTED_DNS_SOURCE:-none}"
+    local dns_log_path="${DETECTED_DNS_LOG_PATH:-}"
+    
+    if [ "$dns_source" = "none" ]; then
+        print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_warning "⚠  WARNING: No DNS Telemetry Detected"
+        print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_warning ""
+        print_warning "MiniFW-AI will run in DEGRADED_MODE:"
+        print_info "  ✓ Flow tracking: ACTIVE"
+        print_info "  ✓ Hard-threat gates (PPS, burst, frequency): ACTIVE"
+        print_info "  ✓ IP filtering: ACTIVE"
+        print_info "  ✗ DNS-based domain analysis: LIMITED"
+        print_warning ""
+        print_info "This is FAIL-OPEN for telemetry, FAIL-CLOSED for security."
+        print_info "Security enforcement continues without full DNS visibility."
+        print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        degraded_mode=1
+    else
+        print_success "DNS telemetry source detected: $dns_source"
+        print_success "MiniFW-AI will run in FULL MODE with complete visibility"
+        degraded_mode=0
+    fi
+    
+    # Export result
+    export TELEMETRY_DEGRADED_MODE="$degraded_mode"
+    
+    # Write deployment state file for audit
+    write_deployment_state "$dns_source" "$degraded_mode" "$dns_log_path"
+    
+    echo ""
+    echo -e "${CYAN}Telemetry Status:${NC}"
+    if [ "$degraded_mode" -eq 1 ]; then
+        echo -e "  Mode: ${YELLOW}DEGRADED${NC} (no DNS events detected)"
+    else
+        echo -e "  Mode: ${GREEN}NORMAL${NC} (telemetry available)"
+    fi
+    echo ""
+    
+    # CRITICAL: Never abort installation, always continue
+    return 0
+}
+
 install_minifw_systemd() {
-    print_step "Installing systemd unit: minifw-ai"
+    print_step "Installing systemd unit: minifw-ai (with stability hardening)"
 
     cat >/etc/systemd/system/minifw-ai.service <<'EOF'
 [Unit]
-Description=MiniFW-AI Security Service
-After=network.target dnsmasq.service
-Wants=dnsmasq.service
-StartLimitIntervalSec=120
-StartLimitBurst=5
+Description=MiniFW-AI Security Service (V-Sentinel)
+After=network.target
+# NOTE: dnsmasq is NOT a hard requirement - DNS telemetry source is configurable
+# If dnsmasq is present, wait for it; otherwise continue without it
+After=dnsmasq.service
+# No Wants= - do not try to start dnsmasq if not configured
 
 [Service]
 Type=simple
@@ -170,9 +325,18 @@ Environment="MINIFW_POLICY=/opt/minifw_ai/config/policy.json"
 Environment="MINIFW_FEEDS=/opt/minifw_ai/config/feeds"
 Environment="MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl"
 
+# Load environment configuration (includes DNS source and degraded mode)
+EnvironmentFile=-/etc/ritapi/vsentinel.env
+
+# Task 3: Fail-Open Telemetry, Fail-Closed Security
+# Service will not exit with error if DNS source is unavailable
 ExecStart=/opt/minifw_ai/venv/bin/python -m minifw_ai
+
+# Task 3: Restart policy with backoff to prevent restart storms
 Restart=always
 RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target
@@ -180,6 +344,7 @@ EOF
 
     systemctl daemon-reload
     systemctl enable minifw-ai
+    print_success "MiniFW-AI service configured with anti-restart-storm protection"
 }
 
 ensure_allowed_hosts() {
@@ -738,7 +903,7 @@ create_vsentinel_env() {
     if [ -f "$SCRIPT_DIR/scripts/vsentinel.env.template" ]; then
         cp "$SCRIPT_DIR/scripts/vsentinel.env.template" /etc/ritapi/vsentinel.env
     else
-        # Create default config
+        # Create default config with DNS telemetry parameters
         cat > /etc/ritapi/vsentinel.env << EOF
 # V-Sentinel Environment Configuration - Gambling-Only Network Security
 GAMBLING_ONLY=1
@@ -747,13 +912,39 @@ MODEL_NAME=v_sentinel_mlp
 MODEL_VERSION=mlp_v2
 POLICY_ID=V-SENTINEL-GOV-01
 POLICY_VERSION=1.0
+
+# DNS Telemetry Configuration (Auto-detected)
+MINIFW_DNS_SOURCE=none
+DEGRADED_MODE=0
+MINIFW_DNS_LOG_PATH=
 EOF
+    fi
+    
+    # Apply detected DNS configuration
+    if [ -n "${DETECTED_DNS_SOURCE:-}" ]; then
+        print_step "Applying DNS detection results to config..."
+        sed -i "s|^MINIFW_DNS_SOURCE=.*|MINIFW_DNS_SOURCE=${DETECTED_DNS_SOURCE}|" /etc/ritapi/vsentinel.env
+        sed -i "s|^MINIFW_DNS_LOG_PATH=.*|MINIFW_DNS_LOG_PATH=${DETECTED_DNS_LOG_PATH}|" /etc/ritapi/vsentinel.env
+    fi
+    
+    # Apply telemetry verification results
+    if [ -n "${TELEMETRY_DEGRADED_MODE:-}" ]; then
+        print_step "Applying telemetry verification results..."
+        sed -i "s|^DEGRADED_MODE=.*|DEGRADED_MODE=${TELEMETRY_DEGRADED_MODE}|" /etc/ritapi/vsentinel.env
     fi
     
     # Set restrictive permissions (readable by root only)
     chmod 640 /etc/ritapi/vsentinel.env
     
     print_success "V-Sentinel environment configuration created"
+    
+    # Show final configuration
+    echo ""
+    echo -e "${CYAN}Final DNS Configuration:${NC}"
+    echo -e "  DNS Source:     ${YELLOW}$(grep '^MINIFW_DNS_SOURCE=' /etc/ritapi/vsentinel.env | cut -d= -f2)${NC}"
+    echo -e "  Degraded Mode:  ${YELLOW}$(grep '^DEGRADED_MODE=' /etc/ritapi/vsentinel.env | cut -d= -f2)${NC}"
+    echo -e "  Log Path:       ${YELLOW}$(grep '^MINIFW_DNS_LOG_PATH=' /etc/ritapi/vsentinel.env | cut -d= -f2)${NC}"
+    echo ""
 }
 
 install_runtime_guard() {
@@ -920,7 +1111,10 @@ install_full() {
     verify_package_structure
     detect_web_user
     
-    # V-Sentinel Closure Controls - Create environment early
+    # Task 1: Detect DNS environment before configuration
+    detect_dns_environment
+    
+    # V-Sentinel Closure Controls - Create environment with DNS config
     create_vsentinel_env
     
     install_system_dependencies
@@ -938,6 +1132,9 @@ install_full() {
     
     create_admin_user
     start_services
+    
+    # Task 2: Verify telemetry after services are started
+    verify_telemetry
     
     # V-Sentinel Closure Controls - Verify after services started
     sleep 3

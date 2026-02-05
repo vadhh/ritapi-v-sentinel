@@ -20,14 +20,31 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
     """
     Listens for DNS log lines via UDP syslog/netcat stream.
     Yields (client_ip, domain) tuples.
+    If port is already in use, enters degraded mode and yields empty events indefinitely.
+    CRITICAL: Never exits - runs forever even if port bind fails.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.bind((bind_ip, port))
         print(f"[*] DNS Collector listening on UDP {bind_ip}:{port}")
     except PermissionError:
-        print(f"[!] Error: Cannot bind to UDP port {port}. Logic will be skipped.")
-        return
+        print(f"[!] Warning: Cannot bind to UDP port {port} (permission denied).")
+        print(f"[DEGRADED_MODE] DNS UDP collection disabled, service continues with other functions.")
+        # Yield empty events indefinitely - NEVER EXIT
+        while True:
+            time.sleep(10)
+            yield None, None
+    except OSError as e:
+        if e.errno == 98:  # EADDRINUSE
+            print(f"[!] Warning: UDP port {port} already in use (EADDRINUSE).")
+            print(f"[DEGRADED_MODE] DNS UDP collection disabled, service continues with other functions.")
+        else:
+            print(f"[!] Warning: Cannot bind to UDP port {port}: {e}")
+            print(f"[DEGRADED_MODE] DNS UDP collection disabled, service continues with other functions.")
+        # Yield empty events indefinitely - NEVER EXIT
+        while True:
+            time.sleep(10)
+            yield None, None
 
     while True:
         try:
@@ -51,41 +68,74 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
 def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
     """
     Tails a dnsmasq log file and yields (client_ip, domain) tuples.
+    If log file is not found, enters degraded mode and waits indefinitely.
+    CRITICAL: Never exits - runs forever in wait/retry mode.
     """
     if not os.path.exists(log_path):
-        print(f"[!] Error: DNS log file not found at {log_path}. Logic will be skipped.")
-        return
+        print(f"[!] Warning: DNS log file not found at {log_path}.")
+        print(f"[DEGRADED_MODE] Service will continue monitoring for file creation...")
+        print(f"[DEGRADED_MODE] Other security functions remain active (Fail-Closed)")
+        # Wait indefinitely for file to appear - NEVER EXIT
+        while not os.path.exists(log_path):
+            time.sleep(10)  # Check every 10 seconds
+            # Yield nothing, but keep generator alive for other collectors
+            yield None, None  # Empty event signals degraded mode
+        print(f"[*] DNS log file detected at {log_path}, resuming normal operation")
 
     print(f"[*] DNS Collector reading from {log_path}")
-    with open(log_path, 'r') as f:
-        f.seek(0, os.SEEK_END)
-        while True:
-            try:
-                line = f.readline()
-                if not line:
-                    time.sleep(0.1)
-                    # Check for file rotation
-                    current_pos = f.tell()
-                    try:
-                        file_size = os.path.getsize(log_path)
-                    except FileNotFoundError:
-                        # Handle case where file is moved/deleted during getsize
-                        print(f"[!] Log file {log_path} not found. Retrying...")
-                        time.sleep(1)
+    f = None
+    while True:  # Outer loop for reconnection
+        try:
+            if f is None:
+                f = open(log_path, 'r')
+                f.seek(0, os.SEEK_END)
+            
+            while True:
+                try:
+                    line = f.readline()
+                    if not line:
+                        time.sleep(0.1)
+                        # Check for file rotation
+                        current_pos = f.tell()
+                        try:
+                            file_size = os.path.getsize(log_path)
+                        except FileNotFoundError:
+                            # File deleted - close and wait for recreation
+                            print(f"[!] Log file {log_path} deleted. Waiting for recreation...")
+                            if f:
+                                f.close()
+                                f = None
+                            # Yield empty events while waiting
+                            while not os.path.exists(log_path):
+                                time.sleep(5)
+                                yield None, None
+                            print(f"[*] Log file recreated. Resuming...")
+                            break  # Break inner loop to reopen file
+
+                        if current_pos > file_size and file_size > 0:
+                            print(f"[!] Log file rotated. Re-opening {log_path}")
+                            f.close()
+                            f = open(log_path, 'r')
+                            # No seek, start from beginning of new file
                         continue
 
-                    if current_pos > file_size and file_size > 0:
-                        print(f"[!] Log file rotated. Re-opening {log_path}")
-                        f.close()
-                        f = open(log_path, 'r')
-                        # No seek, start from beginning of new file
-                    continue
-
-                evt = parse_dnsmasq(line)
-                if evt:
-                    yield evt
-            except KeyboardInterrupt:
-                break
-            except Exception as e:
-                print(f"[!] Error reading log file: {e}")
-                time.sleep(1)
+                    evt = parse_dnsmasq(line)
+                    if evt:
+                        yield evt
+                except KeyboardInterrupt:
+                    raise  # Propagate to outer loop
+                except Exception as e:
+                    print(f"[!] Error reading log file: {e}")
+                    time.sleep(1)
+        except KeyboardInterrupt:
+            print("[*] DNS Collector shutting down gracefully")
+            if f:
+                f.close()
+            break  # Only exit on explicit interrupt
+        except Exception as e:
+            print(f"[!] Fatal error in DNS collector: {e}. Restarting collector...")
+            if f:
+                f.close()
+                f = None
+            time.sleep(5)  # Wait before reconnecting
+            # Continue outer loop - NEVER EXIT

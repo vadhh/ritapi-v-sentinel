@@ -31,3 +31,15 @@ class BurstTracker:
             
         return len(dq)
 
+    def get_rate(self, ip: str) -> int:
+        """Get current rate for an IP without adding a new event"""
+        now = time.time()
+        dq = self.q.get(ip)
+        if not dq:
+            return 0
+
+        while dq and (now - dq[0]) > self.window:
+            dq.popleft()
+
+        return len(dq)
+

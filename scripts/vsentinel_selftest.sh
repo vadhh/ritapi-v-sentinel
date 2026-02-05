@@ -110,6 +110,50 @@ check_service_enabled() {
 # System Configuration Checks
 ################################################################################
 
+check_deployment_state() {
+    local state_file="/var/log/ritapi/deployment_state.json"
+    
+    print_check "Deployment state file exists"
+    
+    if [ -f "$state_file" ]; then
+        print_success
+        return 0
+    else
+        print_failed "Deployment state file missing: $state_file"
+        return 1
+    fi
+}
+
+check_minifw_mode() {
+    local state_file="/var/log/ritapi/deployment_state.json"
+    
+    print_check "MiniFW-AI operational mode"
+    
+    if [ ! -f "$state_file" ]; then
+        echo -e "${YELLOW}UNKNOWN${NC} (state file not found)"
+        return 0  # Non-critical
+    fi
+    
+    local degraded_mode=$(grep -oP '(?<="degraded_mode": )[^,}]*' "$state_file" 2>/dev/null || echo "unknown")
+    
+    if [ "$degraded_mode" = "1" ] || [ "$degraded_mode" = "true" ]; then
+        echo -e "${YELLOW}DEGRADED${NC} (DNS telemetry unavailable)"
+        echo ""
+        echo -e "${YELLOW}  ⚠ MiniFW-AI is running in DEGRADED MODE${NC}"
+        echo -e "${BLUE}  ℹ Security enforcement: ACTIVE${NC}"
+        echo -e "${BLUE}  ℹ Flow tracking: ACTIVE${NC}"
+        echo -e "${BLUE}  ℹ Hard-threat gates: ACTIVE${NC}"
+        echo -e "${YELLOW}  ⚠ DNS telemetry: LIMITED${NC}"
+        return 0  # Not a failure - degraded mode is valid
+    elif [ "$degraded_mode" = "0" ] || [ "$degraded_mode" = "false" ]; then
+        echo -e "${GREEN}FULL${NC} (complete telemetry)"
+        return 0
+    else
+        echo -e "${YELLOW}UNKNOWN${NC} (degraded_mode=$degraded_mode)"
+        return 0  # Non-critical
+    fi
+}
+
 check_ipset_exists() {
     print_check "IPset exists: minifw_block_v4"
     
@@ -176,6 +220,15 @@ generate_proof_pack() {
     local gambling_only
     gambling_only=$(grep -oP '(?<=GAMBLING_ONLY=)[^$\n]*' "$CONFIG_FILE" 2>/dev/null || echo "unknown")
     
+    # Collect deployment state
+    local state_file="/var/log/ritapi/deployment_state.json"
+    local deployment_mode="unknown"
+    local dns_source="unknown"
+    if [ -f "$state_file" ]; then
+        deployment_mode=$(grep -oP '(?<="status": ")[^"]*' "$state_file" 2>/dev/null || echo "unknown")
+        dns_source=$(grep -oP '(?<="source": ")[^"]*' "$state_file" 2>/dev/null || echo "unknown")
+    fi
+    
     # Generate JSON proof pack
     cat > "$proof_file" <<EOF
 {
@@ -201,6 +254,11 @@ generate_proof_pack() {
     "gambling_only": "$gambling_only",
     "config_file": "$CONFIG_FILE",
     "config_readable": $([ -r "$CONFIG_FILE" ] && echo "true" || echo "false")
+  },
+  "deployment": {
+    "mode": "$deployment_mode",
+    "dns_source": "$dns_source",
+    "state_file": "$state_file"
   },
   "ipset": {
     "minifw_block_v4_exists": $(ipset list minifw_block_v4 >/dev/null 2>&1 && echo "true" || echo "false")
@@ -237,6 +295,8 @@ main() {
     print_section "System Configuration Checks"
     check_config_file_exists || true
     check_gambling_only_config || true
+    check_deployment_state || true
+    check_minifw_mode || true
     check_ipset_exists || true
     
     print_section "Proof Pack Generation"

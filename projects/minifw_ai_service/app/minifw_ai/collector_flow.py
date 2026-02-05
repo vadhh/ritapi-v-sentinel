@@ -7,7 +7,7 @@ import time
 import hashlib
 from pathlib import Path
 from typing import Iterator, Optional
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict, deque
 from dataclasses import dataclass, field
 import math
 
@@ -199,13 +199,15 @@ class FlowStats:
 class FlowTracker:
     """Track all active flows and compute statistics"""
     
-    def __init__(self, flow_timeout: int = 300):
+    def __init__(self, flow_timeout: int = 300, max_flows: int = 20000):
         """
         Args:
             flow_timeout: Flow timeout in seconds (default 5 minutes)
+            max_flows: Maximum number of active flows to retain (LRU eviction)
         """
-        self.flows: dict[str, FlowStats] = {}
+        self.flows: OrderedDict[str, FlowStats] = OrderedDict()
         self.flow_timeout = flow_timeout
+        self.max_flows = max_flows
         self.last_cleanup = time.time()
     
     def _flow_key(self, client_ip: str, dst_ip: str, dst_port: int, proto: str) -> str:
@@ -218,12 +220,16 @@ class FlowTracker:
         key = self._flow_key(client_ip, dst_ip, dst_port, proto)
         
         if key not in self.flows:
+            if len(self.flows) >= self.max_flows:
+                self.flows.popitem(last=False)
             self.flows[key] = FlowStats(
                 client_ip=client_ip,
                 dst_ip=dst_ip,
                 dst_port=dst_port,
                 proto=proto
             )
+        else:
+            self.flows.move_to_end(key)
         
         flow = self.flows[key]
         if pkt_size > 0:
@@ -234,7 +240,14 @@ class FlowTracker:
     def get_flow(self, client_ip: str, dst_ip: str, dst_port: int, proto: str) -> Optional[FlowStats]:
         """Get flow stats if exists"""
         key = self._flow_key(client_ip, dst_ip, dst_port, proto)
-        return self.flows.get(key)
+        flow = self.flows.get(key)
+        if flow is not None:
+            self.flows.move_to_end(key)
+        return flow
+
+    def get_flows_for_client(self, client_ip: str) -> list[FlowStats]:
+        """Get all active flows for a client IP"""
+        return [flow for flow in self.flows.values() if flow.client_ip == client_ip]
     
     def enrich_with_dns(self, client_ip: str, domain: str) -> None:
         """Enrich flows from this client with domain info"""

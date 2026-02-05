@@ -1,0 +1,17 @@
+--- systemd/minifw-ai.service.original	2026-02-05 00:00:00.000000000 +0000
++++ systemd/minifw-ai.service.fixed	2026-02-05 00:00:00.000000000 +0000
+@@ -9,8 +9,12 @@
+ Environment=MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl
+ ExecStartPre=/bin/bash /opt/minifw_ai/scripts/vsentinel_runtime_guard.sh
+ ExecStart=/opt/minifw_ai/run_minifw.sh
+-Restart=always
+-RestartSec=2
++
++# Restart Policies - Prevent restart storm
++Restart=on-failure
++RestartSec=10
++StartLimitIntervalSec=300
++StartLimitBurst=5
+ 
+ [Install]
+ WantedBy=multi-user.target
