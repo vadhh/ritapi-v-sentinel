@@ -384,3 +384,61 @@ class MiniFWStats:
         stats['top_blocked_domains'] = dict(sorted(stats['top_blocked_domains'].items(), key=lambda x: x[1], reverse=True)[:10])
         
         return stats
+
+
+class AuditService:
+    """Service for recording audit logs"""
+    
+    @classmethod
+    def log_action(cls, request, action, description, severity='info', resource_type=None, resource_id=None):
+        """Record a user action in the audit log"""
+        try:
+            from .models import AuditLog
+            user = request.user
+            
+            AuditLog.objects.create(
+                username=user.username if user.is_authenticated else "anonymous",
+                user_role='superuser' if getattr(user, 'is_superuser', False) else 'user',
+                action=action,
+                description=description,
+                severity=severity,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            return True
+        except Exception as e:
+            print(f"Error logging audit action: {e}")
+            return False
+
+
+class SectorLock:
+    """Service for accessing factory-set sector configuration"""
+    
+    LOCK_FILE = "/opt/minifw_ai/config/sector_lock.json"
+    
+    @classmethod
+    def get_sector(cls) -> str:
+        """Get the current locked sector"""
+        try:
+            if os.path.exists(cls.LOCK_FILE):
+                with open(cls.LOCK_FILE, 'r') as f:
+                    return json.load(f).get('sector', 'unknown')
+        except Exception:
+            pass
+        
+        return os.getenv('MINIFW_SECTOR', 'unknown')
+    
+    @classmethod
+    def get_description(cls) -> str:
+        """Get human-readable description of the sector"""
+        sector = cls.get_sector()
+        descriptions = {
+            "hospital": "Healthcare: Prioritizes IoMT device anomaly detection.",
+            "school": "Education: Enforces SafeSearch and content filtering.",
+            "government": "Government: Strict Geo-IP and long-term audit logging.",
+            "finance": "Finance: PCI-DSS compliance and anti-fraud.",
+            "legal": "Legal: Data exfiltration detection.",
+            "establishment": "Establishment: Balanced protection for SMEs.",
+        }
+        return descriptions.get(sector, "Standard: Default security policy.")

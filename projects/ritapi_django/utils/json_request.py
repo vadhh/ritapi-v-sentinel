@@ -1,18 +1,10 @@
 import json
 import unicodedata
 import logging
-from django.http import JsonResponse
+from django.conf import settings
 from utils.logging import log_request  # Import log_request yang sudah disesuaikan
 
 logger = logging.getLogger(__name__)
-
-EXCLUDED_PATHS = [
-    "/admin/",
-    "/login/",
-    "/logout/",
-    "/static/",
-    "/ops/",
-]
 
 def enforce_json_request(request, enforce_ct=True, max_body=1 * 1024 * 1024):
     
@@ -24,8 +16,11 @@ def enforce_json_request(request, enforce_ct=True, max_body=1 * 1024 * 1024):
     - Parse JSON ke request.json
     - Skip untuk path non-API (admin, login, static, dll.)
     """
+    # Load excluded paths from settings
+    excluded_paths = getattr(settings, "SECURITY_ENFORCEMENT_EXCLUDED_PATHS", [])
+    
     # Skip enforcement untuk path tertentu
-    if any(request.path.startswith(p) for p in EXCLUDED_PATHS):
+    if any(request.path.startswith(p) for p in excluded_paths):
         request.json = None
         return None
 

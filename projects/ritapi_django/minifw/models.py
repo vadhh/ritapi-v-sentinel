@@ -45,3 +45,31 @@ class MiniFWBlockedIP(models.Model):
     
     def __str__(self):
         return f"{self.ip_address} - {self.segment}"
+
+
+class AuditLog(models.Model):
+    """
+    Model for tracking user actions and system events.
+    Ported from FastAPI minifw_ai_service.
+    """
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    username = models.CharField(max_length=150, db_index=True)
+    user_role = models.CharField(max_length=50)
+    user_sector = models.CharField(max_length=50, null=True, blank=True)
+    action = models.CharField(max_length=100, db_index=True)
+    severity = models.CharField(max_length=20, default='info')
+    resource_type = models.CharField(max_length=100, null=True, blank=True)
+    resource_id = models.CharField(max_length=100, null=True, blank=True)
+    description = models.TextField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    success = models.BooleanField(default=True)
+    before_value = models.JSONField(null=True, blank=True)
+    after_value = models.JSONField(null=True, blank=True)
+    extra_data = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'minifw_audit_logs'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.timestamp} - {self.username} - {self.action}"

@@ -216,23 +216,38 @@
       </li>
 
       <!-- MiniFW-AI -->
-      <li class="nav-item">
-        <div class="nav-section-header">MiniFW-AI</div>
+      <li class="nav-item mt-2">
+        <div class="sidebar-text px-4 small text-uppercase text-white-50 fw-bold">MiniFW-AI</div>
       </li>
 
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'minifw_dashboard' %}">
-          <i class="fas fa-check-circle text-success"></i> Dashboard
+        <a class="nav-link {% if request.resolver_match.url_name == 'minifw_dashboard' %}active{% endif %}" href="{% url 'minifw_dashboard' %}">
+          <i class="fas fa-shield-halved"></i>
+          <span class="sidebar-text">FW Dashboard</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'minifw_feeds' %}">
-          <i class="fas fa-check-circle text-danger"></i> Feed Management
+        <a class="nav-link {% if request.resolver_match.url_name == 'minifw_policy' %}active{% endif %}" href="{% url 'minifw_policy' %}">
+          <i class="fas fa-file-shield"></i>
+          <span class="sidebar-text">FW Policies</span>
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="{% url 'minifw_policy' %}">
-          <i class="fas fa-check-circle text-danger"></i> Policies Management
+        <a class="nav-link {% if request.resolver_match.url_name == 'minifw_feeds' %}active{% endif %}" href="{% url 'minifw_feeds' %}">
+          <i class="fas fa-list-check"></i>
+          <span class="sidebar-text">FW Feeds</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'minifw_blocked_ips' %}active{% endif %}" href="{% url 'minifw_blocked_ips' %}">
+          <i class="fas fa-user-slash"></i>
+          <span class="sidebar-text">FW Blocked IPs</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.url_name == 'minifw_audit_logs' %}active{% endif %}" href="{% url 'minifw_audit_logs' %}">
+          <i class="fas fa-clipboard-list"></i>
+          <span class="sidebar-text">FW Audit Logs</span>
         </a>
       </li>
 

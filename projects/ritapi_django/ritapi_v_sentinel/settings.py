@@ -70,7 +70,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'middlewares.rate_limit.RateLimiterMiddleware',
-    'middlewares.decision_engine.DecisionProxyMiddleware',
+    'middlewares.security_enforcement.SecurityEnforcementMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -181,6 +181,27 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ============================================
+# Security Enforcement Configuration
+# ============================================
+MAX_JSON_BODY = 2 * 1024 * 1024  # 2 MB
+ENFORCE_JSON_CT = True
+
+# Paths exempted from global JSON enforcement (mostly HTML/UI paths)
+SECURITY_ENFORCEMENT_EXCLUDED_PATHS = [
+    "/admin/",
+    "/static/",
+    "/favicon.ico",
+    "/robots.txt",
+    "/login/",
+    "/auth/login/",
+    "/auth/logout/",
+    "/logout/",
+    "/ops/",  # Whitelisted because dashboard uses traditional HTML forms
+    "/healthz",
+    "/readyz",
+]
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'ops_dashboard'

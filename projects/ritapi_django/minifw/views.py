@@ -16,7 +16,9 @@ from .services import (
     MiniFWFeeds,
     MiniFWService,
     MiniFWIPSet,
-    MiniFWStats
+    MiniFWStats,
+    SectorLock,
+    AuditService
 )
 
 
@@ -30,7 +32,9 @@ def minifw_dashboard(request):
         'service_status': MiniFWService.get_status(),
         'stats': MiniFWStats.get_stats(),
         'recent_events': MiniFWStats.get_recent_events(50),
-        'blocked_ips_count': 10,
+        'blocked_ips_count': len(MiniFWIPSet.list_blocked_ips()),
+        'sector': SectorLock.get_sector(),
+        'sector_desc': SectorLock.get_description(),
     }
     return render(request, 'ops_template/minifw_config/dashboard.html', context)
 
@@ -66,6 +70,7 @@ def minifw_policy(request):
                         segments[segment_name][field] = int(request.POST[key])
             
             if MiniFWConfig.update_segments(segments):
+                AuditService.log_action(request, 'policy_updated', f'Updated segment thresholds: {list(segments.keys())}', severity='warning', resource_type='policy')
                 messages.success(request, 'Segment thresholds updated successfully')
             else:
                 messages.error(request, 'Failed to update segment thresholds')
@@ -81,6 +86,7 @@ def minifw_policy(request):
                     subnets[segment_name] = subnet_list
             
             if MiniFWConfig.update_segment_subnets(subnets):
+                AuditService.log_action(request, 'policy_updated', f'Updated segment subnets mapping', severity='warning', resource_type='policy')
                 messages.success(request, 'Segment subnets updated successfully')
                 # Restart service to apply changes
                 MiniFWService.restart()
@@ -97,6 +103,7 @@ def minifw_policy(request):
             }
             
             if MiniFWConfig.update_features(features):
+                AuditService.log_action(request, 'policy_updated', f'Updated feature weights', severity='warning', resource_type='policy')
                 messages.success(request, 'Feature weights updated successfully')
                 MiniFWService.restart()
             else:
@@ -141,6 +148,7 @@ def minifw_feeds(request):
             entries = [line.strip() for line in entries_text.split('\n') if line.strip()]
             
             if MiniFWFeeds.write_feed(feed_name, entries):
+                AuditService.log_action(request, 'feed_updated', f'Updated feed: {feed_name}', severity='warning', resource_type='feed')
                 messages.success(request, f'{feed_name} updated successfully')
                 # Restart service to reload feeds
                 MiniFWService.restart()
@@ -152,6 +160,7 @@ def minifw_feeds(request):
             entry = request.POST.get('entry', '').strip()
             if entry:
                 if MiniFWFeeds.add_to_feed(feed_name, entry):
+                    AuditService.log_action(request, 'feed_updated', f'Added entry to {feed_name}: {entry}', severity='info', resource_type='feed')
                     messages.success(request, f'Added {entry} to {feed_name}')
                     MiniFWService.restart()
                 else:
@@ -162,6 +171,7 @@ def minifw_feeds(request):
             entry = request.POST.get('entry', '').strip()
             if entry:
                 if MiniFWFeeds.remove_from_feed(feed_name, entry):
+                    AuditService.log_action(request, 'feed_updated', f'Removed entry from {feed_name}: {entry}', severity='info', resource_type='feed')
                     messages.success(request, f'Removed {entry} from {feed_name}')
                     MiniFWService.restart()
                 else:
@@ -236,6 +246,36 @@ def minifw_blocked_ips(request):
     }
     
     return render(request, 'ops_template/minifw_config/blocked_ips.html', context)
+
+
+# ============================================
+# 5. Audit Logs
+# ============================================
+
+def minifw_audit_logs(request):
+    """
+    View for displaying system audit logs
+    """
+    from .models import AuditLog
+    
+    # Get filters from request
+    action_filter = request.GET.get('action')
+    severity_filter = request.GET.get('severity')
+    
+    logs = AuditLog.objects.all()
+    
+    if action_filter:
+        logs = logs.filter(action=action_filter)
+    if severity_filter:
+        logs = logs.filter(severity=severity_filter)
+        
+    context = {
+        'audit_logs': logs[:200],  # Limit to 200 for performance
+        'service_status': MiniFWService.get_status(),
+        'available_actions': AuditLog.objects.values_list('action', flat=True).distinct(),
+        'available_severities': AuditLog.objects.values_list('severity', flat=True).distinct(),
+    }
+    return render(request, 'ops_template/minifw_config/audit_logs.html', context)
 
 
 # ============================================

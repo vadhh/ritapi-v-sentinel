@@ -10,6 +10,7 @@ urlpatterns = [
     path('policy/', views.minifw_policy, name='minifw_policy'),
     path('feeds/', views.minifw_feeds, name='minifw_feeds'),
     path('blocked-ips/', views.minifw_blocked_ips, name='minifw_blocked_ips'),
+    path('audit-logs/', views.minifw_audit_logs, name='minifw_audit_logs'),
     
     # Service Control
     path('service/control/', views.minifw_service_control, name='minifw_service_control'),

@@ -140,13 +140,6 @@ create_env_file() {
     read -r db_port
     db_port=${db_port:-$DEFAULT_DB_PORT}
     
-    # Backend Configuration
-    echo ""
-    echo "--- Backend Proxy Configuration ---"
-    printf "Enter target backend URL [$DEFAULT_BACKEND_URL]: "
-    read -r backend_url
-    backend_url=${backend_url:-$DEFAULT_BACKEND_URL}
-    
     # Service Configuration
     echo ""
     echo "--- Service Configuration ---"
@@ -232,9 +225,6 @@ POSTGRES_PASSWORD=${db_password}
 POSTGRES_HOST=${db_host}
 POSTGRES_PORT=${db_port}
 DATABASE_URL=postgresql://${db_user}:${db_password}@${db_host}:${db_port}/${db_name}
-
-# --- Backend Proxy Configuration ---
-SINGLE_TARGET_BACKEND_URL=${backend_url}
 
 # --- Service Configuration ---
 MAX_SERVICES=${max_services}
