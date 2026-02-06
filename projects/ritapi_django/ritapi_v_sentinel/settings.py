@@ -22,10 +22,16 @@ env = environ.Env()
 
 # Load unified environment file
 env_file = Path("/etc/ritapi/vsentinel.env")
+local_env = BASE_DIR / ".env"
+
 if env_file.exists():
     environ.Env.read_env(env_file)
+elif local_env.exists():
+    environ.Env.read_env(local_env)
 else:
-    raise Exception(f"Unified env file not found at: {env_file}")
+    # Allow running without env file for some cases or raise meaningful error
+    if 'test' not in sys.argv:
+         raise Exception(f"Unified env file not found at: {env_file} or {local_env}")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -198,7 +204,6 @@ SECURITY_ENFORCEMENT_EXCLUDED_PATHS = [
     "/auth/login/",
     "/auth/logout/",
     "/logout/",
-    "/ops/",  # Whitelisted because dashboard uses traditional HTML forms
     "/healthz",
     "/readyz",
 ]

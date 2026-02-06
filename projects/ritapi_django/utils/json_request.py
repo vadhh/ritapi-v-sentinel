@@ -2,6 +2,7 @@ import json
 import unicodedata
 import logging
 from django.conf import settings
+from django.http import JsonResponse
 from utils.logging import log_request  # Import log_request yang sudah disesuaikan
 
 logger = logging.getLogger(__name__)
