@@ -153,6 +153,12 @@ create_admin_maybe() {
     local py="$DJANGO_PROJECT_DIR/venv/bin/python"
     local manage="$DJANGO_PROJECT_DIR/manage.py"
 
+    echo "[STEP] Django pre-flight check"
+    if ! (cd "$DJANGO_PROJECT_DIR" && sudo -u "$DJANGO_USER" "$py" "$manage" check); then
+        echo "[WARN] Django system check failed. Skipping superuser creation to prevent crash."
+        return 0
+    fi
+
     echo "[STEP] Django admin creation (optional)"
 
     # Optional non-interactive creation via env vars

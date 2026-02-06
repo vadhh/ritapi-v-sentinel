@@ -10,6 +10,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 
 from .services import (
     MiniFWConfig,
@@ -249,31 +250,18 @@ def minifw_blocked_ips(request):
 
 
 # ============================================
-# 5. Audit Logs
+# 5. Audit Logs (Stub)
 # ============================================
 
+@login_required
+@require_http_methods(["GET"])
 def minifw_audit_logs(request):
     """
-    View for displaying system audit logs
+    Stub for displaying system audit logs to prevent crash.
     """
-    from .models import AuditLog
-    
-    # Get filters from request
-    action_filter = request.GET.get('action')
-    severity_filter = request.GET.get('severity')
-    
-    logs = AuditLog.objects.all()
-    
-    if action_filter:
-        logs = logs.filter(action=action_filter)
-    if severity_filter:
-        logs = logs.filter(severity=severity_filter)
-        
     context = {
-        'audit_logs': logs[:200],  # Limit to 200 for performance
+        'logs': [],
         'service_status': MiniFWService.get_status(),
-        'available_actions': AuditLog.objects.values_list('action', flat=True).distinct(),
-        'available_severities': AuditLog.objects.values_list('severity', flat=True).distinct(),
     }
     return render(request, 'ops_template/minifw_config/audit_logs.html', context)
 

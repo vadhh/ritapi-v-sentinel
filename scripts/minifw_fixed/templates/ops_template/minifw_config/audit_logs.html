@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">MiniFW-AI Audit Logs</h3>
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                        <p>Audit logs found.</p>
+                    {% else %}
+                        <p>Audit logs are currently empty or feature is in stub mode.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

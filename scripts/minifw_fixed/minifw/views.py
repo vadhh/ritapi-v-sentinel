@@ -10,6 +10,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 
 from .services import (
     MiniFWConfig,
@@ -282,3 +283,19 @@ def minifw_api_recent_events(request):
     limit = int(request.GET.get('limit', 50))
     events = MiniFWStats.get_recent_events(limit)
     return JsonResponse({'events': events})
+
+# ============================================
+# 5. Audit Logs (Stub)
+# ============================================
+
+@login_required
+@require_http_methods(["GET"])
+def minifw_audit_logs(request):
+    """
+    Stub for displaying system audit logs to prevent crash.
+    """
+    context = {
+        'logs': [],
+        'service_status': MiniFWService.get_status(),
+    }
+    return render(request, 'ops_template/minifw_config/audit_logs.html', context)
