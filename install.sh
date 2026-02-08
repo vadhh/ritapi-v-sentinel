@@ -152,46 +152,47 @@ print_step() {
 create_admin_maybe() {
     local py="$DJANGO_PROJECT_DIR/venv/bin/python"
     local manage="$DJANGO_PROJECT_DIR/manage.py"
+    local env_file="/etc/ritapi/vsentinel.env"
 
-    echo "[STEP] Django pre-flight check"
-    if ! (cd "$DJANGO_PROJECT_DIR" && sudo -u "$DJANGO_USER" "$py" "$manage" check); then
-        echo "[WARN] Django system check failed. Skipping superuser creation to prevent crash."
-        return 0
-    fi
-
-    echo "[STEP] Django admin creation (optional)"
-
-    # Optional non-interactive creation via env vars
-    if [[ -n "$DJANGO_SUPERUSER_USERNAME" || -n "$DJANGO_SUPERUSER_EMAIL" || -n "$DJANGO_SUPERUSER_PASSWORD" ]]; then
-        if [[ -z "$DJANGO_SUPERUSER_USERNAME" || -z "$DJANGO_SUPERUSER_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" ]]; then
-            echo "[WARN] Incomplete DJANGO_SUPERUSER_* env vars. Skipping non-interactive creation."
-        else
-            if ! (cd "$DJANGO_PROJECT_DIR" && sudo -u "$DJANGO_USER" \
-                DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
-                DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
-                DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
-                "$py" "$manage" createsuperuser --noinput); then
-                echo "[WARN] createsuperuser (non-interactive) failed (non-fatal)."
-                echo "       You can retry later:"
-                echo "       cd $DJANGO_PROJECT_DIR && sudo -u $DJANGO_USER $py $manage createsuperuser"
-            fi
+    # Export environment variables from vsentinel.env for the current subshell
+    if [ -f "$env_file" ]; then
+        # Use a temporary script to load env and run command to avoid shell injection/parsing issues
+        local run_cmd="set -a; source $env_file; set +a; cd $DJANGO_PROJECT_DIR; $py $manage"
+        
+        echo "[STEP] Django pre-flight check"
+        if ! sudo -u "$DJANGO_USER" bash -c "$run_cmd check"; then
+            echo "[WARN] Django system check failed. Skipping superuser creation to prevent crash."
             return 0
         fi
-    fi
 
-    # If no TTY (common on remote installs / automation), do not attempt interactive prompt.
-    if [[ ! -t 0 || ! -t 1 ]]; then
-        echo "[WARN] No TTY detected. Skipping interactive createsuperuser."
-        echo "       Run later:"
-        echo "       cd $DJANGO_PROJECT_DIR && sudo -u $DJANGO_USER $py $manage createsuperuser"
-        return 0
-    fi
+        echo "[STEP] Django admin creation (optional)"
 
-    # Interactive attempt, but do NOT let failure cancel install
-    if ! (cd "$DJANGO_PROJECT_DIR" && sudo -u "$DJANGO_USER" "$py" "$manage" createsuperuser); then
-        echo "[WARN] createsuperuser failed (non-fatal)."
-        echo "       You can retry later:"
-        echo "       cd $DJANGO_PROJECT_DIR && sudo -u $DJANGO_USER $py $manage createsuperuser"
+        # Optional non-interactive creation via env vars
+        if [[ -n "$DJANGO_SUPERUSER_USERNAME" || -n "$DJANGO_SUPERUSER_EMAIL" || -n "$DJANGO_SUPERUSER_PASSWORD" ]]; then
+            if [[ -z "$DJANGO_SUPERUSER_USERNAME" || -z "$DJANGO_SUPERUSER_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" ]]; then
+                echo "[WARN] Incomplete DJANGO_SUPERUSER_* env vars. Skipping non-interactive creation."
+            else
+                if ! sudo -u "$DJANGO_USER" \
+                    DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
+                    DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
+                    DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
+                    bash -c "$run_cmd createsuperuser --noinput"; then
+                    echo "[WARN] createsuperuser (non-interactive) failed (non-fatal)."
+                fi
+                return 0
+            fi
+        fi
+
+        # Interactive attempt
+        if [[ -t 0 && -t 1 ]]; then
+            if ! sudo -u "$DJANGO_USER" bash -c "$run_cmd createsuperuser"; then
+                echo "[WARN] createsuperuser failed (non-fatal)."
+            fi
+        else
+            echo "[WARN] No TTY detected. Skipping interactive createsuperuser."
+        fi
+    else
+        echo "[ERROR] Environment file $env_file not found. Cannot run Django commands."
     fi
 
     return 0
@@ -678,6 +679,7 @@ User=$DJANGO_USER
 Group=$DJANGO_GROUP
 WorkingDirectory=$DJANGO_PROJECT_DIR
 Environment="PATH=$DJANGO_PROJECT_DIR/venv/bin"
+EnvironmentFile=/etc/ritapi/vsentinel.env
 ExecStart=$DJANGO_PROJECT_DIR/venv/bin/gunicorn \\
     --workers 3 \\
     --bind 127.0.0.1:8000 \\
@@ -900,18 +902,23 @@ show_completion_message() {
 create_vsentinel_env() {
     print_header "Creating V-Sentinel Environment Configuration"
     
-    # Create /etc/ritapi directory
+    # Create /etc/ritapi directory with secure permissions
     print_step "Creating /etc/ritapi directory..."
     mkdir -p /etc/ritapi
+    chown root:$DJANGO_GROUP /etc/ritapi
+    chmod 750 /etc/ritapi
+    
+    local env_file="/etc/ritapi/vsentinel.env"
     
     # Copy template and create vsentinel.env
     print_step "Creating vsentinel.env from template..."
     if [ -f "$SCRIPT_DIR/scripts/vsentinel.env.template" ]; then
-        cp "$SCRIPT_DIR/scripts/vsentinel.env.template" /etc/ritapi/vsentinel.env
+        cp "$SCRIPT_DIR/scripts/vsentinel.env.template" "$env_file"
     else
         # Create default config with DNS telemetry parameters
-        cat > /etc/ritapi/vsentinel.env << EOF
+        cat > "$env_file" << EOF
 # V-Sentinel Environment Configuration - Gambling-Only Network Security
+DJANGO_SECRET_KEY=REPLACE_ME
 GAMBLING_ONLY=1
 ALLOWED_DETECTION_TYPES=gambling
 MODEL_NAME=v_sentinel_mlp
@@ -926,30 +933,49 @@ MINIFW_DNS_LOG_PATH=
 EOF
     fi
     
+    # Generate secrets if they are REPLACE_ME or missing
+    if grep -q "REPLACE_ME" "$env_file"; then
+        print_step "Generating random secrets..."
+        local secret
+        # Django Secret Key
+        secret=$(openssl rand -hex 32)
+        sed -i "s|DJANGO_SECRET_KEY=REPLACE_ME|DJANGO_SECRET_KEY=$secret|" "$env_file"
+        # MiniFW Secret Key
+        secret=$(openssl rand -hex 32)
+        sed -i "s|MINIFW_SECRET_KEY=REPLACE_ME|MINIFW_SECRET_KEY=$secret|" "$env_file"
+        # MiniFW Admin Password
+        secret=$(openssl rand -hex 12)
+        sed -i "s|MINIFW_ADMIN_PASSWORD=REPLACE_ME|MINIFW_ADMIN_PASSWORD=$secret|" "$env_file"
+        # DB Password
+        secret=$(openssl rand -hex 16)
+        sed -i "s|DB_PASSWORD=REPLACE_ME|DB_PASSWORD=$secret|" "$env_file"
+    fi
+    
     # Apply detected DNS configuration
     if [ -n "${DETECTED_DNS_SOURCE:-}" ]; then
         print_step "Applying DNS detection results to config..."
-        sed -i "s|^MINIFW_DNS_SOURCE=.*|MINIFW_DNS_SOURCE=${DETECTED_DNS_SOURCE}|" /etc/ritapi/vsentinel.env
-        sed -i "s|^MINIFW_DNS_LOG_PATH=.*|MINIFW_DNS_LOG_PATH=${DETECTED_DNS_LOG_PATH}|" /etc/ritapi/vsentinel.env
+        sed -i "s|^MINIFW_DNS_SOURCE=.*|MINIFW_DNS_SOURCE=${DETECTED_DNS_SOURCE}|" "$env_file"
+        sed -i "s|^MINIFW_DNS_LOG_PATH=.*|MINIFW_DNS_LOG_PATH=${DETECTED_DNS_LOG_PATH}|" "$env_file"
     fi
     
     # Apply telemetry verification results
     if [ -n "${TELEMETRY_DEGRADED_MODE:-}" ]; then
         print_step "Applying telemetry verification results..."
-        sed -i "s|^DEGRADED_MODE=.*|DEGRADED_MODE=${TELEMETRY_DEGRADED_MODE}|" /etc/ritapi/vsentinel.env
+        sed -i "s|^DEGRADED_MODE=.*|DEGRADED_MODE=${TELEMETRY_DEGRADED_MODE}|" "$env_file"
     fi
     
-    # Set restrictive permissions (readable by root only)
-    chmod 640 /etc/ritapi/vsentinel.env
+    # Set restrictive permissions (readable by root and django group)
+    chown root:$DJANGO_GROUP "$env_file"
+    chmod 640 "$env_file"
     
-    print_success "V-Sentinel environment configuration created"
+    print_success "V-Sentinel environment configuration created at $env_file"
     
     # Show final configuration
     echo ""
     echo -e "${CYAN}Final DNS Configuration:${NC}"
-    echo -e "  DNS Source:     ${YELLOW}$(grep '^MINIFW_DNS_SOURCE=' /etc/ritapi/vsentinel.env | cut -d= -f2)${NC}"
-    echo -e "  Degraded Mode:  ${YELLOW}$(grep '^DEGRADED_MODE=' /etc/ritapi/vsentinel.env | cut -d= -f2)${NC}"
-    echo -e "  Log Path:       ${YELLOW}$(grep '^MINIFW_DNS_LOG_PATH=' /etc/ritapi/vsentinel.env | cut -d= -f2)${NC}"
+    echo -e "  DNS Source:     ${YELLOW}$(grep '^MINIFW_DNS_SOURCE=' "$env_file" | cut -d= -f2)${NC}"
+    echo -e "  Degraded Mode:  ${YELLOW}$(grep '^DEGRADED_MODE=' "$env_file" | cut -d= -f2)${NC}"
+    echo -e "  Log Path:       ${YELLOW}$(grep '^MINIFW_DNS_LOG_PATH=' "$env_file" | cut -d= -f2)${NC}"
     echo ""
 }
 
