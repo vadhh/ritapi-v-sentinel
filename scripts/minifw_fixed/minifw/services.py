@@ -225,25 +225,25 @@ class MiniFWService:
         try:
             subprocess.run(['systemctl', 'restart', cls.SERVICE_NAME], check=True)
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return False
-    
+
     @classmethod
     def stop(cls) -> bool:
         """Stop MiniFW-AI service"""
         try:
             subprocess.run(['systemctl', 'stop', cls.SERVICE_NAME], check=True)
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return False
-    
+
     @classmethod
     def start(cls) -> bool:
         """Start MiniFW-AI service"""
         try:
             subprocess.run(['systemctl', 'start', cls.SERVICE_NAME], check=True)
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return False
 
 
@@ -262,7 +262,7 @@ class MiniFWIPSet:
                 text=True,
                 check=True
             )
-            
+
             # Parse ipset output
             ips = []
             in_members = False
@@ -275,11 +275,11 @@ class MiniFWIPSet:
                     parts = line.strip().split()
                     if parts:
                         ips.append(parts[0])
-            
+
             return ips
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return []
-    
+
     @classmethod
     def add_ip(cls, ip: str, timeout: int = 86400) -> bool:
         """Add IP to block list"""
@@ -289,9 +289,9 @@ class MiniFWIPSet:
                 check=True
             )
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return False
-    
+
     @classmethod
     def remove_ip(cls, ip: str) -> bool:
         """Remove IP from block list"""
@@ -301,9 +301,9 @@ class MiniFWIPSet:
                 check=True
             )
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return False
-    
+
     @classmethod
     def flush_all(cls) -> bool:
         """Flush all blocked IPs"""
@@ -313,7 +313,7 @@ class MiniFWIPSet:
                 check=True
             )
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
             return False
 
 

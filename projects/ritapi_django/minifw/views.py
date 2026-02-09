@@ -31,11 +31,34 @@ from .services import (
 
 def minifw_dashboard(request):
     """MiniFW-AI Dashboard dengan statistics"""
+    try:
+        service_status = MiniFWService.get_status()
+    except Exception:
+        service_status = {'active': False, 'enabled': False, 'status': 'unknown'}
+
+    try:
+        stats = MiniFWStats.get_stats()
+    except Exception:
+        stats = {
+            'total_events': 0, 'blocked': 0, 'monitored': 0, 'allowed': 0,
+            'top_blocked_ips': {}, 'top_blocked_domains': {}, 'by_segment': {},
+        }
+
+    try:
+        recent_events = MiniFWStats.get_recent_events(50)
+    except Exception:
+        recent_events = []
+
+    try:
+        blocked_ips_count = len(MiniFWIPSet.list_blocked_ips())
+    except Exception:
+        blocked_ips_count = 0
+
     context = {
-        'service_status': MiniFWService.get_status(),
-        'stats': MiniFWStats.get_stats(),
-        'recent_events': MiniFWStats.get_recent_events(50),
-        'blocked_ips_count': len(MiniFWIPSet.list_blocked_ips()),
+        'service_status': service_status,
+        'stats': stats,
+        'recent_events': recent_events,
+        'blocked_ips_count': blocked_ips_count,
         'sector': SectorLock.get_sector(),
         'sector_desc': SectorLock.get_description(),
     }
@@ -115,17 +138,23 @@ def minifw_policy(request):
         return redirect('minifw_policy')
     
     # GET request
-    policy = MiniFWConfig.load_policy()
-    
-    context = {
-        'segments': MiniFWConfig.get_segments(),
-        'segment_subnets': MiniFWConfig.get_segment_subnets(),
-        'features': MiniFWConfig.get_features(),
-        'burst': MiniFWConfig.get_burst(),
-        'enforcement': MiniFWConfig.get_enforcement(),
-        'service_status': MiniFWService.get_status(),
-    }
-    
+    try:
+        policy = MiniFWConfig.load_policy()
+        context = {
+            'segments': MiniFWConfig.get_segments(),
+            'segment_subnets': MiniFWConfig.get_segment_subnets(),
+            'features': MiniFWConfig.get_features(),
+            'burst': MiniFWConfig.get_burst(),
+            'enforcement': MiniFWConfig.get_enforcement(),
+            'service_status': MiniFWService.get_status(),
+        }
+    except Exception:
+        context = {
+            'segments': {}, 'segment_subnets': {}, 'features': {},
+            'burst': {}, 'enforcement': {},
+            'service_status': {'active': False, 'enabled': False, 'status': 'unknown'},
+        }
+
     return render(request, 'ops_template/minifw_config/policy.html', context)
 
 
@@ -183,14 +212,20 @@ def minifw_feeds(request):
         return redirect('minifw_feeds')
     
     # GET request
-    context = {
-        'allow_domains': MiniFWFeeds.read_feed('allow_domains'),
-        'deny_domains': MiniFWFeeds.read_feed('deny_domains'),
-        'deny_ips': MiniFWFeeds.read_feed('deny_ips'),
-        'deny_asn': MiniFWFeeds.read_feed('deny_asn'),
-        'service_status': MiniFWService.get_status(),
-    }
-    
+    try:
+        context = {
+            'allow_domains': MiniFWFeeds.read_feed('allow_domains'),
+            'deny_domains': MiniFWFeeds.read_feed('deny_domains'),
+            'deny_ips': MiniFWFeeds.read_feed('deny_ips'),
+            'deny_asn': MiniFWFeeds.read_feed('deny_asn'),
+            'service_status': MiniFWService.get_status(),
+        }
+    except Exception:
+        context = {
+            'allow_domains': [], 'deny_domains': [], 'deny_ips': [], 'deny_asn': [],
+            'service_status': {'active': False, 'enabled': False, 'status': 'unknown'},
+        }
+
     return render(request, 'ops_template/minifw_config/feeds.html', context)
 
 
@@ -207,47 +242,62 @@ def minifw_blocked_ips(request):
     """
     if request.method == 'POST':
         action = request.POST.get('action')
-        
+
         if action == 'block_ip':
             # Manually block an IP
             ip = request.POST.get('ip', '').strip()
             timeout = int(request.POST.get('timeout', 86400))
-            
+
             if ip:
                 if MiniFWIPSet.add_ip(ip, timeout):
                     messages.success(request, f'Blocked {ip} for {timeout} seconds')
                 else:
                     messages.error(request, f'Failed to block {ip}')
-        
+
         elif action == 'unblock_ip':
             # Unblock an IP
             ip = request.POST.get('ip', '').strip()
-            
+
             if ip:
                 if MiniFWIPSet.remove_ip(ip):
                     messages.success(request, f'Unblocked {ip}')
                 else:
                     messages.error(request, f'Failed to unblock {ip}')
-        
+
         elif action == 'flush_all':
             # Flush all blocked IPs
             if MiniFWIPSet.flush_all():
                 messages.success(request, 'All blocked IPs cleared')
             else:
                 messages.error(request, 'Failed to clear blocked IPs')
-        
+
         return redirect('minifw_blocked_ips')
-    
+
     # GET request
-    context = {
-        'blocked_ips': MiniFWIPSet.list_blocked_ips(),
-        'recent_blocks': [
+    try:
+        blocked_ips = MiniFWIPSet.list_blocked_ips()
+    except Exception:
+        blocked_ips = []
+
+    try:
+        recent_blocks = [
             event for event in MiniFWStats.get_recent_events(100)
             if event.get('action') == 'block'
-        ],
-        'service_status': MiniFWService.get_status(),
+        ]
+    except Exception:
+        recent_blocks = []
+
+    try:
+        service_status = MiniFWService.get_status()
+    except Exception:
+        service_status = {'active': False, 'enabled': False, 'status': 'unknown'}
+
+    context = {
+        'blocked_ips': blocked_ips,
+        'recent_blocks': recent_blocks,
+        'service_status': service_status,
     }
-    
+
     return render(request, 'ops_template/minifw_config/blocked_ips.html', context)
 
 
@@ -331,19 +381,31 @@ def minifw_service_control(request):
 
 def minifw_api_stats(request):
     """API endpoint untuk real-time stats"""
-    return JsonResponse(MiniFWStats.get_stats())
+    try:
+        return JsonResponse(MiniFWStats.get_stats())
+    except Exception:
+        return JsonResponse({
+            'total_events': 0, 'blocked': 0, 'monitored': 0, 'allowed': 0,
+            'top_blocked_ips': {}, 'top_blocked_domains': {}, 'by_segment': {},
+        })
 
 
 def minifw_api_service_status(request):
     """API endpoint untuk service status"""
-    return JsonResponse(MiniFWService.get_status())
+    try:
+        return JsonResponse(MiniFWService.get_status())
+    except Exception:
+        return JsonResponse({'active': False, 'enabled': False, 'status': 'unknown'})
 
 
 def minifw_api_recent_events(request):
     """API endpoint untuk recent events"""
-    limit = int(request.GET.get('limit', 50))
-    events = MiniFWStats.get_recent_events(limit)
-    return JsonResponse({'events': events})
+    try:
+        limit = int(request.GET.get('limit', 50))
+        events = MiniFWStats.get_recent_events(limit)
+        return JsonResponse({'events': events})
+    except Exception:
+        return JsonResponse({'events': []})
 
 
 # ============================================
