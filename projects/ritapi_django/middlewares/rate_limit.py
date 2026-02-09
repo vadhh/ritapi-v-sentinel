@@ -31,6 +31,7 @@ class RateLimiterMiddleware:
             or path.startswith("/static")
             or path.startswith("/__debug__")
             or path.startswith("/login")
+            or path.startswith("/auth/")
             or path.startswith("/accounts/login")
             or path.startswith("/ops")
             or path.startswith("/logout")

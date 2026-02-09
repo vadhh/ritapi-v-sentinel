@@ -355,28 +355,28 @@ EOF
 }
 
 ensure_allowed_hosts() {
-    local env_file="$DJANGO_PROJECT_DIR/.env"
+    local env_file="/etc/ritapi/vsentinel.env"
 
     local ip
     ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')"
     [[ -z "$ip" ]] && ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
 
     if [[ -z "$ip" ]]; then
-        print_warning "Could not auto-detect server IP. Leaving ALLOWED_HOSTS unchanged."
+        print_warning "Could not auto-detect server IP. Leaving DJANGO_ALLOWED_HOSTS unchanged."
         return 0
     fi
 
     [[ -f "$env_file" ]] || touch "$env_file"
 
-    if grep -q '^ALLOWED_HOSTS=' "$env_file"; then
+    if grep -q '^DJANGO_ALLOWED_HOSTS=' "$env_file"; then
         if ! grep -q "$ip" "$env_file"; then
-            sed -i "s/^ALLOWED_HOSTS=\(.*\)$/ALLOWED_HOSTS=\1,$ip/" "$env_file"
+            sed -i "s/^DJANGO_ALLOWED_HOSTS=\(.*\)$/DJANGO_ALLOWED_HOSTS=\1,$ip/" "$env_file"
         fi
     else
-        echo "ALLOWED_HOSTS=localhost,127.0.0.1,$ip" >>"$env_file"
+        echo "DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,$ip" >>"$env_file"
     fi
 
-    print_success "ALLOWED_HOSTS updated with $ip"
+    print_success "DJANGO_ALLOWED_HOSTS updated with $ip"
     systemctl restart ritapi-gunicorn 2>/dev/null || true
 }
 
