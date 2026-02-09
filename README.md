@@ -283,13 +283,15 @@ The installer presents an interactive menu:
 The installer will:
 1. Detect the web server user (www-data, nginx, or apache)
 2. Install all system dependencies (Python, PostgreSQL, Redis, Nginx, nftables, ipset)
-3. Create Python virtual environments for both services
-4. Install Python dependencies from requirements files
-5. Configure Nginx as a reverse proxy
-6. Set up systemd service units (`ritapi-gunicorn.service`, `minifw-ai.service`)
-7. Run Django migrations and optionally create a superuser
-8. Detect DNS telemetry availability and configure degraded mode if needed
-9. Write a deployment state file to `/var/log/ritapi/deployment_state.json`
+3. Set up PostgreSQL (start service, create database user and database from env credentials)
+4. Create Python virtual environments for both services
+5. Install Python dependencies from requirements files
+6. Configure Nginx as a reverse proxy
+7. Set up systemd service units (`ritapi-gunicorn.service`, `minifw-ai.service`)
+8. Auto-detect server IP and configure `DJANGO_ALLOWED_HOSTS` in `/etc/ritapi/vsentinel.env`
+9. Run Django migrations and optionally create a superuser
+10. Detect DNS telemetry availability and configure degraded mode if needed
+11. Write a deployment state file to `/var/log/ritapi/deployment_state.json`
 
 Installation paths:
 - Django application: `/opt/ritapi_v_sentinel`
@@ -383,9 +385,10 @@ sudo -u www-data ./venv/bin/python manage.py createsuperuser
 
 ```bash
 # Check status of all services
-sudo systemctl status ritapi-gunicorn minifw-ai nginx
+sudo systemctl status postgresql ritapi-gunicorn minifw-ai nginx
 
 # Restart individual services
+sudo systemctl restart postgresql
 sudo systemctl restart ritapi-gunicorn
 sudo systemctl restart minifw-ai
 sudo systemctl restart nginx
@@ -685,6 +688,25 @@ journalctl -u minifw-ai --since "1 hour ago" | grep -i "degraded\|error\|fatal"
 ```bash
 cd scripts/minifw_fixed
 sudo ./fix_permissions.sh
+```
+
+### PostgreSQL connection refused (400/500 errors on login)
+
+If you see `connection to server at "127.0.0.1", port 5432 failed: Connection refused`, PostgreSQL is not running:
+
+```bash
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+### ALLOWED_HOSTS / 400 Bad Request
+
+If the dashboard returns 400 when accessed by server IP, the IP is not in `DJANGO_ALLOWED_HOSTS`:
+
+```bash
+# Add your server IP to the unified config
+sudo sed -i "s/^DJANGO_ALLOWED_HOSTS=\(.*\)$/DJANGO_ALLOWED_HOSTS=\1,YOUR_SERVER_IP/" /etc/ritapi/vsentinel.env
+sudo systemctl restart ritapi-gunicorn
 ```
 
 ### Redis connection issues (rate limiter)

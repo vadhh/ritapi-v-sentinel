@@ -33,17 +33,21 @@ scripts/
 ├── vsentinel_selftest.sh            # Post-install verification
 ├── vsentinel_runtime_guard.sh       # Copied to /opt/minifw_ai/scripts/
 ├── vsentinel_scope_gate.sh          # Scope validation (blocks install on failure)
-└── minifw_fixed/                    # Optional CRUD fix overlay
+└── minifw_fixed/                    # CRUD fix overlay (MUST stay in sync with minifw/ app)
 ```
+
+### minifw_fixed Overlay Sync
+`scripts/minifw_fixed/` contains overlay files that `apply_minifw_crud_fix()` copies over the deployed Django minifw app. **These files MUST be kept in sync with `projects/ritapi_django/minifw/`**. If you modify `minifw/views.py`, `minifw/services.py`, or minifw templates, you MUST also update the corresponding files in `scripts/minifw_fixed/`. Failure to sync causes `AttributeError` crashes at runtime because `urls.py` references views that the overlay's old `views.py` doesn't define.
 
 ### What Will Break the Installer
 - Renaming or moving `projects/ritapi_django/manage.py` — `verify_package_structure()` will `exit 1`
 - Changing the Django WSGI module path from `ritapi_v_sentinel.wsgi:application` — Gunicorn service fails
 - Changing the MiniFW entry point from `python -m minifw_ai` — systemd unit fails to start
-- Adding new Python packages that require system-level C libraries not in the `apt-get install` list (python3-dev, build-essential, libpq-dev are the only build deps installed)
+- Adding new Python packages that require system-level C libraries not in the `apt-get install` list (python3-dev, build-essential, libpq-dev, postgresql are the only build deps installed)
 - Removing `requirements.txt` from either project
 - Changing `PYTHONPATH` expectations — systemd unit hardcodes `PYTHONPATH=/opt/minifw_ai/app`
 - Adding mandatory env vars without updating `scripts/vsentinel.env.template` — the installer copies this template to `/etc/ritapi/vsentinel.env` and auto-generates only `DJANGO_SECRET_KEY`, `MINIFW_SECRET_KEY`, `MINIFW_ADMIN_PASSWORD`, `DB_PASSWORD`
+- Writing config to `$DJANGO_PROJECT_DIR/.env` instead of `/etc/ritapi/vsentinel.env` — Django reads only the unified env file in production; the local `.env` is ignored when `/etc/ritapi/vsentinel.env` exists
 
 ### Deployment Paths (Hardcoded in install.sh)
 - Django → `/opt/ritapi_v_sentinel` (owned by www-data)
@@ -56,11 +60,12 @@ scripts/
 1. `verify_package_structure` → `detect_web_user` → `detect_dns_environment`
 2. `create_vsentinel_env` (copies template, generates secrets, applies DNS config)
 3. `install_system_dependencies` → `ensure_firewall_deps` (nftables, ipset)
-4. `install_ritapi_django` (copy, venv, pip, migrate, collectstatic)
-5. `install_minifw_ai` (copy, venv, pip, create default config if missing, ipset, systemd)
-6. `apply_minifw_crud_fix` → `install_gunicorn_service` → `ensure_allowed_hosts` → `configure_nginx`
-7. `run_scope_gate` → `install_runtime_guard` → `create_admin_user`
-8. `start_services` → `verify_telemetry` → `run_selftest` → `post_install_verify`
+4. `setup_postgresql` (start PostgreSQL, create DB user + database from env credentials)
+5. `install_ritapi_django` (copy, venv, pip, migrate, collectstatic)
+6. `install_minifw_ai` (copy, venv, pip, create default config if missing, ipset, systemd)
+7. `apply_minifw_crud_fix` → `install_gunicorn_service` → `ensure_allowed_hosts` → `configure_nginx`
+8. `run_scope_gate` → `install_runtime_guard` → `create_admin_user`
+9. `start_services` (PostgreSQL, Redis, MiniFW-AI, Gunicorn, Nginx) → `verify_telemetry` → `run_selftest` → `post_install_verify`
 
 ### Testing Installer Compatibility
 After any structural change, verify: (1) `verify_package_structure` assertions still pass, (2) both `requirements.txt` are pip-installable in a clean venv, (3) `python -m minifw_ai` and `manage.py check` still work, (4) `post_install_verify` service checks pass.

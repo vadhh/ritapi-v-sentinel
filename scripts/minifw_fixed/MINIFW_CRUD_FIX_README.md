@@ -132,11 +132,17 @@ If you chose "Later" or want to restart manually:
 
 ## Files Modified
 
-1. `/home/claude/minifw/services.py` - Enhanced config and feed handling
-2. `/home/claude/minifw/views.py` - Removed auto-restart, updated messages
-3. `/home/claude/templates/ops_template/minifw_config/feeds.html` - Added SweetAlert
-4. `/home/claude/templates/ops_template/minifw_config/policy.html` - Added SweetAlert
-5. `/home/claude/templates/ops_template/minifw_config/blocked_ips.html` - Added SweetAlert
+1. `scripts/minifw_fixed/minifw/services.py` - Enhanced config and feed handling
+2. `scripts/minifw_fixed/minifw/views.py` - Removed auto-restart, updated messages
+3. `scripts/minifw_fixed/templates/ops_template/minifw_config/feeds.html` - Added SweetAlert
+4. `scripts/minifw_fixed/templates/ops_template/minifw_config/policy.html` - Added SweetAlert
+5. `scripts/minifw_fixed/templates/ops_template/minifw_config/blocked_ips.html` - Added SweetAlert
+6. `scripts/minifw_fixed/templates/ops_template/minifw_config/events.html` - Events viewer
+7. `scripts/minifw_fixed/templates/ops_template/minifw_config/user_management.html` - User management
+
+## IMPORTANT: Overlay Sync Requirement
+
+The files in `scripts/minifw_fixed/` are copied over the deployed Django minifw app by `apply_minifw_crud_fix()` in `install.sh`. **These files MUST stay in sync with `projects/ritapi_django/minifw/`**. If you modify `views.py`, `services.py`, or templates in the main source, you MUST also update the overlay copies here. Failure to sync causes `AttributeError` crashes because `urls.py` references views that the overlay's old files don't define.
 
 ## Testing Recommendations
 
