@@ -7,8 +7,10 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-clipboard-list"></i> System Audit Logs</h2>
-        
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-success btn-sm" id="btnExportAudit">
+                <i class="fas fa-download"></i> Export JSON
+            </button>
             {% if service_status.active %}
                 <span class="badge bg-success"><i class="fas fa-check-circle"></i> Service Running</span>
             {% else %}
@@ -17,89 +19,288 @@
         </div>
     </div>
 
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Total Logs</small>
+                            <h3 class="mb-0" id="auditStatTotal">0</h3>
+                        </div>
+                        <i class="fas fa-list fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card danger">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Critical</small>
+                            <h3 class="mb-0 text-danger" id="auditStatCritical">0</h3>
+                        </div>
+                        <i class="fas fa-exclamation-circle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card warning">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Warning</small>
+                            <h3 class="mb-0 text-warning" id="auditStatWarning">0</h3>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card success">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Info</small>
+                            <h3 class="mb-0 text-success" id="auditStatInfo">0</h3>
+                        </div>
+                        <i class="fas fa-info-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
+            <form id="auditFilterForm" class="row g-3">
+                <div class="col-md-2">
                     <label class="form-label">Action</label>
-                    <select name="action" class="form-select">
+                    <select name="action" class="form-select bg-dark text-light border-secondary">
                         <option value="">All Actions</option>
-                        {% for action in available_actions %}
-                            <option value="{{ action }}" {% if request.GET.action == action %}selected{% endif %}>{{ action }}</option>
-                        {% endfor %}
+                        <option value="policy_updated">Policy Updated</option>
+                        <option value="feed_updated">Feed Updated</option>
+                        <option value="user_created">User Created</option>
+                        <option value="user_updated">User Updated</option>
+                        <option value="user_deleted">User Deleted</option>
+                        <option value="password_changed">Password Changed</option>
+                        <option value="login">Login</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
                     <label class="form-label">Severity</label>
-                    <select name="severity" class="form-select">
+                    <select name="severity" class="form-select bg-dark text-light border-secondary">
                         <option value="">All Severities</option>
-                        {% for severity in available_severities %}
-                            <option value="{{ severity }}" {% if request.GET.severity == severity %}selected{% endif %}>{{ severity|upper }}</option>
-                        {% endfor %}
+                        <option value="critical">Critical</option>
+                        <option value="warning">Warning</option>
+                        <option value="info">Info</option>
                     </select>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
+                <div class="col-md-2">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-control bg-dark text-light border-secondary" placeholder="Search user...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Resource Type</label>
+                    <select name="resource_type" class="form-select bg-dark text-light border-secondary">
+                        <option value="">All Types</option>
+                        <option value="policy">Policy</option>
+                        <option value="feed">Feed</option>
+                        <option value="user">User</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control bg-dark text-light border-secondary">
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-filter"></i> Filter
                     </button>
-                    <a href="{% url 'minifw_audit_logs' %}" class="btn btn-secondary">
-                        <i class="fas fa-undo"></i> Reset
-                    </a>
+                    <button type="button" class="btn btn-secondary" id="btnResetFilters">
+                        <i class="fas fa-undo"></i>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Audit Logs Table -->
+    <!-- Logs Table -->
     <div class="card">
         <div class="card-header">
             <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-sm table-hover">
+                <table class="table table-sm table-hover" id="auditLogsTable">
                     <thead>
                         <tr>
                             <th>Timestamp</th>
                             <th>User</th>
                             <th>Action</th>
+                            <th>Severity</th>
                             <th>Resource</th>
                             <th>Description</th>
                             <th>IP Address</th>
-                            <th>Severity</th>
+                            <th>Details</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        {% for log in logs %}
-                        <tr>
-                            <td><small>{{ log.timestamp|date:"Y-m-d H:i:s" }}</small></td>
-                            <td>
-                                <strong>{{ log.username }}</strong><br>
-                                <small class="text-muted">{{ log.user_role }}</small>
-                            </td>
-                            <td><span class="badge bg-info">{{ log.action }}</span></td>
-                            <td><small>{{ log.resource_type|default:"-" }}</small></td>
-                            <td>{{ log.description }}</td>
-                            <td><code>{{ log.ip_address|default:"-" }}</code></td>
-                            <td>
-                                <span class="badge 
-                                    {% if log.severity == 'critical' %}bg-danger
-                                    {% elif log.severity == 'warning' %}bg-warning
-                                    {% else %}bg-secondary{% endif %}">
-                                    {{ log.severity|upper }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center">No audit logs found.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
+                    <tbody></tbody>
                 </table>
+            </div>
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <small class="text-white-50" id="auditPagInfo">Showing 0 of 0</small>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-light" id="auditPrevBtn" disabled>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <button class="btn btn-sm btn-outline-light" id="auditNextBtn" disabled>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Log Detail Modal -->
+<div class="modal fade" id="logDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Log Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="logDetailBody"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+$(document).ready(function() {
+    const PAGE_SIZE = 50;
+    let currentOffset = 0;
+
+    function severityBadge(s) {
+        const cls = s === 'critical' ? 'danger' : s === 'warning' ? 'warning' : 'secondary';
+        return '<span class="badge bg-' + cls + '">' + (s || 'info').toUpperCase() + '</span>';
+    }
+
+    function loadStats() {
+        $.getJSON("{% url 'minifw_api_audit_statistics' %}", function(data) {
+            $('#auditStatTotal').text(data.total || 0);
+            $('#auditStatCritical').text(data.critical || 0);
+            $('#auditStatWarning').text(data.warning || 0);
+            $('#auditStatInfo').text(data.info || 0);
+        });
+    }
+
+    function getFilters() {
+        const f = {};
+        $('#auditFilterForm').serializeArray().forEach(function(item) {
+            if (item.value) f[item.name] = item.value;
+        });
+        return f;
+    }
+
+    function loadLogs() {
+        const filters = getFilters();
+        const params = $.param(Object.assign({limit: PAGE_SIZE, offset: currentOffset}, filters));
+        $.getJSON("{% url 'minifw_api_audit_logs' %}?" + params, function(data) {
+            const tbody = $('#auditLogsTable tbody');
+            tbody.empty();
+            const logs = data.logs || [];
+            const total = data.total || 0;
+
+            if (logs.length === 0) {
+                tbody.append('<tr><td colspan="8" class="text-center">No audit logs found.</td></tr>');
+            }
+
+            logs.forEach(function(log) {
+                const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : '-';
+                const row = '<tr data-log=\'' + JSON.stringify(log).replace(/'/g, '&#39;') + '\'>'
+                    + '<td><small>' + ts + '</small></td>'
+                    + '<td><strong>' + (log.username || '-') + '</strong><br><small class="text-muted">' + (log.user_role || '') + '</small></td>'
+                    + '<td><span class="badge bg-info">' + (log.action || '-') + '</span></td>'
+                    + '<td>' + severityBadge(log.severity) + '</td>'
+                    + '<td><small>' + (log.resource_type || '-') + '</small></td>'
+                    + '<td><small>' + (log.description || '-') + '</small></td>'
+                    + '<td><code>' + (log.ip_address || '-') + '</code></td>'
+                    + '<td><button class="btn btn-sm btn-outline-info btn-view-log"><i class="fas fa-eye"></i></button></td>'
+                    + '</tr>';
+                tbody.append(row);
+            });
+
+            // Pagination info
+            const showing = Math.min(currentOffset + PAGE_SIZE, total);
+            $('#auditPagInfo').text('Showing ' + (currentOffset + 1) + '-' + showing + ' of ' + total);
+            $('#auditPrevBtn').prop('disabled', currentOffset === 0);
+            $('#auditNextBtn').prop('disabled', currentOffset + PAGE_SIZE >= total);
+        });
+    }
+
+    loadStats();
+    loadLogs();
+
+    // Filter form
+    $('#auditFilterForm').on('submit', function(e) {
+        e.preventDefault();
+        currentOffset = 0;
+        loadLogs();
+    });
+
+    $('#btnResetFilters').on('click', function() {
+        $('#auditFilterForm')[0].reset();
+        currentOffset = 0;
+        loadLogs();
+    });
+
+    // Pagination
+    $('#auditPrevBtn').on('click', function() {
+        currentOffset = Math.max(0, currentOffset - PAGE_SIZE);
+        loadLogs();
+    });
+    $('#auditNextBtn').on('click', function() {
+        currentOffset += PAGE_SIZE;
+        loadLogs();
+    });
+
+    // View detail
+    $(document).on('click', '.btn-view-log', function(e) {
+        e.stopPropagation();
+        const log = $(this).closest('tr').data('log');
+        if (!log) return;
+        let html = '<table class="table table-sm text-light">';
+        const fields = ['id', 'timestamp', 'username', 'user_role', 'action', 'severity',
+                        'resource_type', 'resource_id', 'description', 'ip_address', 'success'];
+        fields.forEach(function(f) {
+            html += '<tr><td class="fw-bold text-capitalize">' + f.replace(/_/g, ' ') + '</td><td>' + (log[f] != null ? log[f] : '-') + '</td></tr>';
+        });
+        if (log.before_value) {
+            html += '<tr><td class="fw-bold">Before</td><td><pre class="mb-0 text-light">' + JSON.stringify(log.before_value, null, 2) + '</pre></td></tr>';
+        }
+        if (log.after_value) {
+            html += '<tr><td class="fw-bold">After</td><td><pre class="mb-0 text-light">' + JSON.stringify(log.after_value, null, 2) + '</pre></td></tr>';
+        }
+        html += '</table>';
+        $('#logDetailBody').html(html);
+        new bootstrap.Modal('#logDetailModal').show();
+    });
+
+    // Export
+    $('#btnExportAudit').on('click', function() {
+        const filters = getFilters();
+        const params = $.param(filters);
+        window.location.href = "{% url 'minifw_api_audit_export' %}" + (params ? '?' + params : '');
+    });
+});
+</script>
 {% endblock %}

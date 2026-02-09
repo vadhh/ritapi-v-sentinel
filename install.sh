@@ -154,45 +154,45 @@ create_admin_maybe() {
     local manage="$DJANGO_PROJECT_DIR/manage.py"
     local env_file="/etc/ritapi/vsentinel.env"
 
-    # Export environment variables from vsentinel.env for the current subshell
-    if [ -f "$env_file" ]; then
-        # Use a temporary script to load env and run command to avoid shell injection/parsing issues
-        local run_cmd="set -a; source $env_file; set +a; cd $DJANGO_PROJECT_DIR; $py $manage"
-        
-        echo "[STEP] Django pre-flight check"
-        if ! sudo -u "$DJANGO_USER" bash -c "$run_cmd check"; then
-            echo "[WARN] Django system check failed. Skipping superuser creation to prevent crash."
+    if [ ! -f "$env_file" ]; then
+        echo "[ERROR] Environment file $env_file not found. Cannot run Django commands."
+        return 0
+    fi
+
+    # Use a subshell to source env and run command as non-root
+    local run_cmd="set -a; source $env_file; set +a; cd $DJANGO_PROJECT_DIR; $py $manage"
+    
+    echo "[STEP] Django pre-flight check"
+    if ! sudo -u "$DJANGO_USER" bash -c "$run_cmd check"; then
+        echo "[WARN] Django system check failed. Skipping superuser creation to prevent crash."
+        return 0
+    fi
+
+    echo "[STEP] Django admin creation (optional)"
+
+    # Optional non-interactive creation via env vars
+    if [[ -n "$DJANGO_SUPERUSER_USERNAME" || -n "$DJANGO_SUPERUSER_EMAIL" || -n "$DJANGO_SUPERUSER_PASSWORD" ]]; then
+        if [[ -z "$DJANGO_SUPERUSER_USERNAME" || -z "$DJANGO_SUPERUSER_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" ]]; then
+            echo "[WARN] Incomplete DJANGO_SUPERUSER_* env vars. Skipping non-interactive creation."
+        else
+            if ! sudo -u "$DJANGO_USER" \
+                DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
+                DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
+                DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
+                bash -c "$run_cmd createsuperuser --noinput"; then
+                echo "[WARN] createsuperuser (non-interactive) failed (non-fatal)."
+            fi
             return 0
         fi
+    fi
 
-        echo "[STEP] Django admin creation (optional)"
-
-        # Optional non-interactive creation via env vars
-        if [[ -n "$DJANGO_SUPERUSER_USERNAME" || -n "$DJANGO_SUPERUSER_EMAIL" || -n "$DJANGO_SUPERUSER_PASSWORD" ]]; then
-            if [[ -z "$DJANGO_SUPERUSER_USERNAME" || -z "$DJANGO_SUPERUSER_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" ]]; then
-                echo "[WARN] Incomplete DJANGO_SUPERUSER_* env vars. Skipping non-interactive creation."
-            else
-                if ! sudo -u "$DJANGO_USER" \
-                    DJANGO_SUPERUSER_USERNAME="$DJANGO_SUPERUSER_USERNAME" \
-                    DJANGO_SUPERUSER_EMAIL="$DJANGO_SUPERUSER_EMAIL" \
-                    DJANGO_SUPERUSER_PASSWORD="$DJANGO_SUPERUSER_PASSWORD" \
-                    bash -c "$run_cmd createsuperuser --noinput"; then
-                    echo "[WARN] createsuperuser (non-interactive) failed (non-fatal)."
-                fi
-                return 0
-            fi
-        fi
-
-        # Interactive attempt
-        if [[ -t 0 && -t 1 ]]; then
-            if ! sudo -u "$DJANGO_USER" bash -c "$run_cmd createsuperuser"; then
-                echo "[WARN] createsuperuser failed (non-fatal)."
-            fi
-        else
-            echo "[WARN] No TTY detected. Skipping interactive createsuperuser."
+    # Interactive attempt
+    if [[ -t 0 && -t 1 ]]; then
+        if ! sudo -u "$DJANGO_USER" bash -c "$run_cmd createsuperuser"; then
+            echo "[WARN] createsuperuser failed (non-fatal)."
         fi
     else
-        echo "[ERROR] Environment file $env_file not found. Cannot run Django commands."
+        echo "[WARN] No TTY detected. Skipping interactive createsuperuser."
     fi
 
     return 0
@@ -546,12 +546,20 @@ install_ritapi_django() {
     
     # Run migrations
     print_step "Running Django migrations..."
-    cd "$DJANGO_PROJECT_DIR"
-    "$DJANGO_PROJECT_DIR/venv/bin/python" manage.py migrate --noinput 2>/dev/null || true
+    if [ -f "/etc/ritapi/vsentinel.env" ]; then
+        sudo -u "$DJANGO_USER" bash -c "set -a; source /etc/ritapi/vsentinel.env; set +a; cd $DJANGO_PROJECT_DIR; ./venv/bin/python manage.py migrate --noinput" 2>/dev/null || true
+    else
+        cd "$DJANGO_PROJECT_DIR"
+        "$DJANGO_PROJECT_DIR/venv/bin/python" manage.py migrate --noinput 2>/dev/null || true
+    fi
     
     # Collect static files
     print_step "Collecting static files..."
-    "$DJANGO_PROJECT_DIR/venv/bin/python" manage.py collectstatic --noinput 2>/dev/null || true
+    if [ -f "/etc/ritapi/vsentinel.env" ]; then
+        sudo -u "$DJANGO_USER" bash -c "set -a; source /etc/ritapi/vsentinel.env; set +a; cd $DJANGO_PROJECT_DIR; ./venv/bin/python manage.py collectstatic --noinput" 2>/dev/null || true
+    else
+        "$DJANGO_PROJECT_DIR/venv/bin/python" manage.py collectstatic --noinput 2>/dev/null || true
+    fi
     
     print_success "RITAPI V-Sentinel installed successfully"
 }
@@ -899,6 +907,29 @@ show_completion_message() {
 # V-Sentinel Closure Control Functions
 ################################################################################
 
+# --- Secret Generation Helpers ---
+gen_hex() {
+    openssl rand -hex "$1"
+}
+
+ensure_kv() {
+    local key="$1"
+    local value="$2"
+    local file="$3"
+
+    if grep -q "^${key}=" "$file"; then
+        # Key exists, check if it's empty or REPLACE_ME
+        local current_val
+        current_val=$(grep "^${key}=" "$file" | cut -d= -f2-)
+        if [[ -z "$current_val" || "$current_val" == "REPLACE_ME" ]]; then
+            sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+        fi
+    else
+        # Key does not exist, append
+        echo "${key}=${value}" >> "$file"
+    fi
+}
+
 create_vsentinel_env() {
     print_header "Creating V-Sentinel Environment Configuration"
     
@@ -906,50 +937,24 @@ create_vsentinel_env() {
     print_step "Creating /etc/ritapi directory..."
     mkdir -p /etc/ritapi
     chown root:$DJANGO_GROUP /etc/ritapi
-    chmod 750 /etc/ritapi
+    chmod 0750 /etc/ritapi
     
     local env_file="/etc/ritapi/vsentinel.env"
     
     # Copy template and create vsentinel.env
-    print_step "Creating vsentinel.env from template..."
+    print_step "Creating vsentinel.env..."
     if [ -f "$SCRIPT_DIR/scripts/vsentinel.env.template" ]; then
         cp "$SCRIPT_DIR/scripts/vsentinel.env.template" "$env_file"
-    else
-        # Create default config with DNS telemetry parameters
-        cat > "$env_file" << EOF
-# V-Sentinel Environment Configuration - Gambling-Only Network Security
-DJANGO_SECRET_KEY=REPLACE_ME
-GAMBLING_ONLY=1
-ALLOWED_DETECTION_TYPES=gambling
-MODEL_NAME=v_sentinel_mlp
-MODEL_VERSION=mlp_v2
-POLICY_ID=V-SENTINEL-GOV-01
-POLICY_VERSION=1.0
-
-# DNS Telemetry Configuration (Auto-detected)
-MINIFW_DNS_SOURCE=none
-DEGRADED_MODE=0
-MINIFW_DNS_LOG_PATH=
-EOF
+    elif [ ! -f "$env_file" ]; then
+        touch "$env_file"
     fi
     
-    # Generate secrets if they are REPLACE_ME or missing
-    if grep -q "REPLACE_ME" "$env_file"; then
-        print_step "Generating random secrets..."
-        local secret
-        # Django Secret Key
-        secret=$(openssl rand -hex 32)
-        sed -i "s|DJANGO_SECRET_KEY=REPLACE_ME|DJANGO_SECRET_KEY=$secret|" "$env_file"
-        # MiniFW Secret Key
-        secret=$(openssl rand -hex 32)
-        sed -i "s|MINIFW_SECRET_KEY=REPLACE_ME|MINIFW_SECRET_KEY=$secret|" "$env_file"
-        # MiniFW Admin Password
-        secret=$(openssl rand -hex 12)
-        sed -i "s|MINIFW_ADMIN_PASSWORD=REPLACE_ME|MINIFW_ADMIN_PASSWORD=$secret|" "$env_file"
-        # DB Password
-        secret=$(openssl rand -hex 16)
-        sed -i "s|DB_PASSWORD=REPLACE_ME|DB_PASSWORD=$secret|" "$env_file"
-    fi
+    # Guarantee required secrets
+    print_step "Enforcing secure secrets..."
+    ensure_kv "DJANGO_SECRET_KEY" "$(gen_hex 32)" "$env_file"
+    ensure_kv "MINIFW_SECRET_KEY" "$(gen_hex 32)" "$env_file"
+    ensure_kv "MINIFW_ADMIN_PASSWORD" "$(gen_hex 12)" "$env_file"
+    ensure_kv "DB_PASSWORD" "$(gen_hex 16)" "$env_file"
     
     # Apply detected DNS configuration
     if [ -n "${DETECTED_DNS_SOURCE:-}" ]; then
@@ -966,7 +971,7 @@ EOF
     
     # Set restrictive permissions (readable by root and django group)
     chown root:$DJANGO_GROUP "$env_file"
-    chmod 640 "$env_file"
+    chmod 0640 "$env_file"
     
     print_success "V-Sentinel environment configuration created at $env_file"
     

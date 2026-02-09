@@ -88,14 +88,11 @@ The platform consists of two main components that run as separate systemd servic
 - MiniFW policy management (CRUD for allow/deny lists)
 - Blocked IP map visualization
 
-### MiniFW-AI Admin Panel (FastAPI)
-- Allow/deny domain management
-- Deny IP and deny ASN management
-- Policy configuration (segments, thresholds, weights, enforcement, collectors, burst)
-- Security event viewer with DataTables pagination and Excel export
-- User management with RBAC (role-based access control)
-- TOTP two-factor authentication
-- Audit logging with statistics and export
+### Unified Dashboard Features (Django)
+- Security event viewer with DataTables server-side processing and Excel export
+- User management with 5-tier RBAC (Super Admin, Admin, Operator, Auditor, Viewer)
+- Full audit logging with filtering, statistics, and JSON export
+- Sector lock status display
 
 ### Resilience
 - Graceful degradation: service continues without DNS telemetry (fail-open telemetry, fail-closed security)
@@ -133,7 +130,6 @@ The platform consists of two main components that run as separate systemd servic
 | Database | SQLAlchemy with SQLite |
 | Firewall | nftables, ipset (via subprocess) |
 | UI | AdminLTE 3 (Jinja2 templates) |
-| Containers | Docker, Docker Compose |
 
 ### Infrastructure
 
@@ -159,7 +155,7 @@ ritapi-v-sentinel/
 |
 |-- .github/
 |   `-- workflows/
-|       `-- pre-flight-check.yml        # CI: security audit, linting, tests, Docker build
+|       `-- pre-flight-check.yml        # CI: security audit, linting, tests
 |
 |-- docs/
 |   |-- CARA_PAKAI.md                   # Usage guide (Indonesian)
@@ -202,8 +198,6 @@ ritapi-v-sentinel/
 |   |   `-- .env                        # Local development environment
 |   |
 |   `-- minifw_ai_service/             # MiniFW-AI Security Engine
-|       |-- Dockerfile
-|       |-- docker-compose.yml          # dnsmasq + daemon + web services
 |       |-- requirements.txt
 |       |-- app/
 |       |   |-- web/                    # FastAPI application
@@ -302,25 +296,6 @@ Installation paths:
 - MiniFW-AI service: `/opt/minifw_ai`
 - Unified configuration: `/etc/ritapi/vsentinel.env`
 - Logs: `/var/log/ritapi/`
-
-### Docker (MiniFW-AI Service Only)
-
-The MiniFW-AI service includes Docker support:
-
-```bash
-cd projects/minifw_ai_service
-
-# Build the image
-docker build -t minifw-ai .
-
-# Or use Docker Compose (includes dnsmasq + daemon + web)
-docker-compose up -d
-```
-
-The `docker-compose.yml` defines three services:
-- `dnsmasq` -- DNS server for log capture (port 53)
-- `minifw_daemon` -- Core security engine (privileged, host network)
-- `minifw_web` -- FastAPI admin panel (port 8080)
 
 ---
 
@@ -532,8 +507,7 @@ The GitHub Actions workflow (`.github/workflows/pre-flight-check.yml`) runs on p
 2. **Code Quality** -- flake8, black formatting check, TODO/FIXME scanning
 3. **MiniFW-AI Tests** -- pytest with coverage
 4. **Django Tests** -- Django migrations and test runner (with PostgreSQL and Redis services)
-5. **Docker Build** -- Build MiniFW-AI image and Trivy vulnerability scan
-6. **Pre-Flight Report** -- Consolidated go/no-go verdict
+5. **Pre-Flight Report** -- Consolidated go/no-go verdict
 
 ---
 

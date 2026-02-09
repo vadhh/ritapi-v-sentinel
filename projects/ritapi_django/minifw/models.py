@@ -1,4 +1,80 @@
+from django.conf import settings
 from django.db import models
+from django.utils import timezone
+
+
+class UserProfile(models.Model):
+    """Extended profile for RBAC. OneToOneField keeps default auth.User intact."""
+
+    ROLE_CHOICES = [
+        ('SUPER_ADMIN', 'Super Admin'),
+        ('ADMIN', 'Admin'),
+        ('OPERATOR', 'Operator'),
+        ('AUDITOR', 'Auditor'),
+        ('VIEWER', 'Viewer'),
+    ]
+
+    SECTOR_CHOICES = [
+        ('HOSPITAL', 'Hospital'),
+        ('SCHOOL', 'School'),
+        ('GOVERNMENT', 'Government'),
+        ('FINANCE', 'Finance'),
+        ('LEGAL', 'Legal'),
+        ('ESTABLISHMENT', 'Establishment'),
+    ]
+
+    ROLE_HIERARCHY = {
+        'SUPER_ADMIN': 5,
+        'ADMIN': 4,
+        'OPERATOR': 3,
+        'AUDITOR': 2,
+        'VIEWER': 1,
+    }
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile',
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='VIEWER')
+    sector = models.CharField(max_length=20, choices=SECTOR_CHOICES, default='ESTABLISHMENT')
+    full_name = models.CharField(max_length=255, blank=True, default='')
+    department = models.CharField(max_length=255, blank=True, default='')
+    phone = models.CharField(max_length=50, blank=True, default='')
+
+    is_locked = models.BooleanField(default=False)
+    failed_login_attempts = models.IntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    must_change_password = models.BooleanField(default=False)
+    last_password_change = models.DateTimeField(null=True, blank=True)
+    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'minifw_user_profiles'
+
+    def __str__(self):
+        return f"{self.user.username} ({self.role})"
+
+    # ---- permission helpers ----
+
+    def _role_level(self):
+        return self.ROLE_HIERARCHY.get(self.role, 0)
+
+    def has_permission(self, required_role):
+        required = self.ROLE_HIERARCHY.get(required_role, 99)
+        return self._role_level() >= required
+
+    def can_modify_policy(self):
+        return self.has_permission('ADMIN')
+
+    def can_execute_enforcement(self):
+        return self.has_permission('OPERATOR')
+
+    def can_access_audit(self):
+        return self.has_permission('AUDITOR')
+
+    def can_export_data(self):
+        return self.has_permission('AUDITOR')
 
 
 class MiniFWEvent(models.Model):
@@ -70,6 +146,9 @@ class AuditLog(models.Model):
     class Meta:
         db_table = 'minifw_audit_logs'
         ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['severity', '-timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.timestamp} - {self.username} - {self.action}"
