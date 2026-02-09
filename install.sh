@@ -494,6 +494,7 @@ install_system_dependencies() {
         python3-dev \
         build-essential \
         libpq-dev \
+        postgresql \
         redis-server \
         nftables \
         ipset \
@@ -505,6 +506,44 @@ install_system_dependencies() {
         > /dev/null 2>&1
     
     print_success "System dependencies installed"
+}
+
+setup_postgresql() {
+    print_header "Setting Up PostgreSQL Database"
+
+    # Start and enable PostgreSQL
+    print_step "Starting PostgreSQL service..."
+    systemctl start postgresql
+    systemctl enable postgresql
+
+    # Read DB credentials from env file
+    local env_file="/etc/ritapi/vsentinel.env"
+    local db_name db_user db_pass
+    db_name=$(grep -E "^DB_NAME=" "$env_file" | cut -d= -f2)
+    db_user=$(grep -E "^DB_USER=" "$env_file" | cut -d= -f2)
+    db_pass=$(grep -E "^DB_PASSWORD=" "$env_file" | cut -d= -f2)
+
+    # Create database user if not exists
+    print_step "Creating database user '$db_user'..."
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$db_user'" | grep -q 1; then
+        print_info "User '$db_user' already exists, updating password"
+        sudo -u postgres psql -c "ALTER USER $db_user WITH PASSWORD '$db_pass';" > /dev/null 2>&1
+    else
+        sudo -u postgres psql -c "CREATE USER $db_user WITH PASSWORD '$db_pass';" > /dev/null 2>&1
+    fi
+
+    # Create database if not exists
+    print_step "Creating database '$db_name'..."
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$db_name'" | grep -q 1; then
+        print_info "Database '$db_name' already exists"
+    else
+        sudo -u postgres psql -c "CREATE DATABASE $db_name OWNER $db_user;" > /dev/null 2>&1
+    fi
+
+    # Grant privileges
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $db_name TO $db_user;" > /dev/null 2>&1
+
+    print_success "PostgreSQL database configured"
 }
 
 install_ritapi_django() {
@@ -802,10 +841,13 @@ create_admin_user() {
 
 start_services() {
     print_header "Starting Services"
-    
+
+    print_step "Starting PostgreSQL..."
+    systemctl start postgresql 2>/dev/null || true
+
     print_step "Starting Redis..."
     systemctl start redis-server 2>/dev/null || true
-    
+
     print_step "Starting MiniFW-AI..."
     systemctl start minifw-ai 2>/dev/null || true
     
@@ -823,6 +865,10 @@ start_services() {
 show_status() {
     print_header "Service Status"
     
+    echo ""
+    echo -e "${CYAN}PostgreSQL:${NC}"
+    systemctl status postgresql --no-pager -l 2>/dev/null | head -3 || echo "Not running"
+
     echo ""
     echo -e "${CYAN}Redis:${NC}"
     systemctl status redis-server --no-pager -l 2>/dev/null | head -3 || echo "Not running"
@@ -1156,6 +1202,7 @@ install_full() {
     
     install_system_dependencies
     ensure_firewall_deps
+    setup_postgresql
     install_ritapi_django
     install_minifw_ai
     apply_minifw_crud_fix
