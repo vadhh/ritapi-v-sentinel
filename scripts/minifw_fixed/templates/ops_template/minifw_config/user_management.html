@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MiniFW-AI User Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-users-cog"></i> User Management</h2>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-primary btn-sm" id="btnCreateUser">
+                <i class="fas fa-user-plus"></i> Create User
+            </button>
+            {% if service_status.active %}
+                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Service Running</span>
+            {% else %}
+                <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Service Stopped</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Total Users</small>
+                            <h3 class="mb-0" id="statTotalUsers">0</h3>
+                        </div>
+                        <i class="fas fa-users fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card success">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Active</small>
+                            <h3 class="mb-0 text-success" id="statActiveUsers">0</h3>
+                        </div>
+                        <i class="fas fa-user-check fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card warning">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Admins</small>
+                            <h3 class="mb-0 text-warning" id="statAdminUsers">0</h3>
+                        </div>
+                        <i class="fas fa-user-shield fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card danger">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Locked</small>
+                            <h3 class="mb-0 text-danger" id="statLockedUsers">0</h3>
+                        </div>
+                        <i class="fas fa-user-lock fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <select id="filterRole" class="form-select bg-dark text-light border-secondary">
+                        <option value="">All Roles</option>
+                        <option value="SUPER_ADMIN">Super Admin</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="OPERATOR">Operator</option>
+                        <option value="AUDITOR">Auditor</option>
+                        <option value="VIEWER">Viewer</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterSector" class="form-select bg-dark text-light border-secondary">
+                        <option value="">All Sectors</option>
+                        <option value="HOSPITAL">Hospital</option>
+                        <option value="SCHOOL">School</option>
+                        <option value="GOVERNMENT">Government</option>
+                        <option value="FINANCE">Finance</option>
+                        <option value="LEGAL">Legal</option>
+                        <option value="ESTABLISHMENT">Establishment</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" id="filterSearch" class="form-control bg-dark text-light border-secondary" placeholder="Search username...">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-users"></i> User Accounts</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Sector</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-plus"></i> Create New User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Username <span class="text-danger">*</span></label>
+                            <input type="text" name="username" class="form-control bg-dark text-light border-secondary" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Password <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" name="password" class="form-control bg-dark text-light border-secondary" required minlength="8">
+                                <button type="button" class="btn btn-outline-info btn-gen-password"><i class="fas fa-random"></i></button>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Role <span class="text-danger">*</span></label>
+                            <select name="role" class="form-select bg-dark text-light border-secondary" required>
+                                <option value="VIEWER">Viewer</option>
+                                <option value="AUDITOR">Auditor</option>
+                                <option value="OPERATOR">Operator</option>
+                                <option value="ADMIN">Admin</option>
+                                <option value="SUPER_ADMIN">Super Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Sector</label>
+                            <select name="sector" class="form-select bg-dark text-light border-secondary">
+                                <option value="ESTABLISHMENT">Establishment</option>
+                                <option value="HOSPITAL">Hospital</option>
+                                <option value="SCHOOL">School</option>
+                                <option value="GOVERNMENT">Government</option>
+                                <option value="FINANCE">Finance</option>
+                                <option value="LEGAL">Legal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" name="full_name" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Department</label>
+                            <input type="text" name="department" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSubmitCreate"><i class="fas fa-save"></i> Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-user-edit"></i> Edit User</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" name="user_id">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" class="form-control bg-dark text-light border-secondary" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Role</label>
+                            <select name="role" class="form-select bg-dark text-light border-secondary">
+                                <option value="VIEWER">Viewer</option>
+                                <option value="AUDITOR">Auditor</option>
+                                <option value="OPERATOR">Operator</option>
+                                <option value="ADMIN">Admin</option>
+                                <option value="SUPER_ADMIN">Super Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Sector</label>
+                            <select name="sector" class="form-select bg-dark text-light border-secondary">
+                                <option value="ESTABLISHMENT">Establishment</option>
+                                <option value="HOSPITAL">Hospital</option>
+                                <option value="SCHOOL">School</option>
+                                <option value="GOVERNMENT">Government</option>
+                                <option value="FINANCE">Finance</option>
+                                <option value="LEGAL">Legal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" name="full_name" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Department</label>
+                            <input type="text" name="department" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control bg-dark text-light border-secondary">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btnSubmitEdit"><i class="fas fa-save"></i> Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-key"></i> Change Password</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <input type="hidden" name="user_id">
+                    <p>Changing password for: <strong id="cpUsername"></strong></p>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <div class="input-group">
+                            <input type="text" name="password" class="form-control bg-dark text-light border-secondary" required minlength="8">
+                            <button type="button" class="btn btn-outline-info btn-gen-password"><i class="fas fa-random"></i></button>
+                        </div>
+                        <small class="text-muted">Minimum 8 characters</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="btnSubmitPassword"><i class="fas fa-key"></i> Change Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+$(document).ready(function() {
+    const csrfToken = '{{ csrf_token }}';
+    const currentUserId = {{ request.user.id }};
+    let allUsers = [];
+
+    function roleBadge(role) {
+        const colors = {SUPER_ADMIN:'danger', ADMIN:'warning', OPERATOR:'primary', AUDITOR:'info', VIEWER:'secondary'};
+        return '<span class="badge bg-' + (colors[role] || 'secondary') + '">' + (role || 'VIEWER').replace('_', ' ') + '</span>';
+    }
+
+    function generatePassword() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+        let pw = '';
+        for (let i = 0; i < 16; i++) pw += chars.charAt(Math.floor(Math.random() * chars.length));
+        return pw;
+    }
+
+    // Password generators
+    $(document).on('click', '.btn-gen-password', function() {
+        $(this).closest('.input-group').find('input').val(generatePassword());
+    });
+
+    function loadUsers() {
+        $.getJSON("{% url 'minifw_api_users_list' %}", function(data) {
+            allUsers = data.users || [];
+            renderUsers();
+        });
+    }
+
+    function renderUsers() {
+        const roleFilter = $('#filterRole').val();
+        const sectorFilter = $('#filterSector').val();
+        const searchFilter = $('#filterSearch').val().toLowerCase();
+
+        let filtered = allUsers;
+        if (roleFilter) filtered = filtered.filter(u => u.role === roleFilter);
+        if (sectorFilter) filtered = filtered.filter(u => u.sector === sectorFilter);
+        if (searchFilter) filtered = filtered.filter(u => u.username.toLowerCase().includes(searchFilter) || (u.full_name || '').toLowerCase().includes(searchFilter));
+
+        // Stats
+        $('#statTotalUsers').text(allUsers.length);
+        $('#statActiveUsers').text(allUsers.filter(u => u.is_active && !u.is_locked).length);
+        $('#statAdminUsers').text(allUsers.filter(u => u.role === 'SUPER_ADMIN' || u.role === 'ADMIN').length);
+        $('#statLockedUsers').text(allUsers.filter(u => u.is_locked).length);
+
+        const tbody = $('#usersTable tbody');
+        tbody.empty();
+        if (filtered.length === 0) {
+            tbody.append('<tr><td colspan="9" class="text-center">No users found.</td></tr>');
+            return;
+        }
+        filtered.forEach(function(u) {
+            const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString() : 'Never';
+            const status = u.is_locked ? '<span class="badge bg-danger">Locked</span>'
+                         : u.is_active ? '<span class="badge bg-success">Active</span>'
+                         : '<span class="badge bg-secondary">Inactive</span>';
+            const isSelf = u.id === currentUserId;
+            const actions = '<div class="btn-group btn-group-sm">'
+                + '<button class="btn btn-outline-info btn-edit-user" data-id="' + u.id + '" title="Edit"><i class="fas fa-edit"></i></button>'
+                + '<button class="btn btn-outline-warning btn-change-pw" data-id="' + u.id + '" data-username="' + u.username + '" title="Password"><i class="fas fa-key"></i></button>'
+                + (isSelf ? '' : '<button class="btn btn-outline-danger btn-delete-user" data-id="' + u.id + '" data-username="' + u.username + '" title="Delete"><i class="fas fa-trash"></i></button>')
+                + '</div>';
+            tbody.append('<tr>'
+                + '<td><strong>' + u.username + '</strong></td>'
+                + '<td>' + (u.full_name || '-') + '</td>'
+                + '<td><small>' + (u.email || '-') + '</small></td>'
+                + '<td>' + roleBadge(u.role) + '</td>'
+                + '<td><span class="badge bg-dark">' + (u.sector || '-') + '</span></td>'
+                + '<td><small>' + (u.department || '-') + '</small></td>'
+                + '<td>' + status + '</td>'
+                + '<td><small>' + lastLogin + '</small></td>'
+                + '<td>' + actions + '</td>'
+                + '</tr>');
+        });
+    }
+
+    loadUsers();
+
+    // Filters
+    $('#filterRole, #filterSector').on('change', renderUsers);
+    $('#filterSearch').on('input', renderUsers);
+
+    // Create User
+    $('#btnCreateUser').on('click', function() {
+        $('#createUserForm')[0].reset();
+        new bootstrap.Modal('#createUserModal').show();
+    });
+
+    $('#btnSubmitCreate').on('click', function() {
+        const form = $('#createUserForm');
+        const data = {};
+        form.serializeArray().forEach(function(item) { data[item.name] = item.value; });
+
+        if (!data.username || !data.password || !data.role) {
+            Swal.fire({icon: 'error', title: 'Validation Error', text: 'Username, password, and role are required.', background: '#2d3748', color: '#a0aec0'});
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'minifw_api_users_create' %}",
+            method: 'POST',
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': csrfToken},
+            data: JSON.stringify(data),
+            success: function() {
+                bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+                Swal.fire({icon: 'success', title: 'User Created', timer: 1500, showConfirmButton: false, background: '#2d3748', color: '#a0aec0'});
+                loadUsers();
+            },
+            error: function(xhr) {
+                const err = xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error';
+                Swal.fire({icon: 'error', title: 'Error', text: err, background: '#2d3748', color: '#a0aec0'});
+            }
+        });
+    });
+
+    // Edit User
+    $(document).on('click', '.btn-edit-user', function() {
+        const userId = $(this).data('id');
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) return;
+        const form = $('#editUserForm');
+        form.find('[name=user_id]').val(user.id);
+        form.find('[name=username]').val(user.username);
+        form.find('[name=email]').val(user.email);
+        form.find('[name=role]').val(user.role);
+        form.find('[name=sector]').val(user.sector);
+        form.find('[name=full_name]').val(user.full_name);
+        form.find('[name=department]').val(user.department);
+        form.find('[name=phone]').val(user.phone);
+        new bootstrap.Modal('#editUserModal').show();
+    });
+
+    $('#btnSubmitEdit').on('click', function() {
+        const form = $('#editUserForm');
+        const userId = form.find('[name=user_id]').val();
+        const data = {};
+        ['email', 'role', 'sector', 'full_name', 'department', 'phone'].forEach(function(f) {
+            data[f] = form.find('[name=' + f + ']').val();
+        });
+
+        $.ajax({
+            url: "{% url 'minifw_api_users_update' user_id=0 %}".replace('/0/', '/' + userId + '/'),
+            method: 'PUT',
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': csrfToken},
+            data: JSON.stringify(data),
+            success: function() {
+                bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+                Swal.fire({icon: 'success', title: 'User Updated', timer: 1500, showConfirmButton: false, background: '#2d3748', color: '#a0aec0'});
+                loadUsers();
+            },
+            error: function(xhr) {
+                const err = xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error';
+                Swal.fire({icon: 'error', title: 'Error', text: err, background: '#2d3748', color: '#a0aec0'});
+            }
+        });
+    });
+
+    // Change Password
+    $(document).on('click', '.btn-change-pw', function() {
+        const userId = $(this).data('id');
+        const username = $(this).data('username');
+        $('#changePasswordForm').find('[name=user_id]').val(userId);
+        $('#changePasswordForm').find('[name=password]').val('');
+        $('#cpUsername').text(username);
+        new bootstrap.Modal('#changePasswordModal').show();
+    });
+
+    $('#btnSubmitPassword').on('click', function() {
+        const form = $('#changePasswordForm');
+        const userId = form.find('[name=user_id]').val();
+        const password = form.find('[name=password]').val();
+
+        if (password.length < 8) {
+            Swal.fire({icon: 'error', title: 'Error', text: 'Password must be at least 8 characters.', background: '#2d3748', color: '#a0aec0'});
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'minifw_api_users_password' user_id=0 %}".replace('/0/', '/' + userId + '/'),
+            method: 'PUT',
+            contentType: 'application/json',
+            headers: {'X-CSRFToken': csrfToken},
+            data: JSON.stringify({password: password}),
+            success: function() {
+                bootstrap.Modal.getInstance(document.getElementById('changePasswordModal')).hide();
+                Swal.fire({icon: 'success', title: 'Password Changed', timer: 1500, showConfirmButton: false, background: '#2d3748', color: '#a0aec0'});
+            },
+            error: function(xhr) {
+                const err = xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error';
+                Swal.fire({icon: 'error', title: 'Error', text: err, background: '#2d3748', color: '#a0aec0'});
+            }
+        });
+    });
+
+    // Delete User
+    $(document).on('click', '.btn-delete-user', function() {
+        const userId = $(this).data('id');
+        const username = $(this).data('username');
+
+        Swal.fire({
+            title: 'Delete User',
+            html: 'Are you sure you want to delete <strong>' + username + '</strong>?<br>This action cannot be undone.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Delete',
+            background: '#2d3748',
+            color: '#a0aec0',
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: "{% url 'minifw_api_users_delete' user_id=0 %}".replace('/0/', '/' + userId + '/'),
+                    method: 'DELETE',
+                    headers: {'X-CSRFToken': csrfToken},
+                    success: function() {
+                        Swal.fire({icon: 'success', title: 'User Deleted', timer: 1500, showConfirmButton: false, background: '#2d3748', color: '#a0aec0'});
+                        loadUsers();
+                    },
+                    error: function(xhr) {
+                        const err = xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error';
+                        Swal.fire({icon: 'error', title: 'Error', text: err, background: '#2d3748', color: '#a0aec0'});
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

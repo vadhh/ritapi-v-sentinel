@@ -447,63 +447,6 @@ Configuration{% endblock %} {% block content %}
       document.getElementById("totalWeight").textContent =
         dns + sni + asn + burst;
     }
-
-    // Check for success messages that require restart
-    {% if messages %}
-        {% for message in messages %}
-            {% if message.tags == 'success' and 'restart' in message.message|lower %}
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Configuration Updated',
-                    html: '{{ message.message|safe }}<br><br><strong>Do you want to restart the MiniFW-AI service now?</strong>',
-                    showCancelButton: true,
-                    confirmButtonText: 'Restart Service',
-                    cancelButtonText: 'Later',
-                    confirmButtonColor: '#28a745',
-                    cancelButtonColor: '#6c757d',
-                    reverseButtons: true
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // Submit restart form
-                        const form = document.createElement('form');
-                        form.method = 'POST';
-                        form.action = '{% url "minifw_service_control" %}';
-                        
-                        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                        const csrfInput = document.createElement('input');
-                        csrfInput.type = 'hidden';
-                        csrfInput.name = 'csrfmiddlewaretoken';
-                        csrfInput.value = csrfToken;
-                        
-                        const actionInput = document.createElement('input');
-                        actionInput.type = 'hidden';
-                        actionInput.name = 'action';
-                        actionInput.value = 'restart';
-                        
-                        form.appendChild(csrfInput);
-                        form.appendChild(actionInput);
-                        document.body.appendChild(form);
-                        form.submit();
-                    }
-                });
-            {% elif message.tags == 'success' %}
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success',
-                    text: '{{ message.message|safe }}',
-                    timer: 3000,
-                    showConfirmButton: false
-                });
-            {% elif message.tags == 'error' %}
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: '{{ message.message|safe }}',
-                    confirmButtonColor: '#d33'
-                });
-            {% endif %}
-        {% endfor %}
-    {% endif %}
   });
 </script>
 {% endblock %}

@@ -201,32 +201,4 @@
         </div>
     </div>
 </div>
-
-{% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
-    document.addEventListener('DOMContentLoaded', function() {
-        // Check for messages
-        {% if messages %}
-            {% for message in messages %}
-                {% if message.tags == 'success' %}
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: '{{ message.message|safe }}',
-                        timer: 3000,
-                        showConfirmButton: false
-                    });
-                {% elif message.tags == 'error' %}
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: '{{ message.message|safe }}',
-                        confirmButtonColor: '#d33'
-                    });
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    });
-</script>
-{% endblock %}
 {% endblock %}

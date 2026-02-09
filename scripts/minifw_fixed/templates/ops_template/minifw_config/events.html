@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}MiniFW-AI Events{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-chart-line"></i> Security Events</h2>
+        <div class="d-flex align-items-center gap-2">
+            <div class="form-check form-switch me-3">
+                <input class="form-check-input" type="checkbox" id="autoRefreshToggle">
+                <label class="form-check-label text-white-50" for="autoRefreshToggle">Auto-refresh</label>
+            </div>
+            <button class="btn btn-success btn-sm" id="btnExport">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </button>
+            {% if service_status.active %}
+                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Service Running</span>
+            {% else %}
+                <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Service Stopped</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card success">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Allowed</small>
+                            <h3 class="mb-0 text-success" id="statAllowed">0</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card danger">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Blocked</small>
+                            <h3 class="mb-0 text-danger" id="statBlocked">0</h3>
+                        </div>
+                        <i class="fas fa-ban fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card warning">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Threats</small>
+                            <h3 class="mb-0 text-warning" id="statThreats">0</h3>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-white-50 text-uppercase">Total Events</small>
+                            <h3 class="mb-0" id="statTotal">0</h3>
+                        </div>
+                        <i class="fas fa-stream fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-table"></i> Event Log</h5>
+            <span class="badge bg-info" id="liveIndicator" style="display:none;">
+                <span class="real-time-indicator"></span> Live
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="eventsTable" class="table table-sm table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Client IP</th>
+                            <th>Domain</th>
+                            <th>Action</th>
+                            <th>Score</th>
+                            <th>Segment</th>
+                            <th>Reasons</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal fade" id="eventDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Event Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="eventDetailBody"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+$(document).ready(function() {
+    const csrfToken = '{{ csrf_token }}';
+    let autoRefreshInterval = null;
+
+    // Load stats
+    function loadStats() {
+        $.getJSON("{% url 'minifw_api_events_datatable' %}?draw=0&start=0&length=1", function(data) {
+            // We get total from recordsTotal but need action breakdown
+        });
+        // Use a separate lightweight call via the regular events endpoint
+        $.getJSON("{% url 'minifw_api_recent_events' %}?limit=5000", function(data) {
+            let allowed = 0, blocked = 0, threats = 0;
+            (data.events || []).forEach(function(e) {
+                if (e.action === 'allow') allowed++;
+                else if (e.action === 'block') blocked++;
+                else threats++;
+            });
+            $('#statAllowed').text(allowed);
+            $('#statBlocked').text(blocked);
+            $('#statThreats').text(threats);
+            $('#statTotal').text(data.events ? data.events.length : 0);
+        });
+    }
+    loadStats();
+
+    // DataTable with server-side processing
+    const table = $('#eventsTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "{% url 'minifw_api_events_datatable' %}",
+            dataSrc: 'data'
+        },
+        columns: [
+            { data: 'ts', render: function(d) { return '<small>' + (d || '-') + '</small>'; } },
+            { data: 'client_ip', render: function(d) { return '<code>' + (d || '-') + '</code>'; } },
+            { data: 'domain', render: function(d) { return '<small>' + (d || '-') + '</small>'; } },
+            { data: 'action', render: function(d) {
+                const cls = d === 'block' ? 'danger' : d === 'allow' ? 'success' : 'warning';
+                const icon = d === 'block' ? 'ban' : d === 'allow' ? 'check' : 'eye';
+                return '<span class="badge bg-' + cls + '"><i class="fas fa-' + icon + '"></i> ' + (d || '-') + '</span>';
+            }},
+            { data: 'score', render: function(d) {
+                const cls = d >= 60 ? 'danger' : d >= 40 ? 'warning' : 'success';
+                return '<span class="badge bg-' + cls + '">' + d + '</span>';
+            }},
+            { data: 'segment', render: function(d) { return '<span class="badge bg-secondary">' + (d || '-') + '</span>'; } },
+            { data: 'reasons', render: function(d) {
+                if (Array.isArray(d)) return '<small>' + d.join(', ') + '</small>';
+                return '<small>' + (d || '-') + '</small>';
+            }}
+        ],
+        order: [[0, 'desc']],
+        pageLength: 25,
+        lengthMenu: [10, 25, 50, 100],
+        language: { processing: '<div class="loading-spinner"></div>' }
+    });
+
+    // Row click -> detail modal
+    $('#eventsTable tbody').on('click', 'tr', function() {
+        const data = table.row(this).data();
+        if (!data) return;
+        let html = '<table class="table table-sm text-light">';
+        for (const [k, v] of Object.entries(data)) {
+            const val = Array.isArray(v) ? v.join(', ') : v;
+            html += '<tr><td class="fw-bold">' + k + '</td><td>' + val + '</td></tr>';
+        }
+        html += '</table>';
+        $('#eventDetailBody').html(html);
+        new bootstrap.Modal('#eventDetailModal').show();
+    });
+
+    // Auto-refresh
+    $('#autoRefreshToggle').on('change', function() {
+        if (this.checked) {
+            $('#liveIndicator').show();
+            autoRefreshInterval = setInterval(function() {
+                table.ajax.reload(null, false);
+                loadStats();
+            }, 15000);
+        } else {
+            $('#liveIndicator').hide();
+            clearInterval(autoRefreshInterval);
+        }
+    });
+
+    // Export
+    $('#btnExport').on('click', function() {
+        Swal.fire({
+            title: 'Export Events',
+            text: 'Choose which events to export:',
+            icon: 'question',
+            input: 'select',
+            inputOptions: { all: 'All Events', allow: 'Allowed Only', deny: 'Denied Only', block: 'Blocked Only' },
+            inputValue: 'all',
+            showCancelButton: true,
+            confirmButtonText: 'Download',
+            background: '#2d3748',
+            color: '#a0aec0',
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'minifw_api_events_export' %}?action_filter=" + result.value;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
