@@ -508,16 +508,146 @@ install_system_dependencies() {
     print_success "System dependencies installed"
 }
 
+################################################################################
+# PostgreSQL Detection & Setup 
+################################################################################
+
+# Collision detection: sets PG_INSTALLED, PG_RUNNING, PG_VERSION,
+# PG_CLUSTER_COUNT, PG_VERSION_OK shell variables for setup_postgresql().
+detect_postgresql() {
+    print_header "Detecting PostgreSQL Environment"
+
+    PG_INSTALLED=false
+    PG_RUNNING=false
+    PG_VERSION=""
+    PG_CLUSTER_COUNT=0
+    PG_VERSION_OK=false
+
+    # 1. Check if psql is available
+    if command -v psql >/dev/null 2>&1; then
+        PG_INSTALLED=true
+        PG_VERSION=$(psql --version 2>/dev/null | head -1 | grep -oP '\d+' | head -1)
+        print_success "PostgreSQL client found (major version: ${PG_VERSION:-unknown})"
+    else
+        print_info "PostgreSQL client (psql) not found"
+    fi
+
+    # 2. Check if server is running
+    if command -v pg_isready >/dev/null 2>&1 && pg_isready -q 2>/dev/null; then
+        PG_RUNNING=true
+        print_success "PostgreSQL server is running"
+    else
+        print_info "PostgreSQL server is not running"
+    fi
+
+    # 3. Check for existing clusters (Debian/Ubuntu)
+    if command -v pg_lsclusters >/dev/null 2>&1; then
+        PG_CLUSTER_COUNT=$(pg_lsclusters -h 2>/dev/null | wc -l)
+        if [ "$PG_CLUSTER_COUNT" -gt 0 ]; then
+            print_info "Found $PG_CLUSTER_COUNT existing PostgreSQL cluster(s):"
+            pg_lsclusters 2>/dev/null || true
+        fi
+    fi
+
+    # 4. Check for managed DB hints (AWS metadata endpoint)
+    if curl -sf --connect-timeout 2 http://169.254.169.254/latest/meta-data/ >/dev/null 2>&1; then
+        print_info "Cloud instance detected (AWS metadata available) - consider PG_MODE=external for RDS"
+    fi
+
+    # 5. Version compatibility check (require PG 12+)
+    if [ -n "$PG_VERSION" ]; then
+        if [ "$PG_VERSION" -ge 12 ] 2>/dev/null; then
+            PG_VERSION_OK=true
+            print_success "PostgreSQL version $PG_VERSION is compatible (>=12)"
+        else
+            print_warning "PostgreSQL version $PG_VERSION is below minimum required (12)"
+        fi
+    fi
+
+    echo ""
+    echo -e "${CYAN}PostgreSQL Detection Results:${NC}"
+    echo -e "  Installed:  ${YELLOW}$PG_INSTALLED${NC}"
+    echo -e "  Running:    ${YELLOW}$PG_RUNNING${NC}"
+    echo -e "  Version:    ${YELLOW}${PG_VERSION:-N/A}${NC}"
+    echo -e "  Clusters:   ${YELLOW}$PG_CLUSTER_COUNT${NC}"
+    echo -e "  Compatible: ${YELLOW}$PG_VERSION_OK${NC}"
+    echo ""
+
+    export PG_INSTALLED PG_RUNNING PG_VERSION PG_CLUSTER_COUNT PG_VERSION_OK
+}
+
 setup_postgresql() {
     print_header "Setting Up PostgreSQL Database"
 
-    # Start and enable PostgreSQL
-    print_step "Starting PostgreSQL service..."
-    systemctl start postgresql
-    systemctl enable postgresql
-
-    # Read DB credentials from env file
+    # Read PG_MODE from env file (default: auto)
     local env_file="/etc/ritapi/vsentinel.env"
+    local pg_mode="auto"
+    if [ -f "$env_file" ]; then
+        pg_mode=$(grep -E "^PG_MODE=" "$env_file" | cut -d= -f2)
+        pg_mode="${pg_mode:-auto}"
+    fi
+
+    print_info "PostgreSQL mode: $pg_mode"
+
+    # --- EXTERNAL mode: validate DATABASE_URL, test connection, return early ---
+    if [ "$pg_mode" = "external" ]; then
+        local database_url
+        database_url=$(grep -E "^DATABASE_URL=" "$env_file" | cut -d= -f2-)
+        if [ -z "$database_url" ]; then
+            print_error "PG_MODE=external requires DATABASE_URL to be set in $env_file"
+            exit 1
+        fi
+        print_step "Testing external database connection..."
+        if psql "$database_url" -c "SELECT 1;" >/dev/null 2>&1; then
+            print_success "External database connection successful"
+        else
+            print_error "Cannot connect to external database: $database_url"
+            print_error "Verify DATABASE_URL and network access"
+            exit 1
+        fi
+        print_success "Using external database (skipping local PostgreSQL setup)"
+        return 0
+    fi
+
+    # --- ABORT mode: fail if PG is already running or clusters exist ---
+    if [ "$pg_mode" = "abort" ]; then
+        if [ "$PG_RUNNING" = "true" ] || [ "$PG_CLUSTER_COUNT" -gt 0 ]; then
+            print_error "PG_MODE=abort: existing PostgreSQL detected (running=$PG_RUNNING, clusters=$PG_CLUSTER_COUNT)"
+            print_error "Remove existing PostgreSQL or switch to PG_MODE=reuse|auto"
+            exit 1
+        fi
+        print_info "No existing PostgreSQL detected, proceeding with clean install"
+    fi
+
+    # --- REUSE mode: verify PG is running, skip start/enable ---
+    if [ "$pg_mode" = "reuse" ]; then
+        if [ "$PG_RUNNING" != "true" ]; then
+            print_error "PG_MODE=reuse: PostgreSQL is not running"
+            print_error "Start PostgreSQL manually or switch to PG_MODE=auto"
+            exit 1
+        fi
+        print_info "Reusing existing PostgreSQL (skipping start/enable)"
+    fi
+
+    # --- AUTO mode (default): start PG if not running ---
+    if [ "$pg_mode" = "auto" ]; then
+        if [ "$PG_RUNNING" = "true" ]; then
+            print_info "PostgreSQL already running, reusing existing instance"
+        else
+            print_step "Starting PostgreSQL service..."
+            systemctl start postgresql
+            systemctl enable postgresql
+        fi
+    fi
+
+    # --- For abort mode (clean install), always start PG ---
+    if [ "$pg_mode" = "abort" ]; then
+        print_step "Starting PostgreSQL service..."
+        systemctl start postgresql
+        systemctl enable postgresql
+    fi
+
+    # --- Shared: create user and database ---
     local db_name db_user db_pass
     db_name=$(grep -E "^DB_NAME=" "$env_file" | cut -d= -f2)
     db_user=$(grep -E "^DB_USER=" "$env_file" | cut -d= -f2)
@@ -543,7 +673,7 @@ setup_postgresql() {
     # Grant privileges
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $db_name TO $db_user;" > /dev/null 2>&1
 
-    print_success "PostgreSQL database configured"
+    print_success "PostgreSQL database configured (mode: $pg_mode)"
 }
 
 install_ritapi_django() {
@@ -1202,6 +1332,7 @@ install_full() {
     
     install_system_dependencies
     ensure_firewall_deps
+    detect_postgresql
     setup_postgresql
     install_ritapi_django
     install_minifw_ai

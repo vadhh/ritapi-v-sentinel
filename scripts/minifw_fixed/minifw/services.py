@@ -197,15 +197,15 @@ class MiniFWService:
                 capture_output=True,
                 text=True
             )
-            is_active = result.stdout.strip() == 'active'
-            
+            is_active = result.returncode == 0
+
             result = subprocess.run(
                 ['systemctl', 'is-enabled', cls.SERVICE_NAME],
                 capture_output=True,
                 text=True
             )
-            is_enabled = result.stdout.strip() == 'enabled'
-            
+            is_enabled = result.returncode == 0
+
             return {
                 'active': is_active,
                 'enabled': is_enabled,

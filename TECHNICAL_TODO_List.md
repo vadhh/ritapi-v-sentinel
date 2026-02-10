@@ -1,0 +1,551 @@
+# MiniFW-AI / V-Sentinel - TECHNICAL TODO LIST
+## Engineering & Implementation Tasks Only
+**Consolidated from 4 Technical Reviews (Feb 5-9, 2026)**
+**Last Audit: February 10, 2026 (automated codebase check)**
+
+---
+
+## 🔴 CRITICAL - PRODUCTION BLOCKERS
+
+### 1. RBAC System Security (Non-Optional)
+**Source:** Daily Report Feb 9, 2026
+**Risk Level:** CRITICAL - Becomes vulnerability if not implemented
+**Audit Status:** ⚠️ PARTIALLY IMPLEMENTED - Authorization bypass possible
+
+#### 1.1 Middleware Security
+- [ ] **Implement explicit deny-by-default in OpsAuthMiddleware**
+  - Default behavior must be DENY when role is unclear
+  - No implicit permissions
+  - **Audit Note:** Current middleware (`authentication/middleware.py`) uses allow-if-profile-exists pattern. Any user with a UserProfile can access `/ops/` regardless of role level.
+
+#### 1.2 Unit Test Coverage
+- [ ] **Create unit tests for role downgrade scenarios**
+  - Test role demotion attempts
+  - Verify permissions are immediately revoked
+  - **Audit Note:** No RBAC tests exist. `minifw/tests.py` is empty boilerplate. Smoke tests in `tests/test_dashboard_no_500.py` mock all RBAC to return True.
+
+- [ ] **Create unit tests for role absence scenarios**
+  - Test requests without role headers
+  - Test malformed role data
+  - Verify default deny behavior
+
+- [ ] **Create unit tests for token tampering**
+  - Test JWT modification attempts
+  - Test signature validation
+  - Test token expiration handling
+
+#### 1.3 Role Enforcement
+- [ ] **Enforce Auditor role as strictly read-only**
+  - Block all state-modifying operations
+  - Block exports that could modify state
+  - Verify read-only at middleware level
+  - **Audit Note:** `RBACService` defines correct permission boundaries (services.py:693-742), but **views don't enforce them**. POST handlers for `minifw_policy()`, `minifw_feeds()`, `minifw_blocked_ips()`, and `minifw_service_control()` have NO RBAC checks. Any authenticated user can modify policies, feeds, block IPs, and restart services.
+
+---
+
+### 2. PostgreSQL Installer Automation
+**Source:** Daily Report Feb 9, 2026
+**Status:** Conditionally acceptable until guards exist
+**Audit Status:** ✅ IMPLEMENTED (Feb 10, 2026)
+
+#### 2.1 Collision Detection
+- [x] **Implement PostgreSQL instance detection**
+  - Check for existing PostgreSQL clusters
+  - Check for managed DB services
+  - Check for hardened enterprise hosts
+  - Detect version conflicts
+  - **Audit Note:** `detect_postgresql()` checks psql availability, pg_isready, pg_lsclusters, AWS metadata, and version >=12. Sets PG_INSTALLED, PG_RUNNING, PG_VERSION, PG_CLUSTER_COUNT, PG_VERSION_OK.
+
+#### 2.2 Installation Modes
+- [x] **Implement ABORT mode**
+  - Clear error message when conflicts detected
+  - Safe exit without side effects
+  - Log detection results
+
+- [x] **Implement REUSE mode**
+  - Detect and connect to existing PostgreSQL
+  - Validate compatibility
+  - Test connection before proceeding
+  - **Audit Note:** `setup_postgresql()` reads PG_MODE from env, supports auto/abort/reuse/external modes.
+
+- [x] **Implement EXTERNAL_DB mode**
+  - Accept external database connection string
+  - Validate credentials
+  - Test reachability
+  - Support managed cloud databases
+  - **Audit Note:** PG_MODE=external uses DATABASE_URL, tests connection with psql. Django settings support DATABASE_URL via dj-database-url.
+
+---
+
+### 3. Rollback Strategy Implementation
+**Source:** Daily Report Feb 9, 2026
+**Status:** BLOCKS PRODUCTION - Must be complete before rollout
+**Audit Status:** ❌ NOT IMPLEMENTED
+
+#### 3.1 Database Rollback
+- [ ] **Create DB migration down scripts**
+  - For RBAC schema changes
+  - For dashboard schema changes
+  - For all Feb 9 migrations
+  - Test rollback on staging
+  - **Audit Note:** Django migrations use auto-generated reversible operations (CreateModel, AddField). No custom `RunPython` with `reverse_code` found. Rollback not tested.
+
+#### 3.2 RBAC Rollback
+- [ ] **Define RBAC schema rollback procedures**
+  - Role table rollback
+  - Permission table rollback
+  - User-role mapping rollback
+  - Document safe rollback sequence
+
+#### 3.3 Dashboard Rollback
+- [ ] **Develop safe downgrade path for dashboards**
+  - Frontend component rollback
+  - API endpoint rollback
+  - Data schema rollback
+  - Verify UI compatibility
+
+#### 3.4 Operations Documentation
+- [ ] **Create Rollback SOP (Standard Operating Procedure)**
+  - Step-by-step rollback guide
+  - Verification checkpoints
+  - Recovery procedures
+  - Testing requirements
+  - **Audit Note:** No rollback documentation found anywhere in the repository.
+
+---
+
+## 🟡 HIGH PRIORITY - MANDATORY FOR FULL FUNCTIONALITY
+
+### 4. Dynamic State Transition System
+**Source:** Daily Report Feb 5, 2026
+**Status:** MANDATORY - Degraded mode is static until implemented
+**Audit Status:** ❌ NOT IMPLEMENTED - Only static `AI_ENABLED` and `DEGRADED_MODE` env flags exist in `main.py`
+
+#### 4.1 Upgrade Logic (Degraded → Full)
+- [ ] **Implement telemetry availability checker**
+  - Poll every 30 seconds
+  - Check DNS backend response
+  - Check UDP DNS events
+  - Check journald entries
+  - Require ≥ 3 consecutive successful checks
+
+- [ ] **Implement hot state upgrade**
+  - Activate AI amplifiers without restart
+  - Hot-reload decision engine
+  - Zero packet loss during transition
+  - Maintain Hard Gates throughout
+
+- [ ] **Update deployment_state.json on upgrade**
+  - Record timestamp
+  - Record previous_state
+  - Record new_state
+  - Record trigger (telemetry source)
+  - Record operator_intervention: false
+
+- [ ] **Implement operator notification**
+  - Log state transition
+  - Send notification to dashboard
+  - Emit system event
+
+#### 4.2 Downgrade Safety (Full → Degraded)
+- [ ] **Implement automatic downgrade on telemetry loss**
+  - Detect telemetry source unavailability
+  - Disable AI Amplifiers gracefully
+  - Ensure Hard Gates remain active
+  - Revert state to BASELINE_PROTECTION
+  - Log transition with reason
+
+---
+
+### 5. journald Integration
+**Source:** Daily Report Feb 5, 2026 (Review 2)
+**Status:** Required for systemd-resolved environments
+**Audit Status:** ❌ STUB ONLY - `main.py` recognizes `journald` source but falls back to degraded mode with empty iterator
+
+#### 5.1 Fail-Open Behavior
+- [x] **Implement non-blocking journald collector**
+  - If journald unavailable → yield None, do NOT exit
+  - If permission denied → yield None, do NOT exit
+  - If empty/no DNS events → yield None, do NOT exit
+  - Match dnsmasq resilience pattern exactly
+  - **Audit Note:** DONE - Stub yields empty events and falls back to degraded mode (main.py:361-368). Correct fail-open behavior.
+
+#### 5.2 Least Privilege Access
+- [ ] **Implement systemd-journal group membership**
+  - Add dedicated group access
+  - Avoid root-only parsing
+  - Document privilege requirements
+  - Test with minimal permissions
+
+#### 5.3 Parser Implementation
+- [ ] **Create DNS event parser for journald**
+  - Correctly identify DNS queries
+  - Extract: timestamp, domain, query type, source IP
+  - Filter non-DNS systemd logs
+  - Prevent log noise from triggering false "AI-enabled" state
+
+#### 5.4 State Tracking
+- [ ] **Log journald telemetry restoration in deployment_state.json**
+  - Include: timestamp, previous_state, new_state
+  - Include: trigger = "dns_telemetry_detected"
+  - Include: telemetry_source = "journald"
+  - Include: operator_intervention = false
+
+---
+
+### 6. Dashboard System
+**Source:** Multiple Reports
+**Status:** Cannot build until semantics frozen
+**Audit Status:** ❌ NOT IMPLEMENTED - Dashboard shows all metrics unconditionally, no state awareness
+
+#### 6.1 State Definition (FREEZE BEFORE BUILDING)
+- [ ] **Define BASELINE_PROTECTION state semantics**
+  - What is active (Hard Gates only)
+  - What is inactive (AI Amplifiers)
+  - Which metrics are visible
+  - Which metrics are hidden
+
+- [ ] **Define AI_ENHANCED_PROTECTION state semantics**
+  - What is active (Hard Gates + AI)
+  - Which metrics are visible
+  - Additional data available
+
+- [ ] **Define FAILED state semantics**
+  - Error conditions
+  - Displayed information
+  - Recovery actions
+  - Alert behavior
+
+#### 6.2 Dashboard Implementation Rules
+- [ ] **Implement visibility rules per state**
+  - BASELINE_PROTECTION shows:
+    - PPS blocks
+    - Flood detections
+    - Bot behavior blocks
+    - Enforcement counters
+    - AI risk scores (HIDDEN)
+    - Domain reputation (HIDDEN)
+    - MLP confidence (HIDDEN)
+
+  - AI_ENHANCED_PROTECTION shows:
+    - All Hard Gate triggers
+    - AI risk scores
+    - YARA hits
+    - Domain reputation
+    - Decision explanations
+
+  - FAILED shows:
+    - Red banner
+    - Exact failure reason
+    - Last known protection state
+    - NO silent auto-recovery
+
+#### 6.3 Golden Rule Implementation
+- [ ] **Enforce: "If AI is inactive, it must not be visualized"**
+  - Frontend validation
+  - Backend validation
+  - API contract enforcement
+  - Prevent misleading displays
+
+#### 6.4 Export Security
+- [ ] **Implement export sanitization**
+  - ALLOWED in exports:
+    - IP addresses
+    - Hashes
+    - Timestamps
+  - NEVER in exports:
+    - Tokens
+    - Credentials
+    - Secrets
+  - Automated sanitization before export
+  - Unit tests for export security
+  - **Audit Note:** Export functions exist (`AuditService.export_logs()`, `MiniFWEventsService.export_events_excel()`) but include raw data without filtering secrets/tokens.
+
+#### 6.5 deployment_state.json Integration
+- [ ] **Expose deployment_state.json in CLI**
+  - Read-only access
+  - Pretty-print formatting
+  - Command: `minifw-status` or similar
+
+- [ ] **Display deployment_state.json in Dashboard**
+  - Read-only widget
+  - Real-time updates
+  - Historical state changes
+  - **Audit Note:** Installer creates `deployment_state.json` via `write_deployment_state()` (install.sh:224-259) but Django dashboard does not read or display it.
+
+- [ ] **Add deployment_state.json to exports**
+  - Include in system reports
+  - Include in audit exports
+  - Maintain immutability
+
+---
+
+## 🟢 MEDIUM PRIORITY - OPERATIONAL EXCELLENCE
+
+### 7. Version Management
+**Source:** Daily Report Feb 5, 2026
+**Status:** Important for certification
+**Audit Status:** ⚠️ PARTIALLY DONE - Django deps 96% pinned, MiniFW deps only 7% pinned
+
+#### 7.1 Dependency Freezing
+- [x] **Pin Django to 4.2.28 in installer**
+  - requirements.txt
+  - setup.py / pyproject.toml
+  - Docker image (if applicable)
+  - **Audit Note:** DONE - `Django==4.2.28` in `projects/ritapi_django/requirements.txt`
+
+- [x] **Pin Cryptography to 43.0.1 in installer**
+  - All installation methods
+  - Verify compatibility
+  - **Audit Note:** DONE - Pinned as `cryptography==43.0.3` (newer patch than TODO specified 43.0.1)
+
+- [ ] **Pin all other dependencies**
+  - Create locked requirements file
+  - Document version rationale
+  - Test installation from frozen deps
+  - **Audit Note:** Django requirements.txt: 23/24 pinned (96%), only `geoip2>=4.8.0` unpinned. MiniFW requirements.txt: 2/30 pinned (7%), most use `>=` constraints (fastapi, uvicorn, pydantic, sqlalchemy, pandas, scikit-learn, etc.).
+
+#### 7.2 Documentation
+- [ ] **Document version pinning in security annex**
+  - Rationale for each version
+  - Known vulnerabilities addressed
+  - Update schedule
+  - Emergency update procedure
+
+---
+
+### 8. Terminology Standardization
+**Source:** Daily Report Feb 5, 2026
+**Status:** Marketing + technical alignment
+**Audit Status:** ❌ NOT STARTED - All code still uses "DEGRADED_MODE"
+
+#### 8.1 Code Updates
+- [ ] **Replace "DEGRADED_MODE" with "BASELINE_PROTECTION" in:**
+  - User-facing logs
+  - Dashboard displays
+  - API responses
+  - Error messages
+  - Keep internal code as DEGRADED_MODE for now (or refactor)
+  - **Audit Note:** "DEGRADED_MODE" found in: `main.py` (lines 344, 347-349, 380-381), `collector_dnsmasq.py` (lines 32, 40, 43, 77), `vsentinel.env.template` (line 50-51). "BASELINE_PROTECTION" not found anywhere.
+
+- [ ] **Replace "FULL_MODE" with "AI_ENHANCED_PROTECTION" in:**
+  - User-facing logs
+  - Dashboard displays
+  - API responses
+  - Status reports
+  - **Audit Note:** "AI_ENHANCED_PROTECTION" not found anywhere. `vsentinel_selftest.sh` uses "DEGRADED"/"FULL" (lines 140-149).
+
+#### 8.2 Configuration
+- [ ] **Update state enum definitions**
+  - deployment_state.json format
+  - API schemas
+  - Database constants
+  - Ensure backward compatibility or migration path
+  - **Audit Note:** `deployment_state.json` uses `"status": "degraded"/"normal"` (install.sh:242). Needs update to new terminology.
+
+---
+
+### 9. Installer Finalization
+**Source:** Daily Report Feb 5, 2026
+**Status:** All blockers cleared, ready to finalize
+**Audit Status:** ⚠️ PARTIALLY DONE - DNS detection and deployment_state.json exist, but startup order and auto-upgrade missing
+
+#### 9.1 Guarantees Checklist
+- [ ] **Ensure Hard Gates start before telemetry**
+  - Service startup order
+  - systemd dependencies
+  - Init script logic
+  - **Audit Note:** INCORRECT ORDER - `start_services()` runs at install.sh:1218 before `verify_telemetry()` at line 1221. Should be reversed.
+
+- [x] **Remove dependency on dnsmasq/systemd-resolved**
+  - No hard systemd dependencies
+  - Graceful degradation
+  - Service starts regardless
+  - **Audit Note:** DONE - MiniFW starts with `DEGRADED_MODE=1` when DNS unavailable. No hard dependency on dnsmasq/resolved.
+
+- [x] **Implement explicit state detection**
+  - DNS environment detection
+  - Telemetry source detection
+  - Network configuration detection
+  - **Audit Note:** DONE - `detect_dns_environment()` (install.sh:69-129) checks for systemd-resolved and dnsmasq, sets `DETECTED_DNS_SOURCE`.
+
+- [ ] **Implement immutable version pinning**
+  - Lock file generation
+  - Integrity checks
+  - Version verification
+
+- [x] **Create read-only audit artifacts**
+  - deployment_state.json
+  - Installation log
+  - Configuration snapshot
+  - **Audit Note:** DONE - `write_deployment_state()` (install.sh:224-259) creates `/var/log/ritapi/deployment_state.json`. Selftest proof packs in `vsentinel_selftest.sh:207-276`.
+
+#### 9.2 Installation Flow
+- [x] **Step 1: Environment detection**
+  - OS detection
+  - Network configuration
+  - Existing services check
+  - **Audit Note:** DONE - `detect_web_user()`, `detect_dns_environment()` in install.sh
+
+- [x] **Step 2: DNS capability assessment**
+  - Check for dnsmasq
+  - Check for systemd-resolved
+  - Check for journald access
+  - Check for custom resolvers
+  - **Audit Note:** DONE - `detect_dns_environment()` checks all sources
+
+- [x] **Step 3: Initial state assignment**
+  - Determine BASELINE vs AI_ENHANCED
+  - Set telemetry source
+  - Configure collectors
+  - **Audit Note:** DONE - `verify_telemetry()` sets `TELEMETRY_DEGRADED_MODE` based on detection
+
+- [x] **Step 4: Write deployment_state.json**
+  - Create initial state file
+  - Set permissions (read-only)
+  - Validate format
+  - **Audit Note:** DONE - `write_deployment_state()` creates file with 644 permissions
+
+- [ ] **Step 5: Start Hard Gates**
+  - ipset initialization
+  - nftables rules
+  - Verify enforcement reachability
+  - **Audit Note:** ipset created in `install_minifw_ai()` but enforcement reachability not explicitly verified.
+
+- [ ] **Step 6: Start telemetry listeners**
+  - Start DNS collector (if available)
+  - Start journald watcher (if available)
+  - Configure UDP listener (if needed)
+  - **Audit Note:** Handled by MiniFW service startup, but journald watcher is stub-only.
+
+- [ ] **Step 7: Enable auto-upgrade watcher**
+  - Start state transition monitor
+  - 30-second polling loop
+  - Telemetry availability checker
+  - **Audit Note:** NOT IMPLEMENTED - No dynamic state transition system exists.
+
+- [ ] **Step 8: Validate enforcement reachability**
+  - Test ipset/nftables
+  - Verify Hard Gates respond
+  - Run self-test
+  - Mark installation SUCCESS if gates reachable
+  - **Audit Note:** `post_install_verify()` checks service status but doesn't explicitly verify ipset/nftables reachability.
+
+#### 9.3 Success Criteria
+- [ ] **Installer succeeds IF:**
+  - Hard Gates are reachable
+  - ipset/nftables active
+  - State != FAILED
+  - AI availability does NOT determine success
+  - **Audit Note:** Current success criteria checks minifw-ai service active, not Hard Gates reachable specifically.
+
+---
+
+## 📋 TESTING REQUIREMENTS
+
+### Critical Path Testing
+- [ ] **RBAC Security Tests**
+  - All unit tests passing
+  - Integration tests for middleware
+  - Penetration testing for role bypass
+  - Audit role read-only verification
+  - **Audit Note:** NO RBAC tests exist. Smoke tests mock all RBAC checks to True.
+
+- [ ] **PostgreSQL Installer Tests**
+  - Test ABORT mode with existing DB
+  - Test REUSE mode successfully
+  - Test EXTERNAL_DB mode
+  - Test clean install
+
+- [ ] **Rollback Tests**
+  - Execute full rollback on staging
+  - Verify system returns to pre-upgrade state
+  - Test rollback under various failure scenarios
+  - Document rollback duration
+
+- [ ] **State Transition Tests**
+  - Test BASELINE → AI_ENHANCED upgrade
+  - Test AI_ENHANCED → BASELINE downgrade
+  - Test rapid telemetry on/off cycling
+  - Verify no restarts during transitions
+  - Verify Hard Gates always active
+
+- [ ] **journald Integration Tests**
+  - Test with journald available
+  - Test with journald unavailable
+  - Test with permission denied
+  - Test with empty logs
+  - Verify fail-open behavior
+
+- [ ] **Dashboard Tests**
+  - Verify state-appropriate displays
+  - Test Golden Rule enforcement
+  - Test export sanitization
+  - Verify no AI display when inactive
+
+---
+
+## 📊 PROGRESS SUMMARY
+
+| Section | Done | Total | Completion |
+|---------|------|-------|------------|
+| 1. RBAC System Security | 0 | 5 | 0% |
+| 2. PostgreSQL Automation | 4 | 4 | 100% |
+| 3. Rollback Strategy | 0 | 4 | 0% |
+| 4. State Transition System | 0 | 5 | 0% |
+| 5. journald Integration | 1 | 4 | 25% |
+| 6. Dashboard System | 0 | 8 | 0% |
+| 7. Version Management | 2 | 4 | 50% |
+| 8. Terminology | 0 | 3 | 0% |
+| 9. Installer Finalization | 6 | 14 | 43% |
+| Testing Requirements | 0 | 6 | 0% |
+| **TOTAL** | **13** | **57** | **23%** |
+
+### By Priority:
+- **CRITICAL (Production Blockers):** 4/13 done (31%)
+- **HIGH PRIORITY (Full Functionality):** 1/17 done (6%)
+- **MEDIUM PRIORITY (Operational Excellence):** 8/21 done (38%)
+- **Testing:** 0/6 done (0%)
+
+---
+
+## 🎯 DEFINITION OF DONE
+
+### Each Task Complete When:
+1. Code implemented and peer-reviewed
+2. Unit tests written and passing
+3. Integration tests passing
+4. Documentation updated
+5. Tested on staging environment
+6. Security review completed (for security-critical items)
+7. Performance impact assessed
+8. Rollback procedure documented and tested
+
+### Production Ready When:
+- All CRITICAL items complete
+- All HIGH PRIORITY items complete
+- All testing requirements met
+- Rollback SOP validated
+- Security review passed
+- Performance benchmarks met
+
+---
+
+## 🔒 KEY ARCHITECTURAL CONSTRAINTS (MUST PRESERVE)
+
+### Non-Negotiable Principles:
+1. **Hard Gates remain independent** - Never depend on telemetry or AI
+2. **Django is management plane only** - Enforcement stays outside Django
+3. **Enforcement never depends on dashboard** - Dashboard can fail, protection cannot
+4. **Telemetry is optional; enforcement is mandatory** - Core security principle
+5. **AI amplifies, never replaces** - Deterministic gates are primary
+6. **Fail-Open Telemetry / Fail-Closed Security** - Service stays up, protection stays on
+
+---
+
+**Document Type:** Technical Implementation Checklist
+**Last Updated:** February 10, 2026
+**Last Audited:** February 10, 2026
+**Priority:** Production Critical
+**Total Tasks:** 57 technical action items
+**Completion:** 13/57 (23%)

@@ -25,10 +25,19 @@ from .services import (
 )
 
 
+def _require_permission(request, check_fn, error_msg, redirect_url='minifw_dashboard'):
+    """Check RBAC permission for HTML form views. Returns redirect if denied, None if allowed."""
+    if not check_fn(request.user):
+        messages.error(request, error_msg)
+        return redirect(redirect_url)
+    return None
+
+
 # ============================================
 # 1. Dashboard & Statistics
 # ============================================
 
+@login_required
 def minifw_dashboard(request):
     """MiniFW-AI Dashboard dengan statistics"""
     try:
@@ -69,6 +78,7 @@ def minifw_dashboard(request):
 # 2. Policy Configuration
 # ============================================
 
+@login_required
 def minifw_policy(request):
     """
     Policy Configuration Page
@@ -78,8 +88,13 @@ def minifw_policy(request):
     - Burst Configuration
     """
     if request.method == 'POST':
+        denied = _require_permission(request, RBACService.can_modify_policy,
+            'Permission denied. Admin role required to modify policy.', 'minifw_policy')
+        if denied:
+            return denied
+
         action = request.POST.get('action')
-        
+
         if action == 'update_segments':
             # Update segment thresholds
             segments = {}
@@ -89,18 +104,18 @@ def minifw_policy(request):
                     if len(parts) >= 3:
                         segment_name = parts[1]
                         field = parts[2]
-                        
+
                         if segment_name not in segments:
                             segments[segment_name] = {}
-                        
+
                         segments[segment_name][field] = int(request.POST[key])
-            
+
             if MiniFWConfig.update_segments(segments):
                 AuditService.log_action(request, 'policy_updated', f'Updated segment thresholds: {list(segments.keys())}', severity='warning', resource_type='policy')
                 messages.success(request, 'Segment thresholds updated successfully')
             else:
                 messages.error(request, 'Failed to update segment thresholds')
-        
+
         elif action == 'update_subnets':
             # Update segment subnets
             subnets = {}
@@ -110,7 +125,7 @@ def minifw_policy(request):
                     subnet_list = request.POST[key].strip().split('\n')
                     subnet_list = [s.strip() for s in subnet_list if s.strip()]
                     subnets[segment_name] = subnet_list
-            
+
             if MiniFWConfig.update_segment_subnets(subnets):
                 AuditService.log_action(request, 'policy_updated', f'Updated segment subnets mapping', severity='warning', resource_type='policy')
                 messages.success(request, 'Segment subnets updated successfully')
@@ -118,7 +133,7 @@ def minifw_policy(request):
                 MiniFWService.restart()
             else:
                 messages.error(request, 'Failed to update segment subnets')
-        
+
         elif action == 'update_features':
             # Update feature weights
             features = {
@@ -127,16 +142,16 @@ def minifw_policy(request):
                 'asn_weight': int(request.POST.get('asn_weight', 15)),
                 'burst_weight': int(request.POST.get('burst_weight', 10)),
             }
-            
+
             if MiniFWConfig.update_features(features):
                 AuditService.log_action(request, 'policy_updated', f'Updated feature weights', severity='warning', resource_type='policy')
                 messages.success(request, 'Feature weights updated successfully')
                 MiniFWService.restart()
             else:
                 messages.error(request, 'Failed to update feature weights')
-        
+
         return redirect('minifw_policy')
-    
+
     # GET request
     try:
         policy = MiniFWConfig.load_policy()
@@ -162,6 +177,7 @@ def minifw_policy(request):
 # 3. Feed Management
 # ============================================
 
+@login_required
 def minifw_feeds(request):
     """
     Feed Management Page
@@ -171,14 +187,19 @@ def minifw_feeds(request):
     - Deny ASNs
     """
     if request.method == 'POST':
+        denied = _require_permission(request, RBACService.can_modify_policy,
+            'Permission denied. Admin role required to modify feeds.', 'minifw_feeds')
+        if denied:
+            return denied
+
         action = request.POST.get('action')
         feed_name = request.POST.get('feed_name')
-        
+
         if action == 'update_feed':
             # Update entire feed
             entries_text = request.POST.get('entries', '')
             entries = [line.strip() for line in entries_text.split('\n') if line.strip()]
-            
+
             if MiniFWFeeds.write_feed(feed_name, entries):
                 AuditService.log_action(request, 'feed_updated', f'Updated feed: {feed_name}', severity='warning', resource_type='feed')
                 messages.success(request, f'{feed_name} updated successfully')
@@ -186,7 +207,7 @@ def minifw_feeds(request):
                 MiniFWService.restart()
             else:
                 messages.error(request, f'Failed to update {feed_name}')
-        
+
         elif action == 'add_entry':
             # Add single entry
             entry = request.POST.get('entry', '').strip()
@@ -197,7 +218,7 @@ def minifw_feeds(request):
                     MiniFWService.restart()
                 else:
                     messages.error(request, f'Failed to add entry')
-        
+
         elif action == 'remove_entry':
             # Remove single entry
             entry = request.POST.get('entry', '').strip()
@@ -208,9 +229,9 @@ def minifw_feeds(request):
                     MiniFWService.restart()
                 else:
                     messages.error(request, f'Failed to remove entry')
-        
+
         return redirect('minifw_feeds')
-    
+
     # GET request
     try:
         context = {
@@ -233,6 +254,7 @@ def minifw_feeds(request):
 # 4. Blocked IPs Management
 # ============================================
 
+@login_required
 def minifw_blocked_ips(request):
     """
     Blocked IPs Management Page
@@ -241,6 +263,11 @@ def minifw_blocked_ips(request):
     - View block history
     """
     if request.method == 'POST':
+        denied = _require_permission(request, RBACService.can_execute_enforcement,
+            'Permission denied. Operator role required for IP enforcement.', 'minifw_blocked_ips')
+        if denied:
+            return denied
+
         action = request.POST.get('action')
 
         if action == 'block_ip':
@@ -347,29 +374,35 @@ def minifw_users(request):
 # Service Control Actions
 # ============================================
 
+@login_required
 @require_http_methods(["POST"])
 def minifw_service_control(request):
     """Control MiniFW-AI service"""
+    denied = _require_permission(request, RBACService.can_execute_enforcement,
+        'Permission denied. Operator role required for service control.', 'minifw_dashboard')
+    if denied:
+        return denied
+
     action = request.POST.get('action')
-    
+
     if action == 'restart':
         if MiniFWService.restart():
             messages.success(request, 'MiniFW-AI service restarted successfully')
         else:
             messages.error(request, 'Failed to restart MiniFW-AI service')
-    
+
     elif action == 'stop':
         if MiniFWService.stop():
             messages.success(request, 'MiniFW-AI service stopped')
         else:
             messages.error(request, 'Failed to stop MiniFW-AI service')
-    
+
     elif action == 'start':
         if MiniFWService.start():
             messages.success(request, 'MiniFW-AI service started')
         else:
             messages.error(request, 'Failed to start MiniFW-AI service')
-    
+
     # Redirect to referer or dashboard
     referer = request.META.get('HTTP_REFERER', 'minifw_dashboard')
     return redirect(referer)
@@ -379,6 +412,7 @@ def minifw_service_control(request):
 # API Endpoints (AJAX)
 # ============================================
 
+@login_required
 def minifw_api_stats(request):
     """API endpoint untuk real-time stats"""
     try:
@@ -390,6 +424,7 @@ def minifw_api_stats(request):
         })
 
 
+@login_required
 def minifw_api_service_status(request):
     """API endpoint untuk service status"""
     try:
@@ -398,6 +433,7 @@ def minifw_api_service_status(request):
         return JsonResponse({'active': False, 'enabled': False, 'status': 'unknown'})
 
 
+@login_required
 def minifw_api_recent_events(request):
     """API endpoint untuk recent events"""
     try:
@@ -455,6 +491,9 @@ def minifw_api_events_export(request):
 @require_http_methods(["GET"])
 def minifw_api_audit_logs(request):
     """Paginated audit logs as JSON."""
+    if not RBACService.can_access_audit(request.user):
+        return JsonResponse({'error': 'Permission denied. Auditor role required.'}, status=403)
+
     limit = min(int(request.GET.get('limit', 50)), 200)
     offset = int(request.GET.get('offset', 0))
     filters = {}
@@ -470,6 +509,9 @@ def minifw_api_audit_logs(request):
 @require_http_methods(["GET"])
 def minifw_api_audit_statistics(request):
     """Audit log severity counts."""
+    if not RBACService.can_access_audit(request.user):
+        return JsonResponse({'error': 'Permission denied. Auditor role required.'}, status=403)
+
     days = int(request.GET.get('days', 7))
     return JsonResponse(AuditService.get_statistics(days=days))
 

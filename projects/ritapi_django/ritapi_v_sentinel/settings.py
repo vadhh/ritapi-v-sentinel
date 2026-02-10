@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import sys
 import environ
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -120,22 +122,25 @@ WSGI_APPLICATION = 'ritapi_v_sentinel.wsgi.application'
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env("DB_NAME"),
-        'USER': env("DB_USER"),
-        'PASSWORD': env("DB_PASSWORD"),
-        'HOST': env("DB_HOST"),
-        'PORT': env("DB_PORT"),
-        # Test DB configuration
-        'TEST': {
-            'NAME': 'ritapi_v_sentinel_test_db',  # test DB manual dibuat di PostgreSQL
+_database_url = env("DATABASE_URL", default="")
+if _database_url:
+    DATABASES = {
+        'default': dj_database_url.parse(_database_url, conn_max_age=600),
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': env("DB_NAME"),
+            'USER': env("DB_USER"),
+            'PASSWORD': env("DB_PASSWORD"),
+            'HOST': env("DB_HOST"),
+            'PORT': env("DB_PORT"),
+            'TEST': {
+                'NAME': 'ritapi_v_sentinel_test_db',
+            },
         }
     }
-}
-
-import sys
 
 if 'test' in sys.argv:
     DATABASES = {
@@ -206,6 +211,11 @@ SECURITY_ENFORCEMENT_EXCLUDED_PATHS = [
     "/logout/",
     "/healthz",
     "/readyz",
+    # MiniFW dashboard form-based endpoints (use application/x-www-form-urlencoded)
+    "/ops/minifw/policy/",
+    "/ops/minifw/feeds/",
+    "/ops/minifw/blocked-ips/",
+    "/ops/minifw/service/",
 ]
 
 LOGIN_URL = 'login'
