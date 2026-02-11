@@ -502,7 +502,10 @@ def minifw_api_events_export(request):
         return JsonResponse({'error': 'Permission denied'}, status=403)
 
     action_filter = request.GET.get('action_filter', 'all')
-    buf = MiniFWEventsService.export_events_excel(action_filter)
+    deployment_state = DeploymentStateService.get_state()
+    buf = MiniFWEventsService.export_events_excel(
+        action_filter, ai_enabled=deployment_state['ai_enabled'],
+    )
     response = HttpResponse(
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -751,3 +754,13 @@ def minifw_api_current_user(request):
 def minifw_api_sector_lock(request):
     """Return sector lock configuration (read-only)."""
     return JsonResponse(SectorLock.get_full_config())
+
+
+@login_required
+@require_http_methods(["GET"])
+def minifw_api_deployment_state(request):
+    """Return current deployment state as JSON (read-only)."""
+    state = DeploymentStateService.get_state()
+    # Exclude raw field from API response to avoid leaking internal details
+    safe_state = {k: v for k, v in state.items() if k != 'raw'}
+    return JsonResponse(safe_state)

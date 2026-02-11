@@ -4,6 +4,7 @@ Service layer untuk operasi MiniFW-AI
 import io
 import json
 import os
+import re
 import subprocess
 from datetime import timedelta
 from pathlib import Path
@@ -395,6 +396,23 @@ class MiniFWStats:
 class AuditService:
     """Service for recording and querying audit logs"""
 
+    SENSITIVE_KEYS = re.compile(
+        r'(token|secret|password|credential|api_key|private_key|auth_header)',
+        re.IGNORECASE,
+    )
+
+    @classmethod
+    def _sanitize_value(cls, obj):
+        """Recursively redact values whose keys match SENSITIVE_KEYS."""
+        if isinstance(obj, dict):
+            return {
+                k: '***REDACTED***' if cls.SENSITIVE_KEYS.search(k) else cls._sanitize_value(v)
+                for k, v in obj.items()
+            }
+        if isinstance(obj, list):
+            return [cls._sanitize_value(item) for item in obj]
+        return obj
+
     @classmethod
     def log_action(cls, request, action, description, severity='info',
                    resource_type=None, resource_id=None,
@@ -469,7 +487,11 @@ class AuditService:
 
     @classmethod
     def export_logs(cls, start_date=None, end_date=None):
-        """Serialize audit logs to JSON string for download."""
+        """Serialize audit logs to JSON string for download.
+
+        Output is wrapped in an envelope containing deployment_state metadata.
+        Sensitive fields in before_value/after_value are redacted.
+        """
         from .models import AuditLog
         qs = AuditLog.objects.all()
         if start_date:
@@ -484,7 +506,21 @@ class AuditService:
         ))
         for log in logs:
             log['timestamp'] = log['timestamp'].isoformat() if log['timestamp'] else None
-        return json.dumps(logs, indent=2, ensure_ascii=False)
+            log['before_value'] = cls._sanitize_value(log.get('before_value'))
+            log['after_value'] = cls._sanitize_value(log.get('after_value'))
+
+        deployment_state = DeploymentStateService.get_state()
+        envelope = {
+            'deployment_state': {
+                'protection_state': deployment_state['protection_state'],
+                'ai_enabled': deployment_state['ai_enabled'],
+                'last_state_check': deployment_state.get('last_state_check'),
+            },
+            'exported_at': timezone.now().isoformat(),
+            'total_logs': len(logs),
+            'logs': logs,
+        }
+        return json.dumps(envelope, indent=2, ensure_ascii=False)
 
 
 class SectorLock:
@@ -675,14 +711,20 @@ class MiniFWEventsService:
         return stats
 
     @classmethod
-    def export_events_excel(cls, action_filter=None):
-        """Generate openpyxl workbook, return BytesIO."""
+    def export_events_excel(cls, action_filter=None, ai_enabled=True):
+        """Generate openpyxl workbook, return BytesIO.
+
+        When *ai_enabled* is False (baseline mode), the Score column is omitted
+        and AI-specific reasons (mlp_*, yara_*) are stripped.
+        """
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment
 
         events = cls._read_all_events()
         if action_filter and action_filter != 'all':
             events = [e for e in events if e.get('action') == action_filter]
+
+        deployment_state = DeploymentStateService.get_state()
 
         wb = Workbook()
 
@@ -693,6 +735,8 @@ class MiniFWEventsService:
         ws_stats.append(["MiniFW-AI Security Events Report"])
         ws_stats['A1'].font = Font(bold=True, size=14)
         ws_stats.append([f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"])
+        ws_stats.append([f"Protection State: {deployment_state['protection_state']}"])
+        ws_stats.append([f"AI Modules: {'Active' if ai_enabled else 'Inactive'}"])
         ws_stats.append([f"Total Events: {len(events)}"])
         ws_stats.append([])
 
@@ -706,8 +750,9 @@ class MiniFWEventsService:
             unique_domains.add(e.get('domain', ''))
 
         ws_stats.append(["Action", "Count"])
-        ws_stats['A5'].font = header_font
-        ws_stats['B5'].font = header_font
+        row_num = ws_stats.max_row
+        ws_stats.cell(row=row_num, column=1).font = header_font
+        ws_stats.cell(row=row_num, column=2).font = header_font
         for action, count in sorted(action_counts.items()):
             ws_stats.append([action, count])
         ws_stats.append([])
@@ -716,11 +761,17 @@ class MiniFWEventsService:
 
         # -- Events sheet --
         ws_events = wb.create_sheet("Events")
-        columns = ["Timestamp", "Date", "Time", "Client IP", "Domain",
-                    "Action", "Score", "Segment", "Reasons"]
+        if ai_enabled:
+            columns = ["Timestamp", "Date", "Time", "Client IP", "Domain",
+                        "Action", "Score", "Segment", "Reasons"]
+        else:
+            columns = ["Timestamp", "Date", "Time", "Client IP", "Domain",
+                        "Action", "Segment", "Reasons"]
         ws_events.append(columns)
         for col_idx in range(1, len(columns) + 1):
             ws_events.cell(row=1, column=col_idx).font = header_font
+
+        action_col = columns.index("Action") + 1
 
         action_fills = {
             'allow': PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'),
@@ -732,15 +783,26 @@ class MiniFWEventsService:
             ts = e.get('ts', '')
             date_part = ts[:10] if len(ts) >= 10 else ts
             time_part = ts[11:19] if len(ts) >= 19 else ''
-            reasons = ', '.join(e.get('reasons', [])) if isinstance(e.get('reasons'), list) else str(e.get('reasons', ''))
-            row = [ts, date_part, time_part, e.get('client_ip', ''),
-                   e.get('domain', ''), e.get('action', ''),
-                   e.get('score', 0), e.get('segment', ''), reasons]
+            raw_reasons = e.get('reasons', [])
+            if not ai_enabled:
+                raw_reasons = DeploymentStateService.filter_ai_reasons(
+                    raw_reasons if isinstance(raw_reasons, list) else []
+                )
+            reasons = ', '.join(raw_reasons) if isinstance(raw_reasons, list) else str(raw_reasons)
+
+            if ai_enabled:
+                row = [ts, date_part, time_part, e.get('client_ip', ''),
+                       e.get('domain', ''), e.get('action', ''),
+                       e.get('score', 0), e.get('segment', ''), reasons]
+            else:
+                row = [ts, date_part, time_part, e.get('client_ip', ''),
+                       e.get('domain', ''), e.get('action', ''),
+                       e.get('segment', ''), reasons]
             ws_events.append(row)
             row_num = ws_events.max_row
             fill = action_fills.get(e.get('action'))
             if fill:
-                ws_events.cell(row=row_num, column=6).fill = fill
+                ws_events.cell(row=row_num, column=action_col).fill = fill
 
         # Auto-width
         for ws in [ws_stats, ws_events]:

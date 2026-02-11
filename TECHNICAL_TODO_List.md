@@ -207,7 +207,7 @@
 ### 6. Dashboard System
 **Source:** Multiple Reports
 **Status:** Cannot build until semantics frozen
-**Audit Status:** ✅ PARTIALLY IMPLEMENTED (Feb 11, 2026) - TODO 6.1-6.3 done. `DeploymentStateService` reads `deployment_state.json`, views/templates conditionally hide AI metrics.
+**Audit Status:** ✅ FULLY IMPLEMENTED (Feb 11, 2026) - TODO 6.1-6.5 done. `DeploymentStateService` reads `deployment_state.json`, views/templates conditionally hide AI metrics, exports sanitized, CLI command + dashboard widget + API endpoint for deployment state.
 
 #### 6.1 State Definition (FREEZE BEFORE BUILDING)
 - [x] **Define BASELINE_PROTECTION state semantics**
@@ -264,7 +264,7 @@
   - **Implemented:** Backend filters in views (server-side), template conditionals (frontend), DataTable JS column exclusion. 13 unit tests covering service, view, and API behavior.
 
 #### 6.4 Export Security
-- [ ] **Implement export sanitization**
+- [x] **Implement export sanitization**
   - ALLOWED in exports:
     - IP addresses
     - Hashes
@@ -275,24 +275,26 @@
     - Secrets
   - Automated sanitization before export
   - Unit tests for export security
-  - **Audit Note:** Export functions exist (`AuditService.export_logs()`, `MiniFWEventsService.export_events_excel()`) but include raw data without filtering secrets/tokens.
+  - **Implemented:** `AuditService._sanitize_value()` recursively redacts keys matching `token|secret|password|credential|api_key|private_key|auth_header`. Applied to `before_value`/`after_value` in `export_logs()`. Events Excel export respects baseline mode (omits Score column, filters AI reasons). 6 unit tests added.
 
 #### 6.5 deployment_state.json Integration
-- [ ] **Expose deployment_state.json in CLI**
+- [x] **Expose deployment_state.json in CLI**
   - Read-only access
   - Pretty-print formatting
   - Command: `minifw-status` or similar
+  - **Implemented:** `python manage.py minifw_status` management command. Pretty-prints protection state, AI status, sector, service status. Verbose mode (-v2) shows raw JSON.
 
-- [ ] **Display deployment_state.json in Dashboard**
+- [x] **Display deployment_state.json in Dashboard**
   - Read-only widget
   - Real-time updates
   - Historical state changes
-  - **Audit Note:** Installer creates `deployment_state.json` via `write_deployment_state()` (install.sh:224-259) but Django dashboard does not read or display it.
+  - **Implemented:** System State card on dashboard shows protection state (color-coded badge), AI modules status, last state check, state file health. AJAX refresh button calls `/api/deployment-state/` endpoint.
 
-- [ ] **Add deployment_state.json to exports**
+- [x] **Add deployment_state.json to exports**
   - Include in system reports
   - Include in audit exports
   - Maintain immutability
+  - **Implemented:** Audit JSON export wrapped in envelope with `deployment_state` metadata (protection_state, ai_enabled, last_state_check). Events Excel Summary sheet includes Protection State and AI Modules rows.
 
 ---
 

@@ -38,7 +38,8 @@ urlpatterns = [
     path('api/users/<int:user_id>/password/', views.minifw_api_users_password, name='minifw_api_users_password'),
     path('api/users/<int:user_id>/delete/', views.minifw_api_users_delete, name='minifw_api_users_delete'),
 
-    # API — Current User / Sector Lock
+    # API — Current User / Sector Lock / Deployment State
     path('api/auth/current-user/', views.minifw_api_current_user, name='minifw_api_current_user'),
     path('api/sector-lock/', views.minifw_api_sector_lock, name='minifw_api_sector_lock'),
+    path('api/deployment-state/', views.minifw_api_deployment_state, name='minifw_api_deployment_state'),
 ]

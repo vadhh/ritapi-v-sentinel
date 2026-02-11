@@ -1,12 +1,14 @@
+import io
 import json
 import os
 import tempfile
 from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.test import TestCase, RequestFactory, Client
 
-from .services import DeploymentStateService
+from .services import AuditService, DeploymentStateService, MiniFWEventsService
 
 
 class DeploymentStateServiceTest(TestCase):
@@ -235,3 +237,161 @@ class ApiStatsBaselineTest(TestCase):
             for reason in event.get('reasons', []):
                 self.assertFalse(reason.startswith('mlp_'))
                 self.assertFalse(reason.startswith('yara_'))
+
+
+class AuditSanitizeValueTest(TestCase):
+    """Tests for AuditService._sanitize_value()."""
+
+    def test_sanitize_value_redacts_secrets(self):
+        data = {
+            'username': 'admin',
+            'password': 'hunter2',
+            'api_key': 'sk-12345',
+            'auth_header': 'Bearer xxx',
+        }
+        result = AuditService._sanitize_value(data)
+        self.assertEqual(result['username'], 'admin')
+        self.assertEqual(result['password'], '***REDACTED***')
+        self.assertEqual(result['api_key'], '***REDACTED***')
+        self.assertEqual(result['auth_header'], '***REDACTED***')
+
+    def test_sanitize_value_preserves_safe_keys(self):
+        data = {
+            'ip_address': '10.0.0.1',
+            'action': 'block',
+            'role': 'ADMIN',
+            'email': 'user@example.com',
+        }
+        result = AuditService._sanitize_value(data)
+        self.assertEqual(result, data)
+
+    def test_sanitize_value_nested(self):
+        data = {
+            'user': {
+                'name': 'admin',
+                'auth_config': {
+                    'password': 'secret123',
+                    'token': 'jwt-xxx',
+                    'host': 'localhost',
+                },
+            },
+            'items': [
+                {'secret_key': 'abc', 'value': 42},
+                'plain_string',
+            ],
+        }
+        result = AuditService._sanitize_value(data)
+        self.assertEqual(result['user']['name'], 'admin')
+        # auth_config doesn't match SENSITIVE_KEYS, so recurse into it
+        self.assertEqual(result['user']['auth_config']['password'], '***REDACTED***')
+        self.assertEqual(result['user']['auth_config']['token'], '***REDACTED***')
+        self.assertEqual(result['user']['auth_config']['host'], 'localhost')
+        # 'credentials' key itself matches, so entire value is redacted
+        cred_data = {'credentials': {'password': 'x'}}
+        self.assertEqual(AuditService._sanitize_value(cred_data)['credentials'], '***REDACTED***')
+        # list items
+        self.assertEqual(result['items'][0]['secret_key'], '***REDACTED***')
+        self.assertEqual(result['items'][0]['value'], 42)
+        self.assertEqual(result['items'][1], 'plain_string')
+
+    def test_sanitize_value_none_and_primitives(self):
+        self.assertIsNone(AuditService._sanitize_value(None))
+        self.assertEqual(AuditService._sanitize_value(42), 42)
+        self.assertEqual(AuditService._sanitize_value('hello'), 'hello')
+
+
+class ExportEventsBaselineTest(TestCase):
+    """Test Excel export omits Score in baseline mode."""
+
+    @patch.object(MiniFWEventsService, '_read_all_events', return_value=[
+        {
+            'ts': '2026-02-11T10:00:00',
+            'client_ip': '10.0.0.1',
+            'domain': 'bad.com',
+            'action': 'block',
+            'score': 85,
+            'segment': 'office',
+            'reasons': ['feed_deny', 'mlp_anomaly'],
+        },
+    ])
+    @patch.object(DeploymentStateService, 'get_state',
+                  return_value=_mock_deployment_state(False))
+    def test_export_events_baseline_omits_score(self, *mocks):
+        buf = MiniFWEventsService.export_events_excel(ai_enabled=False)
+        self.assertIsInstance(buf, io.BytesIO)
+        from openpyxl import load_workbook
+        wb = load_workbook(buf)
+        ws = wb['Events']
+        headers = [cell.value for cell in ws[1]]
+        self.assertNotIn('Score', headers)
+        self.assertIn('Action', headers)
+        self.assertIn('Segment', headers)
+        # Check that AI reasons are filtered from data
+        reasons_col = headers.index('Reasons') + 1
+        reasons_val = ws.cell(row=2, column=reasons_col).value
+        self.assertNotIn('mlp_', reasons_val)
+
+    @patch.object(MiniFWEventsService, '_read_all_events', return_value=[
+        {
+            'ts': '2026-02-11T10:00:00',
+            'client_ip': '10.0.0.1',
+            'domain': 'bad.com',
+            'action': 'block',
+            'score': 85,
+            'segment': 'office',
+            'reasons': ['feed_deny', 'mlp_anomaly'],
+        },
+    ])
+    @patch.object(DeploymentStateService, 'get_state',
+                  return_value=_mock_deployment_state(True))
+    def test_export_events_enhanced_includes_score(self, *mocks):
+        buf = MiniFWEventsService.export_events_excel(ai_enabled=True)
+        from openpyxl import load_workbook
+        wb = load_workbook(buf)
+        ws = wb['Events']
+        headers = [cell.value for cell in ws[1]]
+        self.assertIn('Score', headers)
+
+
+class DeploymentStateAPITest(TestCase):
+    """Test deployment state API endpoint."""
+
+    def setUp(self):
+        from .models import UserProfile
+        self.user = User.objects.create_user(username='testuser', password='testpass123')
+        UserProfile.objects.create(user=self.user, role='VIEWER', sector='ESTABLISHMENT')
+        self.client = Client()
+        self.client.login(username='testuser', password='testpass123')
+
+    @patch('minifw.views.DeploymentStateService.get_state',
+           return_value=_mock_deployment_state(False))
+    def test_api_deployment_state_endpoint(self, *mocks):
+        response = self.client.get('/ops/minifw/api/deployment-state/')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertIn('protection_state', data)
+        self.assertIn('ai_enabled', data)
+        self.assertIn('service_unavailable', data)
+        self.assertNotIn('raw', data)
+
+    def test_api_deployment_state_requires_login(self):
+        self.client.logout()
+        response = self.client.get('/ops/minifw/api/deployment-state/')
+        self.assertEqual(response.status_code, 302)
+
+
+class ManagementCommandTest(TestCase):
+    """Test minifw_status management command."""
+
+    @patch('minifw.services.DeploymentStateService.get_state',
+           return_value=_mock_deployment_state(False))
+    @patch('minifw.services.MiniFWService.get_status',
+           return_value={'active': False, 'enabled': False, 'status': 'stopped'})
+    @patch('minifw.services.SectorLock.get_sector', return_value='establishment')
+    @patch('minifw.services.SectorLock.get_description', return_value='Standard')
+    def test_management_command_runs(self, *mocks):
+        out = io.StringIO()
+        call_command('minifw_status', stdout=out)
+        output = out.getvalue()
+        self.assertIn('BASELINE_PROTECTION', output)
+        self.assertIn('Inactive', output)
