@@ -21,8 +21,8 @@ from typing import Any
 
 class ProtectionState(Enum):
     """Protection states for MiniFW-AI."""
-    BASELINE_PROTECTION = "baseline"
-    AI_ENHANCED_PROTECTION = "enhanced"
+    BASELINE_PROTECTION = "BASELINE_PROTECTION"
+    AI_ENHANCED_PROTECTION = "AI_ENHANCED_PROTECTION"
 
 
 class TelemetryHealth:

@@ -2,7 +2,7 @@
 
 ## Summary of Changes
 
-This document describes the comprehensive fixes implemented to prevent restart storms and enable MiniFW to run indefinitely in degraded mode when DNS telemetry is unavailable.
+This document describes the comprehensive fixes implemented to prevent restart storms and enable MiniFW to run indefinitely in BASELINE_PROTECTION when DNS telemetry is unavailable.
 
 ## Critical Philosophy
 
@@ -123,7 +123,7 @@ for client_ip, domain in dns_events:
     pump_zeek()   # Always runs
     pump_flows()  # Always runs - contains hard-threat gates
     
-    # Skip DNS-based scoring if in degraded mode
+    # Skip DNS-based scoring in BASELINE_PROTECTION
     if client_ip is None or domain is None:
         continue  # Hard gates still executed above
     
@@ -238,7 +238,7 @@ detect_dns_environment() {
     "source": "none",
     "degraded_mode": 1,
     "log_path": "",
-    "status": "degraded"
+    "status": "BASELINE_PROTECTION"
   },
   "security_enforcement": {
     "flow_tracking": "active",
@@ -261,7 +261,7 @@ verify_telemetry() {
         print_warning "⚠  WARNING: No DNS Telemetry Detected"
         print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         print_warning ""
-        print_warning "MiniFW-AI will run in DEGRADED_MODE:"
+        print_warning "MiniFW-AI will run in BASELINE_PROTECTION:"
         print_info "  ✓ Flow tracking: ACTIVE"
         print_info "  ✓ Hard-threat gates: ACTIVE"
         print_info "  ✓ IP filtering: ACTIVE"
@@ -287,7 +287,7 @@ MINIFW_DNS_LOG_PATH=
 ## 6. Self-Test Update for Degraded Mode
 
 ### Problem
-Self-test would fail if MiniFW was in degraded mode.
+Self-test would fail if MiniFW was in BASELINE_PROTECTION.
 
 ### Solution
 **File: `scripts/vsentinel_selftest.sh`**
@@ -311,16 +311,16 @@ check_minifw_mode() {
     local degraded_mode=$(grep '"degraded_mode": [0-9]' state_file)
     
     if [ "$degraded_mode" = "1" ]; then
-        echo -e "${YELLOW}DEGRADED${NC} (DNS telemetry unavailable)"
+        echo -e "${YELLOW}BASELINE_PROTECTION${NC} (DNS telemetry unavailable)"
         echo ""
-        echo -e "${YELLOW}  ⚠ MiniFW-AI is running in DEGRADED MODE${NC}"
+        echo -e "${YELLOW}  ⚠ MiniFW-AI is running in BASELINE_PROTECTION${NC}"
         echo -e "${BLUE}  ℹ Security enforcement: ACTIVE${NC}"
         echo -e "${BLUE}  ℹ Flow tracking: ACTIVE${NC}"
         echo -e "${BLUE}  ℹ Hard-threat gates: ACTIVE${NC}"
         echo -e "${YELLOW}  ⚠ DNS telemetry: LIMITED${NC}"
         return 0  # ← NOT A FAILURE
     else
-        echo -e "${GREEN}FULL${NC} (complete telemetry)"
+        echo -e "${GREEN}AI_ENHANCED_PROTECTION${NC} (complete telemetry)"
         return 0
     fi
 }
@@ -331,7 +331,7 @@ check_minifw_mode() {
 {
   "selftest_result": "PASS",
   "deployment": {
-    "mode": "degraded",
+    "mode": "BASELINE_PROTECTION",
     "dns_source": "none",
     "state_file": "/var/log/ritapi/deployment_state.json"
   }
@@ -340,7 +340,7 @@ check_minifw_mode() {
 
 #### Self-Test Exit Criteria
 ```
-PASS: Service running, even in DEGRADED_MODE
+PASS: Service running, even in BASELINE_PROTECTION
 FAIL: Only if service not running or critical config missing
 ```
 
@@ -354,8 +354,8 @@ FAIL: Only if service not running or critical config missing
 # After: Service runs indefinitely
 
 journalctl -u minifw-ai -f
-# [DEGRADED_MODE] DNS telemetry disabled (source=none)
-# [DEGRADED_MODE] Running with flow tracking and hard-threat gates only
+# [BASELINE_PROTECTION] DNS telemetry disabled (source=none)
+# [BASELINE_PROTECTION] Running with flow tracking and hard-threat gates only
 # [FlowCollector] Tracking active flows
 # [HARD_GATE] Triggered: 192.168.1.100 - pps_saturation
 ```
@@ -367,7 +367,7 @@ rm /var/log/dnsmasq.log
 # Before: Service exits, systemd restarts
 # After: Service continues
 # [!] Log file deleted. Waiting for recreation...
-# [DEGRADED_MODE] Yielding empty events...
+# [BASELINE_PROTECTION] Yielding empty events...
 # [FlowCollector] Tracking active flows
 ```
 
@@ -378,7 +378,7 @@ rm /var/log/dnsmasq.log
 
 # install.sh output:
 # ⚠ WARNING: No DNS Telemetry Detected
-# MiniFW-AI will run in DEGRADED_MODE:
+# MiniFW-AI will run in BASELINE_PROTECTION:
 #   ✓ Flow tracking: ACTIVE
 #   ✓ Hard-threat gates: ACTIVE
 ```
@@ -401,14 +401,14 @@ cat /var/log/ritapi/deployment_state.json | jq
 
 ### Check Mode in Logs
 ```bash
-journalctl -u minifw-ai --since "5 minutes ago" | grep -E "DEGRADED|FULL"
+journalctl -u minifw-ai --since "5 minutes ago" | grep -E "BASELINE_PROTECTION|AI_ENHANCED_PROTECTION"
 ```
 
 ### Run Self-Test
 ```bash
 /opt/ritapi-v-sentinel/scripts/vsentinel_selftest.sh
 # ✓ MiniFW-AI Service: RUNNING
-# ⚠ MiniFW-AI operational mode: DEGRADED
+# ⚠ MiniFW-AI operational mode: BASELINE_PROTECTION
 #   ℹ Security enforcement: ACTIVE
 #   ℹ Flow tracking: ACTIVE
 ```
@@ -419,7 +419,7 @@ journalctl -u minifw-ai --since "5 minutes ago" | grep -E "DEGRADED|FULL"
 
 1. **`projects/minifw_ai_service/app/minifw_ai/collector_dnsmasq.py`**
    - DNS iterators never exit
-   - Yield empty events in degraded mode
+   - Yield empty events in BASELINE_PROTECTION
 
 2. **`projects/minifw_ai_service/app/minifw_ai/main.py`**
    - Pluggable DNS backend selection
@@ -468,7 +468,7 @@ journalctl -u minifw-ai --since "5 minutes ago" | grep -E "DEGRADED|FULL"
 1. **Audit Trail**: Deployment state file provides evidence of configuration
 2. **Fail-Safe Operation**: Service continues even without full visibility
 3. **Operator Notification**: Explicit warnings during installation
-4. **Self-Test Reporting**: Distinguishes DEGRADED vs FULL mode
+4. **Self-Test Reporting**: Distinguishes BASELINE_PROTECTION vs AI_ENHANCED_PROTECTION mode
 5. **Proof Packs**: Include deployment mode in forensic output
 
 ---
@@ -486,16 +486,16 @@ journalctl -u minifw-ai --since "5 minutes ago" | grep -E "DEGRADED|FULL"
    ```
 
 2. **Active DNS monitoring**: Periodic test queries to verify DNS working
-3. **Metrics dashboard**: Show telemetry source and degraded mode status
+3. **Metrics dashboard**: Show telemetry source and protection-state status
 4. **Dynamic mode switching**: Auto-recover when DNS becomes available
 
 ---
 
 ## Contact & Support
 
-For issues or questions about degraded mode operation:
+For issues or questions about BASELINE_PROTECTION operation:
 - Check `/var/log/ritapi/deployment_state.json`
 - Review `journalctl -u minifw-ai -f`
 - Run self-test: `/opt/ritapi-v-sentinel/scripts/vsentinel_selftest.sh`
 
-**Remember**: DEGRADED_MODE is a valid operational state, not a failure.
+**Remember**: BASELINE_PROTECTION is a valid operational state, not a failure.

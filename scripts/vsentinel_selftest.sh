@@ -137,16 +137,16 @@ check_minifw_mode() {
     local degraded_mode=$(grep -oP '(?<="degraded_mode": )[^,}]*' "$state_file" 2>/dev/null || echo "unknown")
     
     if [ "$degraded_mode" = "1" ] || [ "$degraded_mode" = "true" ]; then
-        echo -e "${YELLOW}DEGRADED${NC} (DNS telemetry unavailable)"
+        echo -e "${YELLOW}BASELINE_PROTECTION${NC} (DNS telemetry unavailable)"
         echo ""
-        echo -e "${YELLOW}  ⚠ MiniFW-AI is running in DEGRADED MODE${NC}"
+        echo -e "${YELLOW}  ⚠ MiniFW-AI is running in BASELINE_PROTECTION${NC}"
         echo -e "${BLUE}  ℹ Security enforcement: ACTIVE${NC}"
         echo -e "${BLUE}  ℹ Flow tracking: ACTIVE${NC}"
         echo -e "${BLUE}  ℹ Hard-threat gates: ACTIVE${NC}"
         echo -e "${YELLOW}  ⚠ DNS telemetry: LIMITED${NC}"
         return 0  # Not a failure - degraded mode is valid
     elif [ "$degraded_mode" = "0" ] || [ "$degraded_mode" = "false" ]; then
-        echo -e "${GREEN}FULL${NC} (complete telemetry)"
+        echo -e "${GREEN}AI_ENHANCED_PROTECTION${NC} (complete telemetry)"
         return 0
     else
         echo -e "${YELLOW}UNKNOWN${NC} (degraded_mode=$degraded_mode)"

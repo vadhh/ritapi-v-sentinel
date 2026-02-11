@@ -303,7 +303,10 @@ def run():
         try:
             zeek_iter = stream_zeek_sni_events(zeek_ssl)
         except Exception:
-            logging.warning("Failed to start Zeek SNI event stream - continuing in degraded mode", exc_info=True)
+            logging.warning(
+                "Failed to start Zeek SNI event stream - continuing in BASELINE_PROTECTION",
+                exc_info=True,
+            )
             zeek_iter = None
 
     # NEW: Conntrack flow stream for baseline tracking
@@ -354,8 +357,12 @@ def run():
     degraded_mode = os.environ.get("DEGRADED_MODE", "0") == "1"
     
     if dns_source == "none" or degraded_mode:
-        logging.warning(f"[DEGRADED_MODE] DNS telemetry disabled (source={dns_source}, degraded={degraded_mode})")
-        logging.warning(f"[DEGRADED_MODE] Running with flow tracking and hard-threat gates only (Fail-Closed Security)")
+        logging.warning(
+            f"[BASELINE_PROTECTION] DNS telemetry disabled (source={dns_source}, degraded={degraded_mode})"
+        )
+        logging.warning(
+            "[BASELINE_PROTECTION] Running with flow tracking and hard-threat gates only (Fail-Closed Security)"
+        )
         # Create empty iterator that yields None indefinitely
         def empty_dns_iterator():
             import time
@@ -369,13 +376,10 @@ def run():
                 logging.info(f"[DNS_COLLECTOR] Using file source: {dns_log}")
                 dns_events = stream_dns_events_file(dns_log)
             elif dns_source == "journald":
-                logging.warning(f"[DNS_COLLECTOR] journald source not yet implemented, falling back to degraded mode")
-                def empty_dns_iterator():
-                    import time
-                    while True:
-                        yield None, None
-                        time.sleep(1)
-                dns_events = empty_dns_iterator()
+                from minifw_ai.collector_journald import stream_dns_events_journald
+                journald_unit = os.environ.get("MINIFW_JOURNALD_UNIT", "systemd-resolved")
+                logging.info(f"[DNS_COLLECTOR] Using journald source (unit={journald_unit})")
+                dns_events = stream_dns_events_journald(unit=journald_unit)
             elif dns_source == "udp":
                 from minifw_ai.collector_dnsmasq import stream_dns_events_udp
                 dns_port = int(os.environ.get("MINIFW_DNS_UDP_PORT", "5514"))
@@ -387,8 +391,10 @@ def run():
             
             logging.info(f"[DNS_COLLECTOR] Successfully initialized DNS event stream (source={dns_source})")
         except Exception as e:
-            logging.warning(f"[DEGRADED_MODE] DNS collector failed to initialize: {e}")
-            logging.warning(f"[DEGRADED_MODE] Continuing with IP filtering and flow tracking only (Fail-Closed Security)...")
+            logging.warning(f"[BASELINE_PROTECTION] DNS collector failed to initialize: {e}")
+            logging.warning(
+                "[BASELINE_PROTECTION] Continuing with IP filtering and flow tracking only (Fail-Closed Security)..."
+            )
             # Create empty generator to keep service running
             def empty_dns_iterator():
                 import time

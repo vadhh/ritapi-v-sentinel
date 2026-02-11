@@ -29,7 +29,7 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
         print(f"[*] DNS Collector listening on UDP {bind_ip}:{port}")
     except PermissionError:
         print(f"[!] Warning: Cannot bind to UDP port {port} (permission denied).")
-        print(f"[DEGRADED_MODE] DNS UDP collection disabled, service continues with other functions.")
+        print("[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions.")
         # Yield empty events indefinitely - NEVER EXIT
         while True:
             time.sleep(10)
@@ -37,10 +37,10 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
     except OSError as e:
         if e.errno == 98:  # EADDRINUSE
             print(f"[!] Warning: UDP port {port} already in use (EADDRINUSE).")
-            print(f"[DEGRADED_MODE] DNS UDP collection disabled, service continues with other functions.")
+            print("[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions.")
         else:
             print(f"[!] Warning: Cannot bind to UDP port {port}: {e}")
-            print(f"[DEGRADED_MODE] DNS UDP collection disabled, service continues with other functions.")
+            print("[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions.")
         # Yield empty events indefinitely - NEVER EXIT
         while True:
             time.sleep(10)
@@ -73,8 +73,8 @@ def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
     """
     if not os.path.exists(log_path):
         print(f"[!] Warning: DNS log file not found at {log_path}.")
-        print(f"[DEGRADED_MODE] Service will continue monitoring for file creation...")
-        print(f"[DEGRADED_MODE] Other security functions remain active (Fail-Closed)")
+        print("[BASELINE_PROTECTION] Service will continue monitoring for file creation...")
+        print("[BASELINE_PROTECTION] Other security functions remain active (Fail-Closed)")
         # Wait indefinitely for file to appear - NEVER EXIT
         while not os.path.exists(log_path):
             time.sleep(10)  # Check every 10 seconds
@@ -168,7 +168,10 @@ def stream_dns_events(
         return stream_dns_events_file(log_path)
     if src == "udp":
         return stream_dns_events_udp(port=udp_port, bind_ip=bind_ip)
-    if src in ("journald", "none"):
+    if src == "journald":
+        from minifw_ai.collector_journald import stream_dns_events_journald
+        return stream_dns_events_journald()
+    if src == "none":
         return iter([])
     
     raise ValueError(f"Unknown DNS source: {source}")

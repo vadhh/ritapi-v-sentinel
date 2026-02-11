@@ -200,16 +200,16 @@ class TestStateManager:
 
         # Verify state file written
         data = json.loads(Path(state_file).read_text())
-        assert data["current_protection_state"] == "enhanced"
+        assert data["current_protection_state"] == "AI_ENHANCED_PROTECTION"
         assert len(data["state_transitions"]) == 1
-        assert data["state_transitions"][0]["new_state"] == "enhanced"
+        assert data["state_transitions"][0]["new_state"] == "AI_ENHANCED_PROTECTION"
         assert data["state_transitions"][0]["trigger"] == "telemetry_restored"
         assert data["state_transitions"][0]["operator_intervention"] is False
 
     def test_state_file_restored_on_init(self, state_file):
         # Write a state file first
         Path(state_file).write_text(json.dumps({
-            "current_protection_state": "enhanced",
+            "current_protection_state": "AI_ENHANCED_PROTECTION",
             "state_transitions": [],
         }))
 
@@ -233,7 +233,7 @@ class TestStateManager:
         installer_data = {
             "install_timestamp": "2026-02-10T00:00:00Z",
             "version": "1.0.0",
-            "status": "normal",
+            "status": "AI_ENHANCED_PROTECTION",
         }
         Path(state_file).write_text(json.dumps(installer_data))
 
@@ -244,12 +244,12 @@ class TestStateManager:
 
         data = json.loads(Path(state_file).read_text())
         # New fields added
-        assert data["current_protection_state"] == "enhanced"
+        assert data["current_protection_state"] == "AI_ENHANCED_PROTECTION"
         assert len(data["state_transitions"]) == 1
         # Existing installer fields preserved
         assert data["install_timestamp"] == "2026-02-10T00:00:00Z"
         assert data["version"] == "1.0.0"
-        assert data["status"] == "normal"
+        assert data["status"] == "AI_ENHANCED_PROTECTION"
 
     def test_state_transitions_capped_at_100(self, state_file):
         # Write a state file with 99 transitions
@@ -268,7 +268,7 @@ class TestStateManager:
     def test_get_status_summary(self, state_file):
         sm = self._make_manager(state_file, ProtectionState.BASELINE_PROTECTION)
         summary = sm.get_status_summary()
-        assert summary["current_state"] == "baseline"
+        assert summary["current_state"] == "BASELINE_PROTECTION"
         assert summary["ai_enabled"] is False
         assert summary["telemetry_event_count"] == 0
 
@@ -291,5 +291,5 @@ class TestStateManager:
         # Verify 2 transitions in state file
         data = json.loads(Path(state_file).read_text())
         assert len(data["state_transitions"]) == 2
-        assert data["state_transitions"][0]["new_state"] == "enhanced"
-        assert data["state_transitions"][1]["new_state"] == "baseline"
+        assert data["state_transitions"][0]["new_state"] == "AI_ENHANCED_PROTECTION"
+        assert data["state_transitions"][1]["new_state"] == "BASELINE_PROTECTION"

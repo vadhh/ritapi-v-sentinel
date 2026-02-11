@@ -256,7 +256,7 @@ Additional runtime dependencies (installed by the installer):
 - Nginx
 - nftables
 - ipset
-- dnsmasq (optional -- system operates in degraded mode without it)
+- dnsmasq (optional -- system operates in BASELINE_PROTECTION without it)
 
 ---
 
@@ -290,7 +290,7 @@ The installer will:
 7. Set up systemd service units (`ritapi-gunicorn.service`, `minifw-ai.service`)
 8. Auto-detect server IP and configure `DJANGO_ALLOWED_HOSTS` in `/etc/ritapi/vsentinel.env`
 9. Run Django migrations and optionally create a superuser
-10. Detect DNS telemetry availability and configure degraded mode if needed
+10. Detect DNS telemetry availability and configure BASELINE_PROTECTION if needed
 11. Write a deployment state file to `/var/log/ritapi/deployment_state.json`
 
 Installation paths:
@@ -340,7 +340,7 @@ All configuration is managed through a unified environment file at `/etc/ritapi/
 | `MINIFW_LOG` | Path to events log | `/opt/minifw_ai/logs/events.jsonl` |
 | `MINIFW_FLOW_RECORDS` | Path to flow records log | `/opt/minifw_ai/logs/flow_records.jsonl` |
 | `MINIFW_DNS_SOURCE` | DNS telemetry source: `file`, `udp`, `journald`, `none` | `none` |
-| `DEGRADED_MODE` | Degraded telemetry mode flag (`0` or `1`) | `0` |
+| `DEGRADED_MODE` | Telemetry mode flag (`0`=`AI_ENHANCED_PROTECTION`, `1`=`BASELINE_PROTECTION`) | `0` |
 | `MINIFW_DNS_LOG_PATH` | DNS log path (when source=file) | (empty) |
 | `MINIFW_YARA_RULES` | YARA rules directory | `/opt/minifw_ai/yara_rules` |
 | `MINIFW_MLP_MODEL` | MLP model file path | `/opt/minifw_ai/models/mlp_v2.joblib` |
@@ -566,7 +566,7 @@ This checks:
 - Service status and enablement (ritapi-gunicorn, minifw-ai, nginx)
 - Configuration file presence
 - GAMBLING_ONLY enforcement flag
-- Deployment state and operational mode (FULL or DEGRADED)
+- Deployment state and operational mode (`AI_ENHANCED_PROTECTION` or `BASELINE_PROTECTION`)
 - IPset existence
 
 The proof pack is written to `/var/log/ritapi/proof_packs/` as a JSON file.
@@ -732,11 +732,11 @@ sudo journalctl -u ritapi-gunicorn -n 50
 | Document | Path | Description |
 |----------|------|-------------|
 | Quick Start | `QUICKSTART.md` | Three-step installation guide |
-| Resilience Reference | `RESILIENCE_QUICKSTART.md` | Degraded mode implementation details |
+| Resilience Reference | `RESILIENCE_QUICKSTART.md` | BASELINE_PROTECTION implementation details |
 | VM Guide | `vm_guide.md` | Full VM installation walkthrough |
 | Usage Guide | `docs/CARA_PAKAI.md` | Step-by-step usage guide (Indonesian) |
 | Full Install Guide | `docs/PANDUAN_INSTALASI_LENGKAP.md` | Detailed installation documentation (Indonesian) |
-| Degraded Mode | `docs/DEGRADED_MODE_IMPLEMENTATION.md` | Resilience architecture deep dive |
+| Baseline Protection | `docs/DEGRADED_MODE_IMPLEMENTATION.md` | Resilience architecture deep dive |
 | Installer Reference | `docs/README_INSTALLER.md` | Installer quick reference |
 
 ---

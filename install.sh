@@ -112,7 +112,7 @@ detect_dns_environment() {
     # Final result
     if [ "$dns_source" = "none" ]; then
         print_warning "No DNS telemetry source detected"
-        print_warning "MiniFW-AI will run in DEGRADED_MODE"
+        print_warning "MiniFW-AI will run in BASELINE_PROTECTION"
     else
         print_success "DNS telemetry source: $dns_source"
     fi
@@ -239,7 +239,7 @@ write_deployment_state() {
     "source": "$dns_source",
     "degraded_mode": $degraded_mode,
     "log_path": "$dns_log_path",
-    "status": "$([ "$degraded_mode" -eq 1 ] && echo "degraded" || echo "normal")"
+    "status": "$([ "$degraded_mode" -eq 1 ] && echo "BASELINE_PROTECTION" || echo "AI_ENHANCED_PROTECTION")"
   },
   "security_enforcement": {
     "flow_tracking": "active",
@@ -270,7 +270,7 @@ verify_telemetry() {
         print_warning "⚠  WARNING: No DNS Telemetry Detected"
         print_warning "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         print_warning ""
-        print_warning "MiniFW-AI will run in DEGRADED_MODE:"
+        print_warning "MiniFW-AI will run in BASELINE_PROTECTION:"
         print_info "  ✓ Flow tracking: ACTIVE"
         print_info "  ✓ Hard-threat gates (PPS, burst, frequency): ACTIVE"
         print_info "  ✓ IP filtering: ACTIVE"
@@ -282,7 +282,7 @@ verify_telemetry() {
         degraded_mode=1
     else
         print_success "DNS telemetry source detected: $dns_source"
-        print_success "MiniFW-AI will run in FULL MODE with complete visibility"
+        print_success "MiniFW-AI will run in AI_ENHANCED_PROTECTION with complete visibility"
         degraded_mode=0
     fi
     
@@ -295,9 +295,9 @@ verify_telemetry() {
     echo ""
     echo -e "${CYAN}Telemetry Status:${NC}"
     if [ "$degraded_mode" -eq 1 ]; then
-        echo -e "  Mode: ${YELLOW}DEGRADED${NC} (no DNS events detected)"
+        echo -e "  Mode: ${YELLOW}BASELINE_PROTECTION${NC} (no DNS events detected)"
     else
-        echo -e "  Mode: ${GREEN}NORMAL${NC} (telemetry available)"
+        echo -e "  Mode: ${GREEN}AI_ENHANCED_PROTECTION${NC} (telemetry available)"
     fi
     echo ""
     
@@ -1155,7 +1155,7 @@ create_vsentinel_env() {
     echo ""
     echo -e "${CYAN}Final DNS Configuration:${NC}"
     echo -e "  DNS Source:     ${YELLOW}$(grep '^MINIFW_DNS_SOURCE=' "$env_file" | cut -d= -f2)${NC}"
-    echo -e "  Degraded Mode:  ${YELLOW}$(grep '^DEGRADED_MODE=' "$env_file" | cut -d= -f2)${NC}"
+    echo -e "  Protection State: ${YELLOW}$([ "$(grep '^DEGRADED_MODE=' "$env_file" | cut -d= -f2)" = "1" ] && echo "BASELINE_PROTECTION" || echo "AI_ENHANCED_PROTECTION")${NC}"
     echo -e "  Log Path:       ${YELLOW}$(grep '^MINIFW_DNS_LOG_PATH=' "$env_file" | cut -d= -f2)${NC}"
     echo ""
 }
