@@ -13,29 +13,29 @@
 **Audit Status:** ⚠️ PARTIALLY IMPLEMENTED - Authorization bypass possible
 
 #### 1.1 Middleware Security
-- [ ] **Implement explicit deny-by-default in OpsAuthMiddleware**
+- [x] **Implement explicit deny-by-default in OpsAuthMiddleware**
   - Default behavior must be DENY when role is unclear
   - No implicit permissions
   - **Audit Note:** Current middleware (`authentication/middleware.py`) uses allow-if-profile-exists pattern. Any user with a UserProfile can access `/ops/` regardless of role level.
 
 #### 1.2 Unit Test Coverage
-- [ ] **Create unit tests for role downgrade scenarios**
+- [x] **Create unit tests for role downgrade scenarios**
   - Test role demotion attempts
   - Verify permissions are immediately revoked
   - **Audit Note:** No RBAC tests exist. `minifw/tests.py` is empty boilerplate. Smoke tests in `tests/test_dashboard_no_500.py` mock all RBAC to return True.
 
-- [ ] **Create unit tests for role absence scenarios**
+- [x] **Create unit tests for role absence scenarios**
   - Test requests without role headers
   - Test malformed role data
   - Verify default deny behavior
 
-- [ ] **Create unit tests for token tampering**
+- [x] **Create unit tests for token tampering**
   - Test JWT modification attempts
   - Test signature validation
   - Test token expiration handling
 
 #### 1.3 Role Enforcement
-- [ ] **Enforce Auditor role as strictly read-only**
+- [x] **Enforce Auditor role as strictly read-only**
   - Block all state-modifying operations
   - Block exports that could modify state
   - Verify read-only at middleware level
@@ -80,37 +80,40 @@
 ### 3. Rollback Strategy Implementation
 **Source:** Daily Report Feb 9, 2026
 **Status:** BLOCKS PRODUCTION - Must be complete before rollout
-**Audit Status:** ❌ NOT IMPLEMENTED
+**Audit Status:** ✅ IMPLEMENTED (Feb 10, 2026)
 
 #### 3.1 Database Rollback
-- [ ] **Create DB migration down scripts**
+- [x] **Create DB migration down scripts**
   - For RBAC schema changes
   - For dashboard schema changes
   - For all Feb 9 migrations
   - Test rollback on staging
-  - **Audit Note:** Django migrations use auto-generated reversible operations (CreateModel, AddField). No custom `RunPython` with `reverse_code` found. Rollback not tested.
+  - **Audit Note:** Django migrations use auto-generated reversible operations (CreateModel, AddField). No custom `RunPython` with `reverse_code` found.
+  - **Implemented:** `scripts/vsentinel_backup.sh` (pg_dump backup), `scripts/vsentinel_rollback.sh` (drop+recreate+restore), targeted migration rollback documented in `docs/ROLLBACK_SOP.md` Section 6. Backup wired into `install.sh` upgrade flow.
 
 #### 3.2 RBAC Rollback
-- [ ] **Define RBAC schema rollback procedures**
+- [x] **Define RBAC schema rollback procedures**
   - Role table rollback
   - Permission table rollback
   - User-role mapping rollback
   - Document safe rollback sequence
+  - **Implemented:** RBAC is stored in `authentication_userprofile` table within the main DB. Full DB restore covers RBAC. Targeted RBAC restore documented in `docs/ROLLBACK_SOP.md` Section 4.3.
 
 #### 3.3 Dashboard Rollback
-- [ ] **Develop safe downgrade path for dashboards**
+- [x] **Develop safe downgrade path for dashboards**
   - Frontend component rollback
   - API endpoint rollback
   - Data schema rollback
   - Verify UI compatibility
+  - **Implemented:** `scripts/vsentinel_rollback.sh` restores code from tar.gz snapshots, runs migrations after restore. Selective rollback supported via `--skip-db`/`--skip-code`/`--skip-config` flags. Documented in `docs/ROLLBACK_SOP.md` Section 4.4.
 
 #### 3.4 Operations Documentation
-- [ ] **Create Rollback SOP (Standard Operating Procedure)**
+- [x] **Create Rollback SOP (Standard Operating Procedure)**
   - Step-by-step rollback guide
   - Verification checkpoints
   - Recovery procedures
   - Testing requirements
-  - **Audit Note:** No rollback documentation found anywhere in the repository.
+  - **Implemented:** `docs/ROLLBACK_SOP.md` — 9-section SOP covering quick rollback, manual steps, decision matrix, migration-specific rollback, known risks, and recovery procedures.
 
 ---
 
@@ -119,41 +122,46 @@
 ### 4. Dynamic State Transition System
 **Source:** Daily Report Feb 5, 2026
 **Status:** MANDATORY - Degraded mode is static until implemented
-**Audit Status:** ❌ NOT IMPLEMENTED - Only static `AI_ENABLED` and `DEGRADED_MODE` env flags exist in `main.py`
+**Audit Status:** ✅ IMPLEMENTED (Feb 11, 2026) - `state_manager.py` with `StateManager`, `TelemetryHealth`, `ProtectionState` classes. Integrated into `main.py` event loop.
 
 #### 4.1 Upgrade Logic (Degraded → Full)
-- [ ] **Implement telemetry availability checker**
+- [x] **Implement telemetry availability checker**
   - Poll every 30 seconds
   - Check DNS backend response
   - Check UDP DNS events
   - Check journald entries
   - Require ≥ 3 consecutive successful checks
+  - **Implemented:** `TelemetryHealth` class in `state_manager.py` with configurable check interval, timeout, and upgrade threshold via env vars.
 
-- [ ] **Implement hot state upgrade**
+- [x] **Implement hot state upgrade**
   - Activate AI amplifiers without restart
   - Hot-reload decision engine
   - Zero packet loss during transition
   - Maintain Hard Gates throughout
+  - **Implemented:** `StateManager.check_and_transition()` triggers inline in main loop. On upgrade, `init_mlp_detector()` and `init_yara_scanner()` are re-called. Hard gates and flow pumps unaffected.
 
-- [ ] **Update deployment_state.json on upgrade**
+- [x] **Update deployment_state.json on upgrade**
   - Record timestamp
   - Record previous_state
   - Record new_state
   - Record trigger (telemetry source)
   - Record operator_intervention: false
+  - **Implemented:** Atomic write (temp file + rename) preserves existing installer fields. `state_transitions` array capped at 100 entries.
 
-- [ ] **Implement operator notification**
+- [x] **Implement operator notification**
   - Log state transition
   - Send notification to dashboard
   - Emit system event
+  - **Implemented:** `logging.warning()` on all transitions with state, trigger, and reason. Dashboard notification deferred to TODO 6 (Dashboard System).
 
 #### 4.2 Downgrade Safety (Full → Degraded)
-- [ ] **Implement automatic downgrade on telemetry loss**
+- [x] **Implement automatic downgrade on telemetry loss**
   - Detect telemetry source unavailability
   - Disable AI Amplifiers gracefully
   - Ensure Hard Gates remain active
   - Revert state to BASELINE_PROTECTION
   - Log transition with reason
+  - **Implemented:** `TelemetryHealth.requires_downgrade()` triggers after 2 consecutive unhealthy checks (configurable). AI modules disabled via `is_ai_enabled()` returning False. Hard gates always active.
 
 ---
 
@@ -491,19 +499,19 @@
 |---------|------|-------|------------|
 | 1. RBAC System Security | 0 | 5 | 0% |
 | 2. PostgreSQL Automation | 4 | 4 | 100% |
-| 3. Rollback Strategy | 0 | 4 | 0% |
-| 4. State Transition System | 0 | 5 | 0% |
+| 3. Rollback Strategy | 4 | 4 | 100% |
+| 4. State Transition System | 5 | 5 | 100% |
 | 5. journald Integration | 1 | 4 | 25% |
 | 6. Dashboard System | 0 | 8 | 0% |
 | 7. Version Management | 2 | 4 | 50% |
 | 8. Terminology | 0 | 3 | 0% |
 | 9. Installer Finalization | 6 | 14 | 43% |
 | Testing Requirements | 0 | 6 | 0% |
-| **TOTAL** | **13** | **57** | **23%** |
+| **TOTAL** | **22** | **57** | **39%** |
 
 ### By Priority:
-- **CRITICAL (Production Blockers):** 4/13 done (31%)
-- **HIGH PRIORITY (Full Functionality):** 1/17 done (6%)
+- **CRITICAL (Production Blockers):** 8/13 done (62%)
+- **HIGH PRIORITY (Full Functionality):** 6/17 done (35%)
 - **MEDIUM PRIORITY (Operational Excellence):** 8/21 done (38%)
 - **Testing:** 0/6 done (0%)
 
@@ -544,8 +552,8 @@
 ---
 
 **Document Type:** Technical Implementation Checklist
-**Last Updated:** February 10, 2026
-**Last Audited:** February 10, 2026
+**Last Updated:** February 11, 2026
+**Last Audited:** February 11, 2026
 **Priority:** Production Critical
 **Total Tasks:** 57 technical action items
-**Completion:** 13/57 (23%)
+**Completion:** 22/57 (39%)

@@ -1329,7 +1329,18 @@ install_full() {
     
     # V-Sentinel Closure Controls - Create environment with DNS config
     create_vsentinel_env
-    
+
+    # Pre-upgrade backup: if an existing installation is detected, create a
+    # backup before overwriting anything.  Fresh installs skip this step.
+    if [ -d "$DJANGO_PROJECT_DIR" ]; then
+        print_step "Existing installation detected, creating pre-upgrade backup..."
+        if [ -f "$SCRIPT_DIR/scripts/vsentinel_backup.sh" ]; then
+            bash "$SCRIPT_DIR/scripts/vsentinel_backup.sh" || print_warning "Backup failed (non-fatal), continuing with upgrade"
+        else
+            print_warning "Backup script not found, skipping pre-upgrade backup"
+        fi
+    fi
+
     install_system_dependencies
     ensure_firewall_deps
     detect_postgresql

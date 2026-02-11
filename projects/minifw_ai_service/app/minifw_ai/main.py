@@ -24,6 +24,9 @@ from minifw_ai.burst import BurstTracker
 # NEW: Import flow collector
 from minifw_ai.collector_flow import FlowTracker, build_feature_vector_24, stream_conntrack_flows
 
+# NEW: Import state manager for dynamic state transitions (TODO 4.1/4.2)
+from minifw_ai.state_manager import StateManager, ProtectionState
+
 # NEW: Import MLP engine
 try:
     from minifw_ai.utils.mlp_engine import get_mlp_detector
@@ -206,9 +209,16 @@ def run():
     feeds = FeedMatcher(feeds_dir)
     writer = EventWriter(log_path)
 
-    ai_enabled = _env_flag("AI_ENABLED", True)
-    if not ai_enabled:
-        logging.warning("[AI] AI modules disabled via AI_ENABLED flag")
+    # Determine initial protection state from environment
+    _initial_ai = _env_flag("AI_ENABLED", True)
+    _initial_degraded = os.environ.get("DEGRADED_MODE", "0") == "1"
+    if _initial_degraded or not _initial_ai:
+        _initial_state = ProtectionState.BASELINE_PROTECTION
+    else:
+        _initial_state = ProtectionState.AI_ENHANCED_PROTECTION
+
+    state_manager = StateManager(initial_state=_initial_state)
+    logging.info(f"[STATE] Initial protection state: {state_manager.get_current_state().value}")
     
     # NEW: Initialize Sector Lock (Factory-Set Configuration)
     sector_lock = None
@@ -253,8 +263,8 @@ def run():
     flow_tracker = FlowTracker(flow_timeout=300, max_flows=max_flows)
 
     # NEW: Initialize AI modules (Layer 2) with graceful degradation
-    mlp_detector, mlp_enabled = init_mlp_detector(ai_enabled)
-    yara_scanner, yara_enabled = init_yara_scanner(ai_enabled)
+    mlp_detector, mlp_enabled = init_mlp_detector(state_manager.is_ai_enabled())
+    yara_scanner, yara_enabled = init_yara_scanner(state_manager.is_ai_enabled())
     
     # NEW: Create flow records writer
     flow_records_file = Path(flow_records_path)
@@ -390,7 +400,18 @@ def run():
     for client_ip, domain in dns_events:
         pump_zeek()
         pump_flows()
-        
+
+        # Dynamic state transition check (TODO 4.1/4.2)
+        state_manager.record_dns_event(client_ip, domain)
+        state_changed, new_state, transition_reason = state_manager.check_and_transition()
+        if state_changed:
+            _ai_on = state_manager.is_ai_enabled()
+            mlp_detector, mlp_enabled = init_mlp_detector(_ai_on)
+            yara_scanner, yara_enabled = init_yara_scanner(_ai_on)
+            logging.warning(
+                f"[STATE_TRANSITION] {new_state.value} | MLP={mlp_enabled} YARA={yara_enabled} | {transition_reason}"
+            )
+
         # CRITICAL: Skip empty events from degraded mode DNS iterator
         # But ALWAYS run flow-based hard-threat gates via pump_flows() above
         if client_ip is None or domain is None:
@@ -449,7 +470,7 @@ def run():
 
             # Layer 2: AI risk amplifier (conditional)
             flow_for_ai = flows_for_client[-1] if flows_for_client else None
-            if ai_enabled and mlp_enabled and mlp_detector and flow_for_ai and flow_for_ai.pkt_count >= 5:
+            if state_manager.is_ai_enabled() and mlp_enabled and mlp_detector and flow_for_ai and flow_for_ai.pkt_count >= 5:
                 try:
                     is_threat, proba = mlp_detector.is_suspicious(flow_for_ai, return_probability=True)
                     mlp_proba = proba
@@ -458,7 +479,7 @@ def run():
                 except Exception:
                     logging.warning("[MLP] Inference failed; continuing without MLP", exc_info=True)
 
-            if ai_enabled and yara_enabled and yara_scanner:
+            if state_manager.is_ai_enabled() and yara_enabled and yara_scanner:
                 try:
                     payload = f"{domain} {sni}".encode('utf-8')
                     matches = yara_scanner.scan_payload(payload, timeout=5)
