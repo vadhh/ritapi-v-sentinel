@@ -23,6 +23,30 @@
         </div>
     </div>
 
+    <!-- Deployment State Banner -->
+    {% if deployment_state.service_unavailable %}
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <div>
+            <strong>Service State Unavailable</strong> &mdash; {{ deployment_state.unavailable_reason }}. Displaying baseline metrics only.
+        </div>
+    </div>
+    {% elif deployment_state.protection_state == 'BASELINE_PROTECTION' %}
+    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-shield-alt me-2"></i>
+        <div>
+            <strong>Baseline Protection</strong> &mdash; Hard gates active. AI modules (MLP, YARA) inactive.
+        </div>
+    </div>
+    {% elif deployment_state.protection_state == 'AI_ENHANCED_PROTECTION' %}
+    <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-brain me-2"></i>
+        <div>
+            <strong>AI-Enhanced Protection</strong> &mdash; Full protection active including MLP inference and YARA scanning.
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
@@ -96,7 +120,7 @@
                             <th>Client IP</th>
                             <th>Domain</th>
                             <th>Action</th>
-                            <th>Score</th>
+                            {% if deployment_state.ai_enabled %}<th>Score</th>{% endif %}
                             <th>Segment</th>
                             <th>Reasons</th>
                         </tr>
@@ -126,6 +150,7 @@
 <script nonce="{{ request.csp_nonce }}">
 $(document).ready(function() {
     const csrfToken = '{{ csrf_token }}';
+    const aiEnabled = {% if deployment_state.ai_enabled %}true{% else %}false{% endif %};
     let autoRefreshInterval = null;
 
     // Load stats
@@ -149,6 +174,29 @@ $(document).ready(function() {
     }
     loadStats();
 
+    // Build columns conditionally based on AI state
+    const dtColumns = [
+        { data: 'ts', render: function(d) { return '<small>' + (d || '-') + '</small>'; } },
+        { data: 'client_ip', render: function(d) { return '<code>' + (d || '-') + '</code>'; } },
+        { data: 'domain', render: function(d) { return '<small>' + (d || '-') + '</small>'; } },
+        { data: 'action', render: function(d) {
+            const cls = d === 'block' ? 'danger' : d === 'allow' ? 'success' : 'warning';
+            const icon = d === 'block' ? 'ban' : d === 'allow' ? 'check' : 'eye';
+            return '<span class="badge bg-' + cls + '"><i class="fas fa-' + icon + '"></i> ' + (d || '-') + '</span>';
+        }}
+    ];
+    if (aiEnabled) {
+        dtColumns.push({ data: 'score', render: function(d) {
+            const cls = d >= 60 ? 'danger' : d >= 40 ? 'warning' : 'success';
+            return '<span class="badge bg-' + cls + '">' + d + '</span>';
+        }});
+    }
+    dtColumns.push({ data: 'segment', render: function(d) { return '<span class="badge bg-secondary">' + (d || '-') + '</span>'; } });
+    dtColumns.push({ data: 'reasons', render: function(d) {
+        if (Array.isArray(d)) return '<small>' + d.join(', ') + '</small>';
+        return '<small>' + (d || '-') + '</small>';
+    }});
+
     // DataTable with server-side processing
     const table = $('#eventsTable').DataTable({
         processing: true,
@@ -157,25 +205,7 @@ $(document).ready(function() {
             url: "{% url 'minifw_api_events_datatable' %}",
             dataSrc: 'data'
         },
-        columns: [
-            { data: 'ts', render: function(d) { return '<small>' + (d || '-') + '</small>'; } },
-            { data: 'client_ip', render: function(d) { return '<code>' + (d || '-') + '</code>'; } },
-            { data: 'domain', render: function(d) { return '<small>' + (d || '-') + '</small>'; } },
-            { data: 'action', render: function(d) {
-                const cls = d === 'block' ? 'danger' : d === 'allow' ? 'success' : 'warning';
-                const icon = d === 'block' ? 'ban' : d === 'allow' ? 'check' : 'eye';
-                return '<span class="badge bg-' + cls + '"><i class="fas fa-' + icon + '"></i> ' + (d || '-') + '</span>';
-            }},
-            { data: 'score', render: function(d) {
-                const cls = d >= 60 ? 'danger' : d >= 40 ? 'warning' : 'success';
-                return '<span class="badge bg-' + cls + '">' + d + '</span>';
-            }},
-            { data: 'segment', render: function(d) { return '<span class="badge bg-secondary">' + (d || '-') + '</span>'; } },
-            { data: 'reasons', render: function(d) {
-                if (Array.isArray(d)) return '<small>' + d.join(', ') + '</small>';
-                return '<small>' + (d || '-') + '</small>';
-            }}
-        ],
+        columns: dtColumns,
         order: [[0, 'desc']],
         pageLength: 25,
         lengthMenu: [10, 25, 50, 100],

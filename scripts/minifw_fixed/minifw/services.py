@@ -530,6 +530,76 @@ class SectorLock:
         return {'sector': os.getenv('MINIFW_SECTOR', 'unknown')}
 
 
+class DeploymentStateService:
+    """Read deployment state from MiniFW-AI's state file for dashboard visibility."""
+
+    STATE_FILE = "/var/log/ritapi/deployment_state.json"
+
+    @classmethod
+    def get_state(cls) -> Dict:
+        """Read deployment_state.json and return parsed state info."""
+        try:
+            with open(cls.STATE_FILE, 'r') as f:
+                raw = json.load(f)
+            protection_state = raw.get('current_protection_state',
+                                       raw.get('status', 'BASELINE_PROTECTION'))
+            ai_enabled = protection_state == 'AI_ENHANCED_PROTECTION'
+            return {
+                'protection_state': protection_state,
+                'ai_enabled': ai_enabled,
+                'last_state_check': raw.get('last_state_check'),
+                'service_unavailable': False,
+                'unavailable_reason': None,
+                'raw': raw,
+            }
+        except FileNotFoundError:
+            return cls._unavailable_state('State file not found')
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            return cls._unavailable_state(f'Invalid state file: {e}')
+        except OSError as e:
+            return cls._unavailable_state(f'Cannot read state file: {e}')
+
+    @classmethod
+    def _unavailable_state(cls, reason: str) -> Dict:
+        return {
+            'protection_state': 'UNAVAILABLE',
+            'ai_enabled': False,
+            'last_state_check': None,
+            'service_unavailable': True,
+            'unavailable_reason': reason,
+            'raw': {},
+        }
+
+    @classmethod
+    def filter_ai_reasons(cls, reasons) -> list:
+        """Strip AI-specific reasons (mlp_*, yara_*) from a reasons list."""
+        if not isinstance(reasons, list):
+            return reasons
+        return [r for r in reasons if not r.startswith(('mlp_', 'yara_'))]
+
+    @classmethod
+    def filter_event_for_baseline(cls, event: Dict) -> Dict:
+        """Remove score and AI reasons from an event dict."""
+        filtered = {k: v for k, v in event.items() if k != 'score'}
+        if 'reasons' in filtered:
+            filtered['reasons'] = cls.filter_ai_reasons(filtered['reasons'])
+        return filtered
+
+    @classmethod
+    def filter_stats_for_baseline(cls, stats: Dict) -> Dict:
+        """Set monitored to None and strip monitored from by_segment."""
+        stats = dict(stats)
+        stats['monitored'] = None
+        if 'by_segment' in stats:
+            by_segment = {}
+            for seg, counts in stats['by_segment'].items():
+                counts = dict(counts)
+                counts.pop('monitored', None)
+                by_segment[seg] = counts
+            stats['by_segment'] = by_segment
+        return stats
+
+
 class MiniFWEventsService:
     """Server-side events processing for DataTables and Excel export."""
 

@@ -57,9 +57,33 @@
         </div>
     </div>
 
+    <!-- Deployment State Banner -->
+    {% if deployment_state.service_unavailable %}
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <div>
+            <strong>Service State Unavailable</strong> &mdash; {{ deployment_state.unavailable_reason }}. Displaying baseline metrics only.
+        </div>
+    </div>
+    {% elif deployment_state.protection_state == 'BASELINE_PROTECTION' %}
+    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-shield-alt me-2"></i>
+        <div>
+            <strong>Baseline Protection</strong> &mdash; Hard gates active (PPS, burst, bot-behavior, feeds). AI modules (MLP, YARA) inactive.
+        </div>
+    </div>
+    {% elif deployment_state.protection_state == 'AI_ENHANCED_PROTECTION' %}
+    <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+        <i class="fas fa-brain me-2"></i>
+        <div>
+            <strong>AI-Enhanced Protection</strong> &mdash; Full protection active including MLP inference and YARA scanning.
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Statistics Cards -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="{% if deployment_state.ai_enabled %}col-md-3{% else %}col-md-4{% endif %}">
             <div class="card bg-danger text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -74,7 +98,8 @@
                 </div>
             </div>
         </div>
-        
+
+        {% if deployment_state.ai_enabled %}
         <div class="col-md-3">
             <div class="card bg-warning text-white">
                 <div class="card-body">
@@ -90,8 +115,9 @@
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-3">
+        {% endif %}
+
+        <div class="{% if deployment_state.ai_enabled %}col-md-3{% else %}col-md-4{% endif %}">
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -106,8 +132,8 @@
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-3">
+
+        <div class="{% if deployment_state.ai_enabled %}col-md-3{% else %}col-md-4{% endif %}">
             <div class="card bg-info text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
@@ -138,7 +164,7 @@
                                 <tr>
                                     <th>Segment</th>
                                     <th class="text-danger">Blocked</th>
-                                    <th class="text-warning">Monitored</th>
+                                    {% if deployment_state.ai_enabled %}<th class="text-warning">Monitored</th>{% endif %}
                                     <th class="text-success">Allowed</th>
                                     <th>Total</th>
                                 </tr>
@@ -148,13 +174,13 @@
                                 <tr>
                                     <td><strong>{{ segment|title }}</strong></td>
                                     <td class="text-danger">{{ counts.blocked|default:0 }}</td>
-                                    <td class="text-warning">{{ counts.monitored|default:0 }}</td>
+                                    {% if deployment_state.ai_enabled %}<td class="text-warning">{{ counts.monitored|default:0 }}</td>{% endif %}
                                     <td class="text-success">{{ counts.allowed|default:0 }}</td>
-                                    <td>{{ counts.blocked|default:0|add:counts.monitored|default:0|add:counts.allowed|default:0 }}</td>
+                                    <td>{{ counts.blocked|default:0|add:counts.allowed|default:0 }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center">No data available</td>
+                                    <td colspan="{% if deployment_state.ai_enabled %}5{% else %}4{% endif %}" class="text-center">No data available</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -249,7 +275,7 @@
                                     <th>Segment</th>
                                     <th>Client IP</th>
                                     <th>Domain</th>
-                                    <th>Score</th>
+                                    {% if deployment_state.ai_enabled %}<th>Score</th>{% endif %}
                                     <th>Action</th>
                                     <th>Reasons</th>
                                 </tr>
@@ -261,14 +287,16 @@
                                     <td><span class="badge bg-secondary">{{ event.segment }}</span></td>
                                     <td><code>{{ event.client_ip }}</code></td>
                                     <td><small>{{ event.domain }}</small></td>
+                                    {% if deployment_state.ai_enabled %}
                                     <td>
-                                        <span class="badge 
+                                        <span class="badge
                                             {% if event.score >= 60 %}bg-danger
                                             {% elif event.score >= 40 %}bg-warning
                                             {% else %}bg-success{% endif %}">
                                             {{ event.score }}
                                         </span>
                                     </td>
+                                    {% endif %}
                                     <td>
                                         {% if event.action == 'block' %}
                                             <span class="badge bg-danger"><i class="fas fa-ban"></i> Block</span>
@@ -282,7 +310,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center">No events yet</td>
+                                    <td colspan="{% if deployment_state.ai_enabled %}7{% else %}6{% endif %}" class="text-center">No events yet</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

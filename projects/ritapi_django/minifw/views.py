@@ -18,6 +18,7 @@ from .services import (
     MiniFWIPSet,
     MiniFWStats,
     MiniFWEventsService,
+    DeploymentStateService,
     SectorLock,
     AuditService,
     RBACService,
@@ -63,6 +64,15 @@ def minifw_dashboard(request):
     except Exception:
         blocked_ips_count = 0
 
+    deployment_state = DeploymentStateService.get_state()
+
+    if not deployment_state['ai_enabled']:
+        stats = DeploymentStateService.filter_stats_for_baseline(stats)
+        recent_events = [
+            DeploymentStateService.filter_event_for_baseline(e)
+            for e in recent_events
+        ]
+
     context = {
         'service_status': service_status,
         'stats': stats,
@@ -70,6 +80,7 @@ def minifw_dashboard(request):
         'blocked_ips_count': blocked_ips_count,
         'sector': SectorLock.get_sector(),
         'sector_desc': SectorLock.get_description(),
+        'deployment_state': deployment_state,
     }
     return render(request, 'ops_template/minifw_config/dashboard.html', context)
 
@@ -352,6 +363,7 @@ def minifw_events(request):
     """Events page with DataTables."""
     return render(request, 'ops_template/minifw_config/events.html', {
         'service_status': MiniFWService.get_status(),
+        'deployment_state': DeploymentStateService.get_state(),
     })
 
 
@@ -416,7 +428,11 @@ def minifw_service_control(request):
 def minifw_api_stats(request):
     """API endpoint untuk real-time stats"""
     try:
-        return JsonResponse(MiniFWStats.get_stats())
+        stats = MiniFWStats.get_stats()
+        deployment_state = DeploymentStateService.get_state()
+        if not deployment_state['ai_enabled']:
+            stats = DeploymentStateService.filter_stats_for_baseline(stats)
+        return JsonResponse(stats)
     except Exception:
         return JsonResponse({
             'total_events': 0, 'blocked': 0, 'monitored': 0, 'allowed': 0,
@@ -439,6 +455,12 @@ def minifw_api_recent_events(request):
     try:
         limit = int(request.GET.get('limit', 50))
         events = MiniFWStats.get_recent_events(limit)
+        deployment_state = DeploymentStateService.get_state()
+        if not deployment_state['ai_enabled']:
+            events = [
+                DeploymentStateService.filter_event_for_baseline(e)
+                for e in events
+            ]
         return JsonResponse({'events': events})
     except Exception:
         return JsonResponse({'events': []})
@@ -463,6 +485,12 @@ def minifw_api_events_datatable(request):
         draw=draw, start=start, length=length,
         search=search, order_col=order_col, order_dir=order_dir,
     )
+    deployment_state = DeploymentStateService.get_state()
+    if not deployment_state['ai_enabled']:
+        result['data'] = [
+            DeploymentStateService.filter_event_for_baseline(e)
+            for e in result['data']
+        ]
     return JsonResponse(result)
 
 

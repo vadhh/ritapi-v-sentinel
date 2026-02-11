@@ -207,28 +207,31 @@
 ### 6. Dashboard System
 **Source:** Multiple Reports
 **Status:** Cannot build until semantics frozen
-**Audit Status:** ❌ NOT IMPLEMENTED - Dashboard shows all metrics unconditionally, no state awareness
+**Audit Status:** ✅ PARTIALLY IMPLEMENTED (Feb 11, 2026) - TODO 6.1-6.3 done. `DeploymentStateService` reads `deployment_state.json`, views/templates conditionally hide AI metrics.
 
 #### 6.1 State Definition (FREEZE BEFORE BUILDING)
-- [ ] **Define BASELINE_PROTECTION state semantics**
+- [x] **Define BASELINE_PROTECTION state semantics**
   - What is active (Hard Gates only)
   - What is inactive (AI Amplifiers)
   - Which metrics are visible
   - Which metrics are hidden
+  - **Implemented:** `DeploymentStateService` in `minifw/services.py`. BASELINE shows blocked/allowed/IPs, hides Monitored card and Score column. AI reasons (`mlp_*`, `yara_*`) stripped.
 
-- [ ] **Define AI_ENHANCED_PROTECTION state semantics**
+- [x] **Define AI_ENHANCED_PROTECTION state semantics**
   - What is active (Hard Gates + AI)
   - Which metrics are visible
   - Additional data available
+  - **Implemented:** All metrics visible including Monitored card, Score column, MLP/YARA reasons.
 
-- [ ] **Define FAILED state semantics**
+- [x] **Define FAILED state semantics**
   - Error conditions
   - Displayed information
   - Recovery actions
   - Alert behavior
+  - **Implemented:** UNAVAILABLE state (missing/corrupt state file) shows red warning banner, treats as BASELINE for visibility (fail-safe: hide AI metrics).
 
 #### 6.2 Dashboard Implementation Rules
-- [ ] **Implement visibility rules per state**
+- [x] **Implement visibility rules per state**
   - BASELINE_PROTECTION shows:
     - PPS blocks
     - Flood detections
@@ -250,13 +253,15 @@
     - Exact failure reason
     - Last known protection state
     - NO silent auto-recovery
+  - **Implemented:** `dashboard.html` and `events.html` use `{% if deployment_state.ai_enabled %}` conditionals. API endpoints (`minifw_api_stats`, `minifw_api_recent_events`, `minifw_api_events_datatable`) filter responses server-side. State banners in both templates.
 
 #### 6.3 Golden Rule Implementation
-- [ ] **Enforce: "If AI is inactive, it must not be visualized"**
+- [x] **Enforce: "If AI is inactive, it must not be visualized"**
   - Frontend validation
   - Backend validation
   - API contract enforcement
   - Prevent misleading displays
+  - **Implemented:** Backend filters in views (server-side), template conditionals (frontend), DataTable JS column exclusion. 13 unit tests covering service, view, and API behavior.
 
 #### 6.4 Export Security
 - [ ] **Implement export sanitization**
@@ -505,16 +510,16 @@
 | 3. Rollback Strategy | 4 | 4 | 100% |
 | 4. State Transition System | 5 | 5 | 100% |
 | 5. journald Integration | 4 | 4 | 100% |
-| 6. Dashboard System | 0 | 8 | 0% |
+| 6. Dashboard System | 4 | 8 | 50% |
 | 7. Version Management | 2 | 4 | 50% |
 | 8. Terminology | 3 | 3 | 100% |
 | 9. Installer Finalization | 6 | 14 | 43% |
 | Testing Requirements | 0 | 6 | 0% |
-| **TOTAL** | **33** | **57** | **58%** |
+| **TOTAL** | **37** | **57** | **65%** |
 
 ### By Priority:
 - **CRITICAL (Production Blockers):** 13/13 done (100%)
-- **HIGH PRIORITY (Full Functionality):** 9/17 done (53%)
+- **HIGH PRIORITY (Full Functionality):** 13/17 done (76%)
 - **MEDIUM PRIORITY (Operational Excellence):** 11/21 done (52%)
 - **Testing:** 0/6 done (0%)
 
@@ -564,4 +569,4 @@
 
 **Total Tasks:** 57 technical action items
 
-**Completion:** 33/57 (58%)
+**Completion:** 37/57 (65%)
