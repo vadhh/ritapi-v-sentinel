@@ -10,7 +10,8 @@ Run with:
     python manage.py test tests.test_rbac_security -v2
 """
 
-from unittest.mock import patch
+import json
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth.models import User
 from django.test import TestCase, Client, override_settings
@@ -476,3 +477,129 @@ class TestLoginRequiredOnAPIs(RBACTestBase):
             with self.subTest(url=url):
                 resp = self.client.get(url, follow=False)
                 self.assertEqual(resp.status_code, 200)
+
+
+# ===========================================================================
+# 8. TestUserManagementAPIPermissions — User Management API RBAC
+# ===========================================================================
+
+@override_settings(**COMMON_SETTINGS)
+class TestUserManagementAPIPermissions(RBACTestBase):
+    """Verify user management API endpoints enforce SUPER_ADMIN role check."""
+
+    USERS_LIST_URL = "/ops/minifw/api/users/"
+    USERS_CREATE_URL = "/ops/minifw/api/users/create/"
+
+    def _user_update_url(self, user_id):
+        return f"/ops/minifw/api/users/{user_id}/"
+
+    def _user_password_url(self, user_id):
+        return f"/ops/minifw/api/users/{user_id}/password/"
+
+    def _user_delete_url(self, user_id):
+        return f"/ops/minifw/api/users/{user_id}/delete/"
+
+    # --- Users List (GET) ---
+
+    def test_viewer_denied_users_list(self):
+        """VIEWER gets 403 on users list."""
+        self.login_as(self.viewer_user)
+        resp = self.client.get(self.USERS_LIST_URL)
+        self.assertEqual(resp.status_code, 403)
+
+    def test_auditor_denied_users_list(self):
+        """AUDITOR gets 403 on users list."""
+        self.login_as(self.auditor_user)
+        resp = self.client.get(self.USERS_LIST_URL)
+        self.assertEqual(resp.status_code, 403)
+
+    def test_operator_denied_users_list(self):
+        """OPERATOR gets 403 on users list."""
+        self.login_as(self.operator_user)
+        resp = self.client.get(self.USERS_LIST_URL)
+        self.assertEqual(resp.status_code, 403)
+
+    def test_admin_denied_users_list(self):
+        """ADMIN gets 403 on users list (only SUPER_ADMIN allowed)."""
+        self.login_as(self.admin_user)
+        resp = self.client.get(self.USERS_LIST_URL)
+        self.assertEqual(resp.status_code, 403)
+
+    def test_super_admin_allowed_users_list(self):
+        """SUPER_ADMIN gets 200 on users list."""
+        self.login_as(self.superuser)
+        resp = self.client.get(self.USERS_LIST_URL)
+        self.assertEqual(resp.status_code, 200)
+
+    # --- Users Create (POST) ---
+
+    @patch("minifw.services.UserManagementService.create_user")
+    def test_admin_denied_users_create(self, mock_create):
+        """ADMIN gets 403 on user create, service not called."""
+        self.login_as(self.admin_user)
+        resp = self.client.post(
+            self.USERS_CREATE_URL,
+            json.dumps({"username": "newuser", "password": "TestPass123!", "role": "VIEWER"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 403)
+        mock_create.assert_not_called()
+
+    @patch("minifw.services.UserManagementService.create_user")
+    def test_super_admin_can_create_user(self, mock_create):
+        """SUPER_ADMIN gets 200 on user create with mocked service."""
+        from minifw.models import UserProfile
+        new_user = MagicMock()
+        new_user.id = 999
+        new_user.username = "newuser"
+        new_profile = MagicMock()
+        mock_create.return_value = (new_user, new_profile)
+
+        self.login_as(self.superuser)
+        resp = self.client.post(
+            self.USERS_CREATE_URL,
+            json.dumps({"username": "newuser", "password": "TestPass123!", "role": "VIEWER"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        mock_create.assert_called_once()
+
+    # --- Users Update (PUT) ---
+
+    def test_operator_denied_users_update(self):
+        """OPERATOR gets 403 on user update."""
+        self.login_as(self.operator_user)
+        resp = self.client.put(
+            self._user_update_url(self.viewer_user.id),
+            json.dumps({"role": "ADMIN"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    # --- Users Password (PUT) ---
+
+    def test_admin_denied_password_change(self):
+        """ADMIN gets 403 on password change."""
+        self.login_as(self.admin_user)
+        resp = self.client.put(
+            self._user_password_url(self.viewer_user.id),
+            json.dumps({"password": "NewTestPass123!"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    # --- Users Delete (DELETE) ---
+
+    def test_admin_denied_users_delete(self):
+        """ADMIN gets 403 on user delete."""
+        self.login_as(self.admin_user)
+        resp = self.client.delete(self._user_delete_url(self.viewer_user.id))
+        self.assertEqual(resp.status_code, 403)
+
+    # --- Unauthenticated ---
+
+    def test_unauthenticated_denied_users_list(self):
+        """Unauthenticated request redirects to login."""
+        resp = self.client.get(self.USERS_LIST_URL, follow=False)
+        self.assertIn(resp.status_code, [301, 302])
+        self.assertIn("login", resp.url)

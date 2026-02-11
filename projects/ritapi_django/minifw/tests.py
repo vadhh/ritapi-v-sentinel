@@ -189,6 +189,25 @@ class DashboardViewBaselineTest(TestCase):
         self.assertIn('Baseline Protection', content)
 
     @patch('minifw.views.DeploymentStateService.get_state',
+           return_value=_mock_deployment_state(False))
+    @patch('minifw.views.MiniFWStats.get_stats', return_value=MOCK_STATS.copy())
+    @patch('minifw.views.MiniFWStats.get_recent_events', return_value=MOCK_EVENTS.copy())
+    @patch('minifw.views.MiniFWIPSet.list_blocked_ips', return_value=[])
+    @patch('minifw.views.MiniFWService.get_status',
+           return_value={'active': True, 'enabled': True, 'status': 'running'})
+    @patch('minifw.views.SectorLock.get_sector', return_value='establishment')
+    @patch('minifw.views.SectorLock.get_description', return_value='Standard')
+    def test_golden_rule_no_ai_terms_in_baseline_html(self, *mocks):
+        """Golden Rule: baseline HTML must not contain AI-specific terms or scores."""
+        response = self.client.get('/ops/minifw/dashboard/')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertNotIn('mlp_anomaly', content)
+        self.assertNotIn('yara_match', content)
+        # The mock score value 85 should not appear in baseline output
+        self.assertNotIn('>85<', content)
+
+    @patch('minifw.views.DeploymentStateService.get_state',
            return_value=_mock_deployment_state(True))
     @patch('minifw.views.MiniFWStats.get_stats', return_value=MOCK_STATS.copy())
     @patch('minifw.views.MiniFWStats.get_recent_events', return_value=MOCK_EVENTS.copy())
@@ -237,6 +256,20 @@ class ApiStatsBaselineTest(TestCase):
             for reason in event.get('reasons', []):
                 self.assertFalse(reason.startswith('mlp_'))
                 self.assertFalse(reason.startswith('yara_'))
+
+    @patch('minifw.views.DeploymentStateService.get_state',
+           return_value=_mock_deployment_state(False))
+    @patch('minifw.views.MiniFWStats.get_recent_events', return_value=MOCK_EVENTS.copy())
+    def test_golden_rule_api_events_no_ai_reasons(self, *mocks):
+        """Golden Rule: API events in baseline must have no mlp_*/yara_* reasons."""
+        response = self.client.get('/ops/minifw/api/events/')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        for event in data['events']:
+            reasons = event.get('reasons', [])
+            ai_reasons = [r for r in reasons if r.startswith('mlp_') or r.startswith('yara_')]
+            self.assertEqual(ai_reasons, [],
+                             f"Baseline event should have no AI reasons, found: {ai_reasons}")
 
 
 class AuditSanitizeValueTest(TestCase):

@@ -392,7 +392,60 @@ post_install_verify() {
 
     curl -fsS http://127.0.0.1:8000/ >/dev/null || print_warning "Gunicorn not serving on 127.0.0.1:8000"
 
+    # Verify ipset is accessible post-startup
+    ipset list minifw_block_v4 >/dev/null 2>&1 \
+        || { print_error "ipset minifw_block_v4 not accessible after startup"; exit 1; }
+
+    # Verify deployment state is not FAILED
+    local state_file="/var/log/ritapi/deployment_state.json"
+    if [ -f "$state_file" ]; then
+        if grep -q '"FAILED"' "$state_file" 2>/dev/null; then
+            print_error "deployment_state.json reports FAILED state"
+            exit 1
+        fi
+        print_success "Deployment state verified"
+    else
+        print_warning "deployment_state.json not found (non-fatal)"
+    fi
+
     print_success "Verification complete"
+}
+
+verify_enforcement_reachability() {
+    print_header "Verifying Enforcement Reachability"
+
+    # Check ipset exists and is accessible
+    if ipset list minifw_block_v4 >/dev/null 2>&1; then
+        print_success "ipset minifw_block_v4 is accessible"
+    else
+        print_error "ipset minifw_block_v4 not accessible"
+        exit 1
+    fi
+
+    # Check nftables accessible
+    if nft list ruleset >/dev/null 2>&1; then
+        print_success "nftables is accessible"
+    else
+        print_error "nftables not accessible"
+        exit 1
+    fi
+
+    # Functional test: add/verify/remove test entry (RFC 5737 TEST-NET-2)
+    local test_ip="198.51.100.1"
+    if ipset add minifw_block_v4 "$test_ip" timeout 10 -exist 2>/dev/null; then
+        if ipset test minifw_block_v4 "$test_ip" 2>/dev/null; then
+            ipset del minifw_block_v4 "$test_ip" 2>/dev/null || true
+            print_success "ipset functional test passed"
+        else
+            print_error "ipset test entry not found after add"
+            exit 1
+        fi
+    else
+        print_error "ipset add failed"
+        exit 1
+    fi
+
+    print_success "Hard Gates enforcement reachable and functional"
 }
 
 check_root() {
@@ -698,6 +751,10 @@ install_ritapi_django() {
         "$DJANGO_PROJECT_DIR/venv/bin/pip" install -r "$DJANGO_PROJECT_DIR/requirements.txt" -q
     fi
     
+    # Generate lock file for audit trail
+    "$DJANGO_PROJECT_DIR/venv/bin/pip" freeze > "$DJANGO_PROJECT_DIR/requirements.lock"
+    print_success "Dependency lock file generated"
+
     # Install gunicorn
     print_step "Installing Gunicorn..."
     "$DJANGO_PROJECT_DIR/venv/bin/pip" install gunicorn -q
@@ -760,6 +817,10 @@ install_minifw_ai() {
         "$MINIFW_AI_DIR/venv/bin/pip" install -r "$MINIFW_AI_DIR/requirements.txt" -q
     fi
     
+    # Generate lock file for audit trail
+    "$MINIFW_AI_DIR/venv/bin/pip" freeze > "$MINIFW_AI_DIR/requirements.lock"
+    print_success "Dependency lock file generated"
+
     # Create necessary directories
     print_step "Creating MiniFW-AI directories..."
     mkdir -p "$MINIFW_AI_DIR/config/feeds"
@@ -1357,11 +1418,15 @@ install_full() {
     install_runtime_guard
     
     create_admin_user
-    start_services
-    
-    # Task 2: Verify telemetry after services are started
+
+    # Verify Hard Gates enforcement before starting services
+    verify_enforcement_reachability
+
+    # Verify telemetry before starting services (sets TELEMETRY_DEGRADED_MODE for MiniFW)
     verify_telemetry
-    
+
+    start_services
+
     # V-Sentinel Closure Controls - Verify after services started
     sleep 3
     run_selftest
