@@ -102,7 +102,7 @@
                                     <h6 class="mb-0">Total Alerts</h6>
                                     <h3 class="mb-0">{{ total_alerts|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                <i class="fas fa-exclamation-triangle fa-2x" aria-hidden="true"></i>
                             </div>
                         </div>
 
@@ -112,7 +112,7 @@
                                     <h6 class="mb-0">Blocked IPs</h6>
                                     <h3 class="mb-0">{{ total_blocked|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-shield-alt fa-2x"></i>
+                                <i class="fas fa-shield-alt fa-2x" aria-hidden="true"></i>
                             </div>
                         </div>
 
@@ -122,7 +122,7 @@
                                     <h6 class="mb-0">Total Requests Allowed</h6>
                                     <h3 class="mb-0">{{ total_requests_allow|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-check fa-2x"></i>
+                                <i class="fas fa-check fa-2x" aria-hidden="true"></i>
                             </div>
                         </div>
 
@@ -132,7 +132,7 @@
                                     <h6 class="mb-0">Total Requests Blocked</h6>
                                     <h3 class="mb-0">{{ total_requests_block|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-times fa-2x"></i>
+                                <i class="fas fa-times fa-2x" aria-hidden="true"></i>
                             </div>
                         </div>
                     </div>
@@ -142,7 +142,7 @@
                         <div class="col-12">
                             <div class="card shadow-sm rounded-3">
                                 <div class="card-header bg-warning text-dark fw-bold">
-                                    <i class="fas fa-bell me-2"></i>Recent Alerts
+                                    <i class="fas fa-bell me-2" aria-hidden="true"></i>Recent Alerts
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="table-responsive">
@@ -164,8 +164,9 @@
                                                         <code class="text-sm">{{ a.ip_address }}</code>
                                                         <button class="btn btn-sm btn-outline-secondary ms-2" 
                                                                 onclick="copyToClipboard('{{ a.ip_address }}')" 
-                                                                title="Copy IP">
-                                                            <i class="fas fa-copy"></i>
+                                                                title="Copy IP"
+                                                                aria-label="Copy IP address {{ a.ip_address }}">
+                                                            <i class="fas fa-copy" aria-hidden="true"></i>
                                                         </button>
                                                     </td>
                                                     <td>
@@ -183,7 +184,7 @@
                                                 {% empty %}
                                                 <tr>
                                                     <td colspan="5" class="text-center text-muted py-4">
-                                                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                                                        <i class="fas fa-inbox fa-3x mb-3" aria-hidden="true"></i>
                                                         <h5>No alerts found</h5>
                                                         <p>System has not recorded any alerts yet.</p>
                                                     </td>

@@ -3,7 +3,7 @@
   <div class="overflow-auto p-3 d-flex flex-column" style="height: 100vh">
     <!-- Logo / Title -->
     <h4 class="text-white text-center mb-4">
-      <i class="fas fa-shield-alt"></i>
+      <i class="fas fa-shield-alt" aria-hidden="true"></i>
       <span class="sidebar-logo">Ritapi V-Sentinel</span>
     </h4>
 
@@ -11,18 +11,18 @@
     {% if user.is_authenticated %}
     <div class="text-center mb-3 pb-3 border-bottom border-secondary">
       <div class="text-white">
-        <i class="fas fa-user-shield fa-2x mb-2"></i>
+        <i class="fas fa-user-shield fa-2x mb-2" aria-hidden="true"></i>
         <div class="sidebar-text">
           <small class="text-white-50 d-block">Logged in as</small>
           <strong>{{ user.username }}</strong>
           <br />
           {% if user.profile %}
           <span class="badge bg-danger mt-1">
-            <i class="fas fa-crown"></i> {{ user.profile.role|default:"VIEWER" }}
+            <i class="fas fa-crown" aria-hidden="true"></i> {{ user.profile.role|default:"VIEWER" }}
           </span>
           {% elif user.is_superuser %}
           <span class="badge bg-danger mt-1">
-            <i class="fas fa-crown"></i> SUPER_ADMIN
+            <i class="fas fa-crown" aria-hidden="true"></i> SUPER_ADMIN
           </span>
           {% endif %}
         </div>
@@ -37,7 +37,7 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops_dashboard' %}active{% endif %}"
           href="{% url 'ops_dashboard' %}"
         >
-          <i class="fas fa-tachometer-alt"></i>
+          <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
           <span class="sidebar-text">Dashboard</span>
         </a>
       </li>
@@ -48,25 +48,25 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops_tls' %}active{% endif %}"
           href="{% url 'ops_tls' %}"
         >
-          <i class="fas fa-lock"></i>
+          <i class="fas fa-lock" aria-hidden="true"></i>
           <span class="sidebar-text">TLS</span>
         </a>
       </li>
       {% endcomment %}
 
       <li class="nav-item">
-        <a
-          class="nav-link d-flex align-items-center {% if 'ops_asn' in request.resolver_match.url_name %}active{% endif %}"
+        <button
+          type="button"
+          class="nav-link d-flex align-items-center border-0 bg-transparent w-100 {% if 'ops_asn' in request.resolver_match.url_name %}active{% endif %}"
           data-bs-toggle="collapse"
-          href="#asnMenu"
-          role="button"
+          data-bs-target="#asnMenu"
           aria-expanded="{% if 'ops_asn' in request.resolver_match.url_name %}true{% else %}false{% endif %}"
           aria-controls="asnMenu"
         >
-          <i class="fas fa-project-diagram me-2"></i>
+          <i class="fas fa-project-diagram me-2" aria-hidden="true"></i>
           <span class="sidebar-text">ASN</span>
-          <i class="fas fa-chevron-down ms-auto small"></i>
-        </a>
+          <i class="fas fa-chevron-down ms-auto small" aria-hidden="true"></i>
+        </button>
 
         <div
           class="collapse {% if 'ops_asn' in request.resolver_match.url_name %}show{% endif %}"
@@ -78,7 +78,7 @@
                 href="{% url 'ops_asn_checker' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'ops_asn_checker' %}active{% endif %}"
               >
-                <i class="me-2"></i> ASN Checker
+                <i class="me-2" aria-hidden="true"></i> ASN Checker
               </a>
             </li>
             <li class="nav-item">
@@ -86,7 +86,7 @@
                 href="{% url 'ops_asn_config' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'ops_asn_config' %}active{% endif %}"
               >
-                <i class="me-2"></i> Trust Config
+                <i class="me-2" aria-hidden="true"></i> Trust Config
               </a>
             </li>
           </ul>
@@ -94,18 +94,18 @@
       </li>
 
       <li class="nav-item">
-        <a
-          class="nav-link d-flex align-items-center {% if 'ops_ip_reputation' in request.resolver_match.url_name or request.resolver_match.url_name == 'internal_ip_dashboard' %}active{% endif %}"
+        <button
+          type="button"
+          class="nav-link d-flex align-items-center border-0 bg-transparent w-100 {% if 'ops_ip_reputation' in request.resolver_match.url_name or request.resolver_match.url_name == 'internal_ip_dashboard' %}active{% endif %}"
           data-bs-toggle="collapse"
-          href="#ipReputationMenu"
-          role="button"
+          data-bs-target="#ipReputationMenu"
           aria-expanded="{% if 'ops_ip_reputation' in request.resolver_match.url_name or request.resolver_match.url_name == 'internal_ip_dashboard' %}true{% else %}false{% endif %}"
           aria-controls="ipReputationMenu"
         >
-          <i class="fas fa-network-wired me-2"></i>
+          <i class="fas fa-network-wired me-2" aria-hidden="true"></i>
           <span class="sidebar-text">IP Reputation</span>
-          <i class="fas fa-chevron-down ms-auto small"></i>
-        </a>
+          <i class="fas fa-chevron-down ms-auto small" aria-hidden="true"></i>
+        </button>
 
         <div
           class="collapse {% if 'ops_ip_reputation' in request.resolver_match.url_name or request.resolver_match.url_name == 'internal_ip_dashboard' %}show{% endif %}"
@@ -117,7 +117,7 @@
                 href="{% url 'ops_ip_reputation_check' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'ops_ip_reputation_check' %}active{% endif %}"
               >
-                <i class="me-2"></i> Check Reputation
+                <i class="me-2" aria-hidden="true"></i> Check Reputation
               </a>
             </li>
             <li class="nav-item">
@@ -125,7 +125,7 @@
                 href="{% url 'internal_ip_dashboard' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'internal_ip_dashboard' %}active{% endif %}"
               >
-                <i class="me-2"></i> Internal Allow/Deny
+                <i class="me-2" aria-hidden="true"></i> Internal Allow/Deny
               </a>
             </li>
           </ul>
@@ -137,7 +137,7 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops.jsonschema_dashboard' %}active{% endif %}"
           href="{% url 'ops.jsonschema_dashboard' %}"
         >
-          <i class="fas fa-database"></i>
+          <i class="fas fa-database" aria-hidden="true"></i>
           <span class="sidebar-text">JSON Schema</span>
         </a>
       </li>
@@ -147,7 +147,7 @@
           class="nav-link {% if request.resolver_match.url_name == 'requestlog_list' %}active{% endif %}"
           href="{% url 'requestlog_list' %}"
         >
-          <i class="fas fa-list"></i>
+          <i class="fas fa-list" aria-hidden="true"></i>
           <span class="sidebar-text">Logs</span>
         </a>
       </li>
@@ -158,7 +158,7 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops_requests' %}active{% endif %}"
           href=""
         >
-          <i class="fas fa-list"></i>
+          <i class="fas fa-list" aria-hidden="true"></i>
           <span class="sidebar-text">Request Logs</span>
         </a>
       </li>
@@ -169,24 +169,24 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops.ops_alert' %}active{% endif %}"
           href="{% url 'ops.ops_alert' %}"
         >
-          <i class="fas fa-bell"></i>
+          <i class="fas fa-bell" aria-hidden="true"></i>
           <span class="sidebar-text">Alerts</span>
         </a>
       </li>
 
       <li class="nav-item">
-        <a
-          class="nav-link d-flex align-items-center {% if 'blocked_ip_map' in request.resolver_match.url_name or 'ops_blocked_ip_dashboard' in request.resolver_match.url_name or 'geo_block_dashboard' in request.resolver_match.url_name %}active{% endif %}"
+        <button
+          type="button"
+          class="nav-link d-flex align-items-center border-0 bg-transparent w-100 {% if 'blocked_ip_map' in request.resolver_match.url_name or 'ops_blocked_ip_dashboard' in request.resolver_match.url_name or 'geo_block_dashboard' in request.resolver_match.url_name %}active{% endif %}"
           data-bs-toggle="collapse"
-          href="#blockedIpMenu"
-          role="button"
+          data-bs-target="#blockedIpMenu"
           aria-expanded="{% if 'blocked_ip_map' in request.resolver_match.url_name or 'ops_blocked_ip_dashboard' in request.resolver_match.url_name or 'geo_block_dashboard' %}true{% else %}false{% endif %}"
           aria-controls="blockedIpMenu"
         >
-          <i class="fas fa-ban me-2"></i>
+          <i class="fas fa-ban me-2" aria-hidden="true"></i>
           <span class="sidebar-text">Blocking</span>
-          <i class="fas fa-chevron-down ms-auto small"></i>
-        </a>
+          <i class="fas fa-chevron-down ms-auto small" aria-hidden="true"></i>
+        </button>
 
         <div
           class="collapse {% if 'blocked_ip_map' in request.resolver_match.url_name or 'ops_blocked_ip_dashboard' in request.resolver_match.url_name or 'geo_block_dashboard' in request.resolver_match.url_name %}show{% endif %}"
@@ -198,7 +198,7 @@
                 href="{% url 'geo_block_dashboard' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'geo_block_dashboard' %}active{% endif %}"
               >
-                <i class="me-2"></i> Geo Block Config
+                <i class="me-2" aria-hidden="true"></i> Geo Block Config
               </a>
             </li>
             <li class="nav-item">
@@ -206,7 +206,7 @@
                 href="{% url 'blocked_ip_map' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'blocked_ip_map' %}active{% endif %}"
               >
-                <i class="me-2"></i> Geo Map
+                <i class="me-2" aria-hidden="true"></i> Geo Map
               </a>
             </li>
             <li class="nav-item">
@@ -214,7 +214,7 @@
                 href="{% url 'ops_blocked_ip_dashboard' %}"
                 class="nav-link {% if request.resolver_match.url_name == 'ops_blocked_ip_dashboard' %}active{% endif %}"
               >
-                <i class="me-2"></i> List Blocked IPs
+                <i class="me-2" aria-hidden="true"></i> List Blocked IPs
               </a>
             </li>
           </ul>
@@ -228,43 +228,43 @@
 
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_dashboard' %}active{% endif %}" href="{% url 'minifw_dashboard' %}">
-          <i class="fas fa-shield-halved"></i>
+          <i class="fas fa-shield-halved" aria-hidden="true"></i>
           <span class="sidebar-text">FW Dashboard</span>
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_policy' %}active{% endif %}" href="{% url 'minifw_policy' %}">
-          <i class="fas fa-file-shield"></i>
+          <i class="fas fa-file-shield" aria-hidden="true"></i>
           <span class="sidebar-text">FW Policies</span>
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_feeds' %}active{% endif %}" href="{% url 'minifw_feeds' %}">
-          <i class="fas fa-list-check"></i>
+          <i class="fas fa-list-check" aria-hidden="true"></i>
           <span class="sidebar-text">FW Feeds</span>
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_blocked_ips' %}active{% endif %}" href="{% url 'minifw_blocked_ips' %}">
-          <i class="fas fa-user-slash"></i>
+          <i class="fas fa-user-slash" aria-hidden="true"></i>
           <span class="sidebar-text">FW Blocked IPs</span>
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_events' %}active{% endif %}" href="{% url 'minifw_events' %}">
-          <i class="fas fa-chart-line"></i>
+          <i class="fas fa-chart-line" aria-hidden="true"></i>
           <span class="sidebar-text">FW Events</span>
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_audit_logs' %}active{% endif %}" href="{% url 'minifw_audit_logs' %}">
-          <i class="fas fa-clipboard-list"></i>
+          <i class="fas fa-clipboard-list" aria-hidden="true"></i>
           <span class="sidebar-text">FW Audit Logs</span>
         </a>
       </li>
       <li class="nav-item">
         <a class="nav-link {% if request.resolver_match.url_name == 'minifw_users' %}active{% endif %}" href="{% url 'minifw_users' %}">
-          <i class="fas fa-users-cog"></i>
+          <i class="fas fa-users-cog" aria-hidden="true"></i>
           <span class="sidebar-text">FW Users</span>
         </a>
       </li>
@@ -275,7 +275,7 @@
           class="nav-link {% if request.resolver_match.url_name == 'service_dashboard' %}active{% endif %}"
           href="{% url 'ops_services:service_dashboard' %}"
         >
-          <i class="fas fa-server"></i>
+          <i class="fas fa-server" aria-hidden="true"></i>
           <span class="sidebar-text">Services</span>
         </a>
       </li>
@@ -285,21 +285,21 @@
           class="nav-link {% if 'approval' in request.path %}active{% endif %}"
           href="/ops/approval/"
         >
-          <i class="fas fa-signature"></i>
+          <i class="fas fa-signature" aria-hidden="true"></i>
           <span class="sidebar-text">Approvals</span>
         </a>
       </li>
       {% endcomment %} {% comment %}
       <li class="nav-item mt-3">
         <a class="nav-link" href="/admin/">
-          <i class="fas fa-cog"></i>
+          <i class="fas fa-cog" aria-hidden="true"></i>
           <span class="sidebar-text">Admin Panel</span>
         </a>
       </li>
       {% endcomment %}
       <li class="nav-item">
         <a class="nav-link" href="{% url 'change_password' %}">
-          <i class="fas fa-key"></i>
+          <i class="fas fa-key" aria-hidden="true"></i>
           <span class="sidebar-text">Change Password</span>
         </a>
       </li>
@@ -310,7 +310,7 @@
           href="{% url 'logout' %}"
           onclick="return confirm('Are you sure you want to logout?');"
         >
-          <i class="fas fa-sign-out-alt"></i>
+          <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
           <span class="sidebar-text">Logout</span>
         </a>
       </li>
@@ -321,7 +321,7 @@
   <div class="mt-auto p-3">
     <div class="text-center">
       <small class="text-white-50">
-        <span class="real-time-indicator"></span>
+        <span class="real-time-indicator" aria-hidden="true"></span>
         <span class="sidebar-monitoring">IP/API Protection </span>
       </small>
     </div>

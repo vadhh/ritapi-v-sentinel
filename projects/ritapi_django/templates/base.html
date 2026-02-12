@@ -358,8 +358,8 @@
 </head>
 <body>
     <!-- Sidebar Toggle Button -->
-    <button class="sidebar-toggle d-md-none" id="sidebarToggleBtn2">
-        <i class="fas fa-bars"></i>
+    <button class="sidebar-toggle d-md-none" id="sidebarToggleBtn2" aria-label="Toggle Sidebar Navigation">
+        <i class="fas fa-bars" aria-hidden="true"></i>
     </button>
 
     {% include "sidebar.html" %}
@@ -379,20 +379,20 @@
                     {% comment %} <div class="me-3">
                         {% if not is_licensed %}
                             <a href="{% url 'demo-page' %}" class="btn btn-warning btn-sm">
-                                <i class="fas fa-play-circle"></i> Demo Mode
+                                <i class="fas fa-play-circle" aria-hidden="true"></i> Demo Mode
                             </a>
                        {% else %}
                         {% endif %}
                     </div> {% endcomment %}
 
-                    <button class="btn btn-outline-light me-3" id="sidebarToggleBtn1">
-                        <i class="fas fa-bars"></i>
+                    <button class="btn btn-outline-light me-3" id="sidebarToggleBtn1" aria-label="Toggle Sidebar Expansion">
+                        <i class="fas fa-bars" aria-hidden="true"></i>
                     </button>
                     
                     <!-- Monitor Status -->
                     <div class="me-3">
                         <span class="badge bg-success" id="monitorStatus">
-                            <span class="status-indicator status-online"></span>
+                            <span class="status-indicator status-online" aria-hidden="true"></span>
                             Online
                         </span>
                     </div>
