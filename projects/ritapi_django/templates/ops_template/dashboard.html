@@ -43,12 +43,13 @@
 }
 
 .stats-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-info);
     color: white;
     border-radius: 0.5rem;
     padding: 1.5rem;
     margin-bottom: 1rem;
     transition: box-shadow 0.3s ease;
+    min-height: 100px;
 }
 
 .stats-card:hover {
@@ -60,22 +61,22 @@
     opacity: 0.75;
 }
 .stats-alerts {
-    background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-    color: white;
+    background: var(--gradient-warning);
+    color: black;
 }
 
 .stats-blocked {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-info);
     color: white;
 }
 
 .stats-allowed {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    background: var(--gradient-success);
     color: white;
 }
 
 .stats-blocked-req {
-    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    background: var(--gradient-danger);
     color: white;
 }
 </style>
@@ -88,7 +89,7 @@
             <div class="card shadow-lg rounded-3">
                 <div class="card-header bg-dark text-white">
                     <h3 class="card-title mb-0">
-                        <i class="fas fa-tachometer-alt"></i>
+                        <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
                         Security Dashboard
                     </h3>
                 </div>
@@ -97,7 +98,7 @@
                     <!-- Statistik Cards -->
                     <div class="row mb-4">
                         <div class="col-md-3 col-6">
-                            <div class="stats-card stats-alerts d-flex align-items-center justify-content-between" style="height: 100px;">
+                            <div class="stats-card stats-alerts d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="mb-0">Total Alerts</h6>
                                     <h3 class="mb-0">{{ total_alerts|default:"0" }}</h3>
@@ -107,7 +108,7 @@
                         </div>
 
                         <div class="col-md-3 col-6">
-                            <div class="stats-card stats-blocked d-flex align-items-center justify-content-between" style="height: 100px;">
+                            <div class="stats-card stats-blocked d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="mb-0">Blocked IPs</h6>
                                     <h3 class="mb-0">{{ total_blocked|default:"0" }}</h3>
@@ -117,7 +118,7 @@
                         </div>
 
                         <div class="col-md-3 col-6">
-                            <div class="stats-card stats-allowed d-flex align-items-center justify-content-between" style="height: 100px;">
+                            <div class="stats-card stats-allowed d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="mb-0">Total Requests Allowed</h6>
                                     <h3 class="mb-0">{{ total_requests_allow|default:"0" }}</h3>
@@ -127,7 +128,7 @@
                         </div>
 
                         <div class="col-md-3 col-6">
-                            <div class="stats-card stats-blocked-req d-flex align-items-center justify-content-between" style="height: 100px;">
+                            <div class="stats-card stats-blocked-req d-flex align-items-center justify-content-between">
                                 <div>
                                     <h6 class="mb-0">Total Requests Blocked</h6>
                                     <h3 class="mb-0">{{ total_requests_block|default:"0" }}</h3>
