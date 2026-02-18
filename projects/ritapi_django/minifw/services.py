@@ -186,24 +186,27 @@ class MiniFWFeeds:
 
 class MiniFWService:
     """Handler untuk MiniFW-AI service operations"""
-    
+
     SERVICE_NAME = "minifw-ai"
-    
+    EVENTS_LOG = os.environ.get("MINIFW_LOG", "/opt/minifw_ai/logs/events.jsonl")
+
     @classmethod
-    def get_status(cls) -> Dict:
-        """Get service status"""
+    def _check_systemctl(cls) -> Optional[Dict]:
+        """Try systemctl status check. Returns None if systemctl is unavailable."""
         try:
             result = subprocess.run(
                 ['systemctl', 'is-active', cls.SERVICE_NAME],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=5
             )
             is_active = result.returncode == 0
 
             result = subprocess.run(
                 ['systemctl', 'is-enabled', cls.SERVICE_NAME],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=5
             )
             is_enabled = result.returncode == 0
 
@@ -212,13 +215,38 @@ class MiniFWService:
                 'enabled': is_enabled,
                 'status': 'running' if is_active else 'stopped'
             }
-        except Exception as e:
-            return {
-                'active': False,
-                'enabled': False,
-                'status': 'unknown',
-                'error': str(e)
-            }
+        except (FileNotFoundError, PermissionError, OSError, subprocess.TimeoutExpired):
+            return None
+
+    @classmethod
+    def _check_process(cls) -> bool:
+        """Check if minifw_ai process is running via /proc."""
+        try:
+            result = subprocess.run(
+                ['pgrep', '-f', 'python.*minifw_ai'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, PermissionError, OSError, subprocess.TimeoutExpired):
+            return False
+
+    @classmethod
+    def get_status(cls) -> Dict:
+        """Get service status using systemctl with process-check fallback."""
+        # Try systemctl first (works when D-Bus is accessible)
+        systemctl_result = cls._check_systemctl()
+        if systemctl_result is not None:
+            return systemctl_result
+
+        # Fallback: check if the process is running directly
+        is_active = cls._check_process()
+        return {
+            'active': is_active,
+            'enabled': False,
+            'status': 'running' if is_active else 'stopped'
+        }
     
     @classmethod
     def restart(cls) -> bool:
