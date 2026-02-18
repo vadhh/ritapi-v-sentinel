@@ -15,19 +15,14 @@
         </div>
         
         <!-- Service Status Badge -->
-        <div>
-            {% if service_status.active %}
-                <span class="badge bg-success">
-                    <i class="fas fa-check-circle" aria-hidden="true"></i> Service Running
-                </span>
-            {% else %}
-                <span class="badge bg-danger">
-                    <i class="fas fa-times-circle" aria-hidden="true"></i> Service Stopped
-                </span>
-            {% endif %}
-            
+        <div id="serviceStatusContainer">
+            <span id="serviceStatusBadge" class="badge {% if service_status.active %}bg-success{% else %}bg-danger{% endif %}">
+                <i class="fas {% if service_status.active %}fa-check-circle{% else %}fa-times-circle{% endif %}" aria-hidden="true"></i>
+                {% if service_status.active %}Service Running{% else %}Service Stopped{% endif %}
+            </span>
+
             <!-- Service Control Buttons -->
-            <div class="btn-group ms-2">
+            <div class="btn-group ms-2" id="serviceControlBtns">
                 <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="restart">
@@ -35,7 +30,7 @@
                         <i class="fas fa-sync" aria-hidden="true"></i> Restart
                     </button>
                 </form>
-                
+
                 {% if service_status.active %}
                 <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
                     {% csrf_token %}
@@ -375,6 +370,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Deployment state refresh button
     var refreshBtn = document.getElementById('refreshStateBtn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', function() {
@@ -410,6 +406,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 .finally(function() { icon.classList.remove('fa-spin'); });
         });
     }
+
+    // Service status polling — update badge and control buttons every 15s
+    function updateServiceStatus() {
+        fetch('{% url "minifw_api_service_status" %}')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var badge = document.getElementById('serviceStatusBadge');
+                if (!badge) return;
+
+                if (data.active) {
+                    badge.className = 'badge bg-success';
+                    badge.innerHTML = '<i class="fas fa-check-circle" aria-hidden="true"></i> Service Running';
+                } else {
+                    badge.className = 'badge bg-danger';
+                    badge.innerHTML = '<i class="fas fa-times-circle" aria-hidden="true"></i> Service Stopped';
+                }
+
+                // Update control buttons (stop vs start)
+                var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                var controlBtns = document.getElementById('serviceControlBtns');
+                if (!controlBtns) return;
+
+                var toggleForm = controlBtns.querySelectorAll('form')[1];
+                if (toggleForm) {
+                    var action = data.active ? 'stop' : 'start';
+                    var btnClass = data.active ? 'btn btn-sm btn-danger' : 'btn btn-sm btn-success';
+                    var iconClass = data.active ? 'fa-stop' : 'fa-play';
+                    var label = data.active ? 'Stop' : 'Start';
+                    toggleForm.querySelector('[name=action]').value = action;
+                    var btn = toggleForm.querySelector('button');
+                    btn.className = btnClass;
+                    btn.innerHTML = '<i class="fas ' + iconClass + '" aria-hidden="true"></i> ' + label;
+                }
+            })
+            .catch(function() {});
+    }
+
+    updateServiceStatus();
+    setInterval(updateServiceStatus, 15000);
 });
 </script>
 {% endblock %}
