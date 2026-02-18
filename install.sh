@@ -797,13 +797,12 @@ install_minifw_ai() {
     print_step "Copying MiniFW-AI files..."
     mkdir -p "$MINIFW_AI_DIR"
     
-    # Detect structure MiniFW-AI (bisa berbeda)
-    if [ -d "$MINIFW_SOURCE/app" ]; then
-        # Structure dengan app/ directory
-        cp -r "$MINIFW_SOURCE"/* "$MINIFW_AI_DIR/"
+    # Copy MiniFW-AI files, excluding logs/ to avoid deploying stale dev data
+    if command -v rsync &>/dev/null; then
+        rsync -a --exclude='logs/' --exclude='venv/' --exclude='__pycache__/' "$MINIFW_SOURCE/" "$MINIFW_AI_DIR/"
     else
-        # Structure langsung
         cp -r "$MINIFW_SOURCE"/* "$MINIFW_AI_DIR/"
+        rm -rf "$MINIFW_AI_DIR/logs" "$MINIFW_AI_DIR/venv" 2>/dev/null || true
     fi
     
     # Create virtual environment
