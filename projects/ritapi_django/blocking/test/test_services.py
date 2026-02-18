@@ -1,7 +1,7 @@
 from django.test import TestCase
 from unittest.mock import patch, MagicMock
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from blocking.services import BlockingService
 from blocking.models import BlockedIP
 
@@ -12,7 +12,7 @@ GEOLITE2_PATH = 'blocking.services.geoip2.database.Reader'
 class TestBlockingService(TestCase):
 
     def setUp(self):
-        self.mock_now = timezone.datetime(2025, 12, 11, 10, 0, 0, tzinfo=timezone.utc)
+        self.mock_now = datetime(2025, 12, 11, 10, 0, 0, tzinfo=dt_timezone.utc)
         self.mock_future = self.mock_now + timedelta(minutes=30)
         self.ip = "8.8.8.8"
 
