@@ -4,6 +4,8 @@ import os
 import logging
 import html
 
+logger = logging.getLogger(__name__)
+
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
@@ -11,9 +13,9 @@ def escape(text):
     return html.escape(str(text))
 
 def send_telegram_message(alert_type: str, client_ip: str, severity: str, reason: str):
-    print("Sending Telegram alert...")
+    logger.debug("Sending Telegram alert...")
     if not TELEGRAM_TOKEN or not CHAT_ID:
-        print("Telegram token or chat ID not configured.")
+        logger.warning("Telegram token or chat ID not configured.")
         return  # fail silently, avoids crashing alert system
     text = (
         f"🚨 <b>Security Alert: {escape(alert_type)}</b>\n"
@@ -31,4 +33,4 @@ def send_telegram_message(alert_type: str, client_ip: str, severity: str, reason
     try:
         requests.post(url, json=payload, timeout=5)
     except Exception:
-        pass  # prevent alert system from breaking
+        logger.exception("Failed to send Telegram message")

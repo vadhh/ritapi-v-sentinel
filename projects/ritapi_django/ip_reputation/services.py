@@ -3,7 +3,6 @@
 import logging
 import requests
 from django.utils import timezone
-from django.db import models
 from .models import IpReputation, InternalIPList
 
 logger = logging.getLogger(__name__)
