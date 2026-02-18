@@ -171,12 +171,14 @@
                                                         </button>
                                                     </td>
                                                     <td>
-                                                        {% if a.severity == "High" %}
-                                                            <span class="badge bg-danger">{{ a.severity }}</span>
-                                                        {% elif a.severity == "Medium" %}
-                                                            <span class="badge bg-warning text-dark">{{ a.severity }}</span>
+                                                        {% if a.severity == "critical" %}
+                                                            <span class="badge bg-danger">{{ a.severity|title }}</span>
+                                                        {% elif a.severity == "high" %}
+                                                            <span class="badge bg-warning text-dark">{{ a.severity|title }}</span>
+                                                        {% elif a.severity == "medium" %}
+                                                            <span class="badge bg-info text-dark">{{ a.severity|title }}</span>
                                                         {% else %}
-                                                            <span class="badge bg-info text-white">{{ a.severity }}</span>
+                                                            <span class="badge bg-success">{{ a.severity|title }}</span>
                                                         {% endif %}
                                                     </td>
                                                     <td>{{ a.timestamp|date:"M d, Y H:i" }}</td>

@@ -448,28 +448,25 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
-            
+
             if (window.innerWidth > 768) {
-                // save the current state
-                const currentState = sidebar.classList.contains('collapsed');
-                localStorage.setItem('sidebarState', currentState);
                 sidebar.classList.toggle('collapsed');
                 mainContent.classList.toggle('expanded');
+                // Save state after toggling (desktop only)
+                localStorage.setItem('sidebarState', sidebar.classList.contains('collapsed') ? 'collapsed' : 'expanded');
             } else {
                 sidebar.classList.toggle('show');
             }
-
-            // save the current state
-            const currentState = sidebar.classList.contains('collapsed');
-            localStorage.setItem('sidebarState', currentState);
         }
 
         // Initialize the sidebar state
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
-            const currentState = localStorage.getItem('sidebarState');
-            if (currentState) {
-                sidebar.classList.toggle('collapsed', currentState === 'collapsed');
+            const mainContent = document.getElementById('mainContent');
+            const isCollapsed = localStorage.getItem('sidebarState') === 'collapsed';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
             }
         });
 
@@ -623,6 +620,20 @@
         });
     </script>
     
+    <!-- Global SweetAlert2 dark theme -->
+    <script nonce="{{ request.csp_nonce }}">
+        if (typeof Swal !== 'undefined') {
+            const _swalFire = Swal.fire.bind(Swal);
+            Swal.fire = function(args) {
+                if (typeof args === 'object' && !args.background) {
+                    args.background = '#2d3748';
+                    args.color = '#cbd5e0';
+                }
+                return _swalFire(args);
+            };
+        }
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html> 

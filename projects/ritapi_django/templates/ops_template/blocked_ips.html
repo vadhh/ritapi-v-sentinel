@@ -101,9 +101,15 @@
                                     </td>
                                     <td>
                                         {% if b.active %}
-                                            <a href="{% url 'ops_unblock_ip' b.ip_address %}" class="btn btn-sm btn-success">Unblock</a>
+                                            <button class="btn btn-sm btn-success"
+                                                    onclick="confirmAction('Unblock IP', 'Are you sure you want to unblock {{ b.ip_address }}?', '{% url 'ops_unblock_ip' b.ip_address %}', 'success')">
+                                                Unblock
+                                            </button>
                                         {% else %}
-                                            <a href="{% url 'ops_block_ip_manual' b.ip_address %}" class="btn btn-sm btn-danger">Block</a>
+                                            <button class="btn btn-sm btn-danger"
+                                                    onclick="confirmAction('Block IP', 'Are you sure you want to block {{ b.ip_address }}?', '{% url 'ops_block_ip_manual' b.ip_address %}', 'warning')">
+                                                Block
+                                            </button>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -163,4 +169,23 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmAction(title, text, url, icon) {
+    Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonText: 'Yes, proceed',
+        cancelButtonText: 'Cancel'
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            window.location.href = url;
+        }
+    });
+}
+</script>
 {% endblock %}
