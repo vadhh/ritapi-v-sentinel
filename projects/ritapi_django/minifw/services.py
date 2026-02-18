@@ -11,7 +11,7 @@ from datetime import timedelta
 from typing import Dict, List, Optional
 
 from django.contrib.auth.models import User
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
 import json
 from jsonschema import validate, ValidationError
-from django.db.models import Q
 from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import JsonSchema
 import logging

@@ -3,8 +3,6 @@ from django.conf import settings
 from django.core.mail import send_mail, BadHeaderError
 from .models import Alert
 from utils.telegram_notif import send_telegram_message
-from utils.severity import determine_severity
-
 logger = logging.getLogger("alerts")
 
 class AlertService:
@@ -48,7 +46,8 @@ class AlertService:
                 logger.exception("Error sending alert email: %s", str(e))
             
         else:
-            logger.info("Alert severity '%s' ignored; email not sent.", severity)
+            if severity:
+                logger.info("Alert severity '%s' below threshold; email not sent.", severity)
         try:
             result = send_telegram_message(alert_type, ip_address, severity, detail)
             logger.info("Telegram notification sent: %s", result)
