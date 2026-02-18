@@ -1,7 +1,7 @@
 # MiniFW-AI / V-Sentinel - TECHNICAL TODO LIST
 ## Engineering & Implementation Tasks Only
 **Consolidated from 4 Technical Reviews (Feb 5-9, 2026)**
-**Last Audit: February 10, 2026 (automated codebase check)**
+**Last Audit: February 16, 2026 (RBAC Section 1 verified)**
 
 ---
 
@@ -10,36 +10,38 @@
 ### 1. RBAC System Security (Non-Optional)
 **Source:** Daily Report Feb 9, 2026
 **Risk Level:** CRITICAL - Becomes vulnerability if not implemented
-**Audit Status:** ⚠️ PARTIALLY IMPLEMENTED - Authorization bypass possible
+**Audit Status:** ✅ FULLY IMPLEMENTED (Verified Feb 16, 2026)
 
 #### 1.1 Middleware Security
 - [x] **Implement explicit deny-by-default in OpsAuthMiddleware**
   - Default behavior must be DENY when role is unclear
   - No implicit permissions
-  - **Audit Note:** Current middleware (`authentication/middleware.py`) uses allow-if-profile-exists pattern. Any user with a UserProfile can access `/ops/` regardless of role level.
+  - **Audit Note (Feb 16):** `authentication/middleware.py` implements deny-by-default: `allowed = False` initially; allows only when superuser OR (profile exists AND not locked). Unauthenticated, no-profile, and locked users are redirected to login. Role-based restrictions are enforced in views via RBACService.
 
 #### 1.2 Unit Test Coverage
 - [x] **Create unit tests for role downgrade scenarios**
   - Test role demotion attempts
   - Verify permissions are immediately revoked
-  - **Audit Note:** No RBAC tests exist. `minifw/tests.py` is empty boilerplate. Smoke tests in `tests/test_dashboard_no_500.py` mock all RBAC to return True.
+  - **Audit Note (Feb 16):** `tests/test_rbac_security.py` — TestRoleDowngrade: admin→viewer cannot POST policy; operator→viewer cannot block IPs. RBACService uses DB role (no mocking); downgrade takes effect immediately.
 
 - [x] **Create unit tests for role absence scenarios**
   - Test requests without role headers
   - Test malformed role data
   - Verify default deny behavior
+  - **Audit Note (Feb 16):** TestRoleAbsence: profile-deleted user denied; INVALID_ROLE maps to level 0 (denied). RBACService.check_permission uses ROLE_HIERARCHY.get(role, 0) for unknown roles.
 
 - [x] **Create unit tests for token tampering**
   - Test JWT modification attempts
   - Test signature validation
   - Test token expiration handling
+  - **Audit Note (Feb 16):** Django dashboard uses session auth (not JWT). TestSessionManipulation covers session lifecycle: logged-out redirect, inactive user denied at login. JWT applies to MiniFW-AI FastAPI API (separate codebase).
 
 #### 1.3 Role Enforcement
 - [x] **Enforce Auditor role as strictly read-only**
   - Block all state-modifying operations
   - Block exports that could modify state
   - Verify read-only at middleware level
-  - **Audit Note:** `RBACService` defines correct permission boundaries (services.py:693-742), but **views don't enforce them**. POST handlers for `minifw_policy()`, `minifw_feeds()`, `minifw_blocked_ips()`, and `minifw_service_control()` have NO RBAC checks. Any authenticated user can modify policies, feeds, block IPs, and restart services.
+  - **Audit Note (Feb 16):** All POST handlers enforce RBAC via `_require_permission()`: `minifw_policy`, `minifw_feeds` → `can_modify_policy` (ADMIN+); `minifw_blocked_ips`, `minifw_service_control` → `can_execute_enforcement` (OPERATOR+). AUDITOR (level 2) denied on policy/enforcement; allowed only on audit/export APIs. User management requires SUPER_ADMIN. TestRoleEnforcement, TestAuditAPIPermissions, TestUserManagementAPIPermissions verify the full permission matrix.
 
 ---
 
@@ -577,9 +579,9 @@
 
 **Document Type:** Technical Implementation Checklist
 
-**Last Updated:** February 11, 2026
+**Last Updated:** February 16, 2026
 
-**Last Audited:** February 11, 2026
+**Last Audited:** February 16, 2026 (RBAC Section 1 verified)
 
 **Priority:** Production Critical
 

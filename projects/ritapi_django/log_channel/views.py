@@ -4,7 +4,6 @@ from django.shortcuts import render
 from .models import RequestLog  
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
-from openpyxl import Workbook
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from datetime import timedelta
@@ -75,6 +74,7 @@ def export_requestlog_excel(request):
     # Dihapus: 🧩 Filter berdasarkan service
 
     # Buat workbook Excel
+    from openpyxl import Workbook
     wb = Workbook()
     ws = wb.active
     ws.title = "Request Logs"
