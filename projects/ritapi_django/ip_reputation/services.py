@@ -1,9 +1,12 @@
 # ip_reputation/services.py
 
+import logging
 import requests
 from django.utils import timezone
 from django.db import models
 from .models import IpReputation, InternalIPList
+
+logger = logging.getLogger(__name__)
 
 class IpReputationService:
     TOR_URL = "https://check.torproject.org/torbulkexitlist"
@@ -24,7 +27,7 @@ class IpReputationService:
                     lines = resp.text.strip().splitlines()
                     return set(line.strip() for line in lines if line and not line.startswith("#"))
             except Exception as e:
-                print(f"Error loading feed {url}: {e}")
+                logger.error("Error loading feed %s: %s", url, e)
             return set()
 
         if not cls.feeds_loaded:

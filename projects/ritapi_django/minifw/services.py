@@ -3,6 +3,7 @@ Service layer untuk operasi MiniFW-AI
 """
 import io
 import json
+import logging
 import os
 import re
 import subprocess
@@ -13,6 +14,8 @@ from typing import Dict, List, Optional
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 
 class MiniFWConfig:
@@ -48,7 +51,7 @@ class MiniFWConfig:
             
             return True
         except Exception as e:
-            print(f"Error saving policy: {e}")
+            logger.error("Error saving policy: %s", e)
             return False
     
     @classmethod
@@ -136,7 +139,7 @@ class MiniFWFeeds:
             
             return entries
         except Exception as e:
-            print(f"Error reading feed {feed_name}: {e}")
+            logger.error("Error reading feed %s: %s", feed_name, e)
             return []
     
     @classmethod
@@ -162,7 +165,7 @@ class MiniFWFeeds:
             
             return True
         except Exception as e:
-            print(f"Error writing feed {feed_name}: {e}")
+            logger.error("Error writing feed %s: %s", feed_name, e)
             return False
     
     @classmethod
@@ -386,7 +389,7 @@ class MiniFWStats:
             
             return events
         except Exception as e:
-            print(f"Error reading events: {e}")
+            logger.error("Error reading events: %s", e)
             return []
     
     @classmethod
@@ -479,7 +482,7 @@ class AuditService:
             )
             return True
         except Exception as e:
-            print(f"Error logging audit action: {e}")
+            logger.error("Error logging audit action: %s", e)
             return False
 
     @classmethod

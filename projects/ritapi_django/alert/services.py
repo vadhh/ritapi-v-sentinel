@@ -22,7 +22,7 @@ class AlertService:
         )
 
         # Kirim email hanya jika severity high atau critical
-        if severity.lower() in ["high", "critical"]:
+        if severity and severity.lower() in ["high", "critical"]:
             subject = f"[{severity.upper()}] Alert: {alert_type}"
             message = f"""
             Alert Detected!
@@ -50,8 +50,8 @@ class AlertService:
         else:
             logger.info("Alert severity '%s' ignored; email not sent.", severity)
         try:
-            tes= send_telegram_message(alert_type, ip_address, severity, detail)
-            print("telegram notif",tes)
+            result = send_telegram_message(alert_type, ip_address, severity, detail)
+            logger.info("Telegram notification sent: %s", result)
         except Exception:
             logger.exception("Failed to send Telegram alert")
         return alert
