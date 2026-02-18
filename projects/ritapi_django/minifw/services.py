@@ -190,9 +190,18 @@ class MiniFWService:
     SERVICE_NAME = "minifw-ai"
     EVENTS_LOG = os.environ.get("MINIFW_LOG", "/opt/minifw_ai/logs/events.jsonl")
 
+    # States reported by `systemctl is-active` on stdout.
+    # Any other output (e.g. "Failed to connect to bus: ...") means the check
+    # itself failed — return None so get_status() falls back to _check_process.
+    _KNOWN_SYSTEMCTL_STATES = frozenset({
+        'active', 'inactive', 'failed', 'activating',
+        'deactivating', 'reloading', 'maintenance',
+    })
+
     @classmethod
     def _check_systemctl(cls) -> Optional[Dict]:
-        """Try systemctl status check. Returns None if systemctl is unavailable."""
+        """Try systemctl status check. Returns None if systemctl is unavailable or
+        cannot connect to D-Bus (so caller falls back to process check)."""
         try:
             result = subprocess.run(
                 ['systemctl', 'is-active', cls.SERVICE_NAME],
@@ -200,7 +209,13 @@ class MiniFWService:
                 text=True,
                 timeout=5
             )
-            is_active = result.returncode == 0
+            state = result.stdout.strip()
+            # If stdout is not a recognised state word, systemctl failed to query
+            # the unit (e.g. D-Bus unavailable when running as www-data).
+            # Return None to trigger the pgrep fallback in get_status().
+            if state not in cls._KNOWN_SYSTEMCTL_STATES:
+                return None
+            is_active = state == 'active'
 
             result = subprocess.run(
                 ['systemctl', 'is-enabled', cls.SERVICE_NAME],
