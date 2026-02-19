@@ -13,6 +13,7 @@ def parse_bool(value):
         return False
     return str(value).lower() in ["true", "on", "1", "yes"]
 
+@login_required
 def geo_block_dashboard(request):
     """
     Dashboard to manage Geo Block rules
@@ -27,6 +28,7 @@ def geo_block_dashboard(request):
     })
 
 
+@login_required
 @require_http_methods(["POST"])
 def geo_block_create(request):
     """
@@ -59,6 +61,7 @@ def geo_block_create(request):
         return JsonResponse({"success": False, "message": str(e)}, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
 def geo_block_update(request, pk):
     """
@@ -88,6 +91,7 @@ def geo_block_update(request, pk):
         return JsonResponse({"success": False, "message": str(e)}, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
 def geo_block_delete(request, pk):
     """

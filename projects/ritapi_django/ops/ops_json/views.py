@@ -12,6 +12,7 @@ import json
 
 
 
+@login_required
 def jsonschema_dashboard(request):
     """
     Dashboard CRUD JsonSchema with modal
@@ -37,6 +38,7 @@ def get_client_ip(request):
 
 
 
+@login_required
 def jsonschema_create(request):
     if request.method == "POST":
         name = request.POST.get("name")
@@ -92,6 +94,7 @@ def jsonschema_create(request):
 
 
 
+@login_required
 def jsonschema_update(request, pk):
     schema = get_object_or_404(JsonSchema, pk=pk)
     if request.method == "POST":
@@ -153,6 +156,7 @@ def jsonschema_update(request, pk):
 
 
 
+@login_required
 def jsonschema_delete(request, pk):
     schema = get_object_or_404(JsonSchema, pk=pk)
     
@@ -187,6 +191,7 @@ def jsonschema_delete(request, pk):
 
 
 
+@login_required
 @require_POST
 def jsonschema_toggle(request, pk):
     schema = get_object_or_404(JsonSchema, pk=pk)

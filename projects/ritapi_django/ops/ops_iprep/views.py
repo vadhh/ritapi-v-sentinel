@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods
 # Hapus import Service
 # from ops.ops_services.models import Service 
 
+@login_required
 def ip_reputation_dashboard(request):
     """
     IP Reputation dashboard: check new IP + show history.
@@ -48,6 +49,7 @@ def ip_reputation_dashboard(request):
         "history": history,
     })
 
+@login_required
 def internal_ip_dashboard(request):
     """
     Dashboard to manage internal allow/deny IP list
@@ -67,6 +69,7 @@ def internal_ip_dashboard(request):
         # "services": services, 
     })
     
+@login_required
 @require_http_methods(["POST"])
 def internal_ip_create(request):
     try:
@@ -102,6 +105,7 @@ def internal_ip_create(request):
         return JsonResponse({"success": False, "message": str(e)}, status=400)
 
 
+@login_required
 @require_http_methods(["POST"])
 def internal_ip_update(request, pk):
     try:
@@ -137,6 +141,7 @@ def internal_ip_update(request, pk):
     except Exception as e:
         return JsonResponse({"success": False, "message": str(e)}, status=400)
 
+@login_required
 @require_http_methods(["POST"])
 def internal_ip_delete(request, pk):
     try:

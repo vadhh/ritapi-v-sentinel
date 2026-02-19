@@ -12,6 +12,7 @@ from blocking.services import BlockingService
 
 # ===================== BLOCKED IP MANAGEMENT =====================
 
+@login_required
 def blocked_ip_dashboard(request):
     """Blocked IP Management with search & filtering"""
     query = request.GET.get("q", "").strip()
@@ -55,6 +56,7 @@ def blocked_ip_dashboard(request):
         "error_message": error_message
     })
 
+@login_required
 def block_ip_from_alert(request, ip_address):
     """Block IP directly, typically triggered from the Alert view/template"""
     # Menggunakan BlockingService
@@ -63,6 +65,7 @@ def block_ip_from_alert(request, ip_address):
     # Ganti 'ops_blocked_ip_dashboard' dengan nama view dashboard yang benar di urls.py Anda
     return redirect("ops_blocked_ip_dashboard")
 
+@login_required
 def unblock_ip(request, ip_address):
     """Unblock IP"""
     blocked = BlockingService.unblock_ip(ip_address)
@@ -72,6 +75,7 @@ def unblock_ip(request, ip_address):
         messages.error(request, f"IP {ip_address} not found ❌")
     return redirect("ops_blocked_ip_dashboard") # Ganti dengan nama view dashboard yang benar
 
+@login_required
 def block_ip_manual(request, ip_address):
     """Manually re-block IP (default high severity permanent)."""
     blocked = BlockingService.block_ip(
@@ -86,12 +90,14 @@ def block_ip_manual(request, ip_address):
         messages.error(request, f"Failed to block IP {ip_address}")
     return redirect("ops_blocked_ip_dashboard") # Ganti dengan nama view dashboard yang benar
 
+@login_required
 def blocked_ip_map(request):
     """
     Display interactive map of blocked IPs
     """
     return render(request, "ops_template/blocked_ip_map.html")
 
+@login_required
 def blocked_ip_data(request):
     """
     JSON endpoint for map data (sent to Leaflet via fetch)

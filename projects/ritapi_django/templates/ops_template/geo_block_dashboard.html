@@ -189,8 +189,11 @@ document.addEventListener('DOMContentLoaded', function () {
         cancelButtonText: "Cancel"
       }).then((result) => {
         if (result.isConfirmed) {
+          const _deleteFormData = new FormData();
+          _deleteFormData.append('csrfmiddlewaretoken', document.querySelector('[name="csrfmiddlewaretoken"]').value);
           fetch(`/ops/geo-block/delete/${id}/`, {
             method: "POST",
+            body: _deleteFormData,
             headers: {
               "X-CSRFToken": document.querySelector('[name="csrfmiddlewaretoken"]').value,
             }

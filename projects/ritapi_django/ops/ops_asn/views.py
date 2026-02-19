@@ -8,6 +8,7 @@ from asn.services import AsnScoreService
 # Create your views here.
 
 
+@login_required
 def asn_checker(request):
     """
     Main ASN Checker view — lookup ASN by IP, show history and trust configs.
@@ -52,6 +53,7 @@ def asn_checker(request):
     return render(request, "ops_template/asn_checker.html", context)
 
 
+@login_required
 def asn_config_view(request):
     """
     View untuk menampilkan dan mencari ASN Trust Configs.
@@ -75,6 +77,7 @@ def asn_config_view(request):
     return render(request, "ops_template/asn_config.html", context)
 
 
+@login_required
 def asn_update_score(request):
     if request.method == "POST":
         asn_number = request.POST.get("asn_number")

@@ -216,6 +216,11 @@ SECURITY_ENFORCEMENT_EXCLUDED_PATHS = [
     "/ops/minifw/feeds/",
     "/ops/minifw/blocked-ips/",
     "/ops/minifw/service/",
+    # Ops sub-app form-based endpoints
+    "/change-password/",
+    "/ops/asn/asn-checker/",
+    "/ops/asn/asn-update-score/",
+    "/ops/ip-reputation/",
 ]
 
 LOGIN_URL = 'login'

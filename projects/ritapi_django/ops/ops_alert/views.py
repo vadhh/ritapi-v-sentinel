@@ -14,6 +14,7 @@ from alert.models import Alert
 
 # ===================== ALERT MANAGEMENT =====================
 
+@login_required
 def alert_dashboard(request):
     """Alert Management with search & filtering"""
     query = request.GET.get("q", "").strip()
@@ -55,19 +56,20 @@ def alert_dashboard(request):
         "error_message": error_message
     })
 
+@login_required
 def resolve_alert(request, alert_id):
     """Mark an alert as resolved"""
     alert = get_object_or_404(Alert, id=alert_id)
     alert.resolved = True
     alert.save()
     messages.success(request, f"Alert {alert.id} successfully resolved ✅")
-    # Ganti 'ops_alert_dashboard' dengan nama view alert dashboard yang benar di urls.py Anda
-    return redirect("ops_alert_dashboard")
+    return redirect("ops.ops_alert")
 
 
 # FUNGSI block_ip_from_alert DIHAPUS DARI FILE INI
 
 
+@login_required
 def alert_chart_data(request):
     """Provide JSON data for the alert severity chart"""
     period = request.GET.get("period", "all")
