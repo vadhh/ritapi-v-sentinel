@@ -29,8 +29,16 @@ class TestParseResolvedLog:
         line = "Positive cache hit for example.com. IN AAAA"
         assert parse_resolved_log(line) == ("127.0.0.1", "example.com")
 
-    def test_upstream_query(self):
-        line = "Using DNS server 1.1.1.1 for transaction 54321 (cdn.example.net)"
+    def test_lookup_rr(self):
+        line = "Looking up RR for cdn.example.net IN A"
+        assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
+
+    def test_transaction_line(self):
+        line = "Transaction 3083 for <cdn.example.net IN AAAA> scope dns on eth0/*"
+        assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
+
+    def test_cache_add(self):
+        line = "Added positive unauthenticated cache entry for cdn.example.net IN A"
         assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
 
     def test_dnssec_validation(self):
@@ -76,7 +84,7 @@ class TestStreamDnsEventsJournald:
         lines = [
             "Positive cache hit for example.com IN A\n",
             "Some irrelevant log line\n",
-            "Using DNS server 8.8.8.8 for transaction 1 (test.org)\n",
+            "Looking up RR for test.org IN A\n",
         ]
         mock_popen.return_value = _make_mock_proc(lines)
 

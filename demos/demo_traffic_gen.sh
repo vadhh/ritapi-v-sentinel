@@ -156,6 +156,18 @@ check_prereqs() {
         journald)
             if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
                 success "systemd-resolved is active (journald DNS collection enabled)"
+                # Debug logging must be enabled or resolved emits no query-level messages
+                local dropin="/etc/systemd/system/systemd-resolved.service.d/vsentinel-dns-logging.conf"
+                if [[ -f "$dropin" ]]; then
+                    success "Debug logging drop-in present ($dropin)"
+                else
+                    warn "Debug logging drop-in missing — resolved won't emit DNS query events"
+                    warn "  Fix: sudo bash install.sh   (re-run installer) or manually:"
+                    warn "  sudo mkdir -p /etc/systemd/system/systemd-resolved.service.d"
+                    warn "  echo -e '[Service]\nEnvironment=\"SYSTEMD_LOG_LEVEL=debug\"' | sudo tee $dropin"
+                    warn "  sudo systemctl daemon-reload && sudo systemctl restart systemd-resolved"
+                    ok=false
+                fi
                 if dig +short +time=2 @"$DNS_SERVER" example.com A &>/dev/null; then
                     success "DNS resolver at $DNS_SERVER is answering queries"
                 else

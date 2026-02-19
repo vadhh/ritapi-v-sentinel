@@ -66,6 +66,34 @@ print_header() {
 # DNS Environment Detection (Task 1)
 ################################################################################
 
+# Enable debug-level logging on systemd-resolved so its journal emits per-query
+# messages that collector_journald.py can parse.  Without this, resolved only
+# logs INFO-level events (clock changes, config reloads) — no query data at all.
+configure_resolved_dns_logging() {
+    local dropin_dir="/etc/systemd/system/systemd-resolved.service.d"
+    local dropin_file="${dropin_dir}/vsentinel-dns-logging.conf"
+
+    if [ -f "$dropin_file" ]; then
+        print_info "systemd-resolved debug logging already configured at $dropin_file"
+        return 0
+    fi
+
+    print_step "Enabling debug logging on systemd-resolved for DNS telemetry..."
+    mkdir -p "$dropin_dir"
+    cat > "$dropin_file" <<'EOF'
+# Written by V-Sentinel installer — required for journald DNS telemetry.
+# systemd-resolved only emits per-query log messages at debug level.
+[Service]
+Environment="SYSTEMD_LOG_LEVEL=debug"
+EOF
+
+    systemctl daemon-reload
+    systemctl restart systemd-resolved
+    print_success "systemd-resolved restarted with debug logging enabled"
+    print_info "  Drop-in: $dropin_file"
+    print_info "  To revert: rm $dropin_file && systemctl daemon-reload && systemctl restart systemd-resolved"
+}
+
 detect_dns_environment() {
     print_header "DNS Environment Detection"
     
@@ -80,6 +108,7 @@ detect_dns_environment() {
             print_warning "WILL NOT disable systemd-resolved (regulatory compliance)"
             dns_source="journald"
             dns_log_path="/run/systemd/resolve/stub-resolv.conf"
+            configure_resolved_dns_logging
         else
             print_info "systemd-resolved active but not on port 53"
         fi

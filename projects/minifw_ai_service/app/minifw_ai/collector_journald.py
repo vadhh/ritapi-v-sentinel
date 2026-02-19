@@ -25,17 +25,27 @@ import subprocess
 import time
 from typing import Iterator, Optional, Tuple
 
-# --- Patterns for systemd-resolved log lines ---
+# --- Patterns for systemd-resolved log lines (verified against systemd v245+) ---
 
-# "Positive cache hit for example.com IN A"
-_RE_CACHE_HIT = re.compile(
-    r"Positive cache hit for\s+(\S+)\s+IN\s+", re.IGNORECASE
+# "Looking up RR for example.com IN A"  — emitted for every new lookup
+_RE_LOOKUP = re.compile(
+    r"Looking up RR for\s+(\S+)\s+IN\s+", re.IGNORECASE
 )
 
-# "Using DNS server 1.1.1.1 for transaction 12345 (example.com)"
-_RE_UPSTREAM = re.compile(
-    r"Using DNS server\s+\S+\s+for transaction\s+\d+\s+\(([^)]+)\)",
-    re.IGNORECASE,
+# "Transaction 3083 for <example.com IN AAAA> scope dns on eth0/*"
+_RE_TRANSACTION = re.compile(
+    r"Transaction\s+\d+\s+for\s+<(\S+)\s+IN\s+", re.IGNORECASE
+)
+
+# "Added positive unauthenticated cache entry for example.com IN A"
+# "Added positive authenticated cache entry for example.com IN AAAA"
+_RE_CACHE_ADD = re.compile(
+    r"Added positive\s+\S+\s+cache entry for\s+(\S+)\s+IN\s+", re.IGNORECASE
+)
+
+# "Positive cache hit for example.com IN A"  (present in some systemd versions)
+_RE_CACHE_HIT = re.compile(
+    r"Positive cache hit for\s+(\S+)\s+IN\s+", re.IGNORECASE
 )
 
 # "DNSSEC validation succeeded for example.com IN A"
@@ -43,7 +53,7 @@ _RE_DNSSEC = re.compile(
     r"DNSSEC validation\s+\S+\s+for\s+(\S+)\s+IN\s+", re.IGNORECASE
 )
 
-# dnsmasq-style: "query[A] example.com from 192.168.1.5"
+# dnsmasq-style: "query[A] example.com from 192.168.1.5"  (dnsmasq forwarding via resolved)
 _RE_DNSMASQ_QUERY = re.compile(
     r"query\[\S+\]\s+(\S+)\s+from\s+(\S+)"
 )
@@ -67,8 +77,9 @@ def parse_resolved_log(line: str) -> Optional[Tuple[str, str]]:
     if m:
         return m.group(2), m.group(1)
 
-    # systemd-resolved patterns (client is always localhost)
-    for pattern in (_RE_CACHE_HIT, _RE_UPSTREAM, _RE_DNSSEC):
+    # systemd-resolved patterns (client is always localhost stub resolver)
+    # Priority: lookup > transaction > cache add > cache hit > dnssec
+    for pattern in (_RE_LOOKUP, _RE_TRANSACTION, _RE_CACHE_ADD, _RE_CACHE_HIT, _RE_DNSSEC):
         m = pattern.search(line)
         if m:
             domain = m.group(1).rstrip(".")
