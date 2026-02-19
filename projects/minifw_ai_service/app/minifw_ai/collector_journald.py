@@ -32,15 +32,19 @@ _RE_LOOKUP = re.compile(
     r"Looking up RR for\s+(\S+)\s+IN\s+", re.IGNORECASE
 )
 
+# "Regular transaction 3083 for <example.com IN AAAA> scope dns on eth0/*"
 # "Transaction 3083 for <example.com IN AAAA> scope dns on eth0/*"
+# re.IGNORECASE handles the optional qualifier word(s) before "transaction"
 _RE_TRANSACTION = re.compile(
-    r"Transaction\s+\d+\s+for\s+<(\S+)\s+IN\s+", re.IGNORECASE
+    r"transaction\s+\d+\s+for\s+<(\S+)\s+IN\s+", re.IGNORECASE
 )
 
+# "Added positive unauthenticated non-confidential cache entry for example.com IN A"
 # "Added positive unauthenticated cache entry for example.com IN A"
 # "Added positive authenticated cache entry for example.com IN AAAA"
+# .*? consumes any number of qualifier words between "positive" and "cache entry"
 _RE_CACHE_ADD = re.compile(
-    r"Added positive\s+\S+\s+cache entry for\s+(\S+)\s+IN\s+", re.IGNORECASE
+    r"Added positive\b.*?\bcache entry for\s+(\S+)\s+IN\s+", re.IGNORECASE
 )
 
 # "Positive cache hit for example.com IN A"  (present in some systemd versions)

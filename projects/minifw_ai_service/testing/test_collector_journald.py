@@ -37,7 +37,18 @@ class TestParseResolvedLog:
         line = "Transaction 3083 for <cdn.example.net IN AAAA> scope dns on eth0/*"
         assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
 
+    def test_transaction_line_regular_prefix(self):
+        # systemd-resolved v255 emits "Regular transaction N for ..."
+        line = "Regular transaction 3083 for <cdn.example.net IN AAAA> scope dns on ens33/*"
+        assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
+
     def test_cache_add(self):
+        # systemd-resolved v255 uses two qualifier words: "unauthenticated non-confidential"
+        line = "Added positive unauthenticated non-confidential cache entry for cdn.example.net IN A"
+        assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
+
+    def test_cache_add_single_qualifier(self):
+        # Older systemd versions use a single qualifier word
         line = "Added positive unauthenticated cache entry for cdn.example.net IN A"
         assert parse_resolved_log(line) == ("127.0.0.1", "cdn.example.net")
 

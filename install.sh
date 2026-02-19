@@ -345,6 +345,8 @@ After=network.target
 # If dnsmasq is present, wait for it; otherwise continue without it
 After=dnsmasq.service
 # No Wants= - do not try to start dnsmasq if not configured
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -364,6 +366,10 @@ Environment="MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl"
 # Load environment configuration (includes DNS source and degraded mode)
 EnvironmentFile=-/etc/ritapi/vsentinel.env
 
+# Route Python stdout/stderr to journald so crash output is visible
+StandardOutput=journal
+StandardError=journal
+
 # Task 3: Fail-Open Telemetry, Fail-Closed Security
 # Service will not exit with error if DNS source is unavailable
 ExecStart=/opt/minifw_ai/venv/bin/python -m minifw_ai
@@ -371,8 +377,6 @@ ExecStart=/opt/minifw_ai/venv/bin/python -m minifw_ai
 # Task 3: Restart policy with backoff to prevent restart storms
 Restart=always
 RestartSec=10
-StartLimitIntervalSec=300
-StartLimitBurst=5
 
 [Install]
 WantedBy=multi-user.target

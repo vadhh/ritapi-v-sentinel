@@ -35,7 +35,7 @@ _detect_vm_ip() {
     if [[ -f "$env_file" && -r "$env_file" ]]; then
         local hosts
         hosts=$(grep '^DJANGO_ALLOWED_HOSTS=' "$env_file" 2>/dev/null | cut -d= -f2)
-        ip=$(echo "$hosts" | tr ',' '\n' | grep -vE '^(localhost|127\.|::1)$' | head -1)
+        ip=$(echo "$hosts" | tr ',' '\n' | grep -vE '^(localhost|127\..+|::1)$' | head -1)
     fi
     [[ -z "$ip" ]] && ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
     [[ -z "$ip" ]] && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
@@ -229,6 +229,19 @@ check_prereqs() {
     else
         warn "MiniFW events not reachable at $MINIFW_EVENTS_URL"
         warn "  Check: sudo systemctl status ritapi-gunicorn.service minifw-ai.service"
+    fi
+
+    # events.jsonl liveness — if absent MiniFW-AI is crash-looping at startup
+    local events_log="/opt/minifw_ai/logs/events.jsonl"
+    if [[ -f "$events_log" ]]; then
+        local event_count
+        event_count=$(wc -l < "$events_log" 2>/dev/null || echo 0)
+        success "Events log exists: $events_log ($event_count events)"
+    else
+        warn "Events log not found: $events_log"
+        warn "  MiniFW-AI may be crashing at startup. Check:"
+        warn "  sudo journalctl -u minifw-ai.service -n 50"
+        ok=false
     fi
 
     echo ""
