@@ -13,6 +13,7 @@ env/
 .env
 *.env
 !scripts/vsentinel.env.template
+TECHNICAL_TODO_List.md
 
 # Django
 db.sqlite3
@@ -37,7 +38,9 @@ build/
 *~
 .project
 .settings/
-
+CLAUDE.md
+GEMINI.md
+    
 # OS files
 .DS_Store
 Thumbs.db
