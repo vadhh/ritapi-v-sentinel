@@ -27,8 +27,24 @@ set -euo pipefail
 
 # --- Configuration -----------------------------------------------------------
 DNS_SERVER="${DNS_SERVER:-127.0.0.1}"
-DEMO_VM_IP="${DEMO_VM_IP:-$(hostname -I | awk '{print $1}')}"
-DJANGO_DASHBOARD_URL="${DJANGO_DASHBOARD_URL:-http://localhost}"
+
+# Derive VM IP from installed production config (set by install.sh ensure_allowed_hosts).
+# Falls back to ip route (same method install.sh uses), then hostname -I.
+_detect_vm_ip() {
+    local env_file="/etc/ritapi/vsentinel.env"
+    local ip=""
+    if [[ -f "$env_file" && -r "$env_file" ]]; then
+        local hosts
+        hosts=$(grep '^DJANGO_ALLOWED_HOSTS=' "$env_file" 2>/dev/null | cut -d= -f2)
+        ip=$(echo "$hosts" | tr ',' '\n' | grep -vE '^(localhost|127\.|::1)$' | head -1)
+    fi
+    [[ -z "$ip" ]] && ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+    [[ -z "$ip" ]] && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    echo "${ip:-localhost}"
+}
+
+DEMO_VM_IP="${DEMO_VM_IP:-$(_detect_vm_ip)}"
+DJANGO_DASHBOARD_URL="${DJANGO_DASHBOARD_URL:-http://${DEMO_VM_IP}}"
 MINIFW_EVENTS_URL="${MINIFW_EVENTS_URL:-${DJANGO_DASHBOARD_URL}/ops/minifw/events}"
 
 # Policy file paths (production then dev fallback)
@@ -129,6 +145,9 @@ check_prereqs() {
         warn "Policy file not found at either $POLICY_JSON_PROD or $POLICY_JSON_DEV"
         ok=false
     fi
+
+    info "Resolved VM IP: $DEMO_VM_IP (source: /etc/ritapi/vsentinel.env DJANGO_ALLOWED_HOSTS)"
+    info "Dashboard URL:  $DJANGO_DASHBOARD_URL"
 
     # MiniFW events dashboard reachability (via Django)
     info "Testing MiniFW events viewer at $MINIFW_EVENTS_URL ..."
@@ -470,10 +489,10 @@ Options:
   -h, --help        Show this help
 
 Environment variables:
-  DNS_SERVER        DNS to target (default: 127.0.0.1)
-  DEMO_VM_IP        VM public IP (default: auto-detected)
-  MINIFW_EVENTS_URL     MiniFW events URL (default: http://localhost/ops/minifw/events)
-  DJANGO_DASHBOARD_URL  Django dashboard URL (default: http://localhost)
+  DNS_SERVER            DNS to target (default: 127.0.0.1)
+  DEMO_VM_IP            Override detected VM IP (auto-read from /etc/ritapi/vsentinel.env)
+  DJANGO_DASHBOARD_URL  Override dashboard base URL (default: http://<detected-ip>)
+  MINIFW_EVENTS_URL     Override events URL (default: http://<detected-ip>/ops/minifw/events)
 
 Examples:
   DNS_SERVER=10.0.0.1 ./demos/demo_traffic_gen.sh --scenario A

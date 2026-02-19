@@ -23,10 +23,12 @@ sudo systemctl status ritapi-gunicorn.service
 # 4. Clear any old block entries
 sudo nft flush set inet filter minifw_block_v4
 
-# 5. Open browser tabs:
-#    Tab 1: http://<VM_IP>/ops/minifw/events/    (MiniFW Events Viewer — Django)
-#    Tab 2: http://<VM_IP>/blocking/              (Django Blocked IPs)
-#    Tab 3: http://<VM_IP>/ops/minifw/audit-logs/ (MiniFW Audit Log — Django)
+# 5. Confirm the detected dashboard URL:
+./demos/demo_traffic_gen.sh --check
+#    Then open browser tabs:
+#    Tab 1: http://<detected-ip>/ops/minifw/events/    (MiniFW Events Viewer)
+#    Tab 2: http://<detected-ip>/blocking/              (Django Blocked IPs)
+#    Tab 3: http://<detected-ip>/ops/minifw/audit-logs/ (MiniFW Audit Log)
 ```
 
 ---
