@@ -26,7 +26,6 @@
 set -euo pipefail
 
 # --- Configuration -----------------------------------------------------------
-DNS_SERVER="${DNS_SERVER:-127.0.0.1}"
 
 # Derive VM IP from installed production config (set by install.sh ensure_allowed_hosts).
 # Falls back to ip route (same method install.sh uses), then hostname -I.
@@ -43,7 +42,40 @@ _detect_vm_ip() {
     echo "${ip:-localhost}"
 }
 
+# Detect MINIFW_DNS_SOURCE from installed config, falling back to service inspection.
+# Mirrors install.sh detect_dns_environment() logic so DNS_SERVER default is correct.
+_detect_dns_source() {
+    local env_file="/etc/ritapi/vsentinel.env"
+    local source=""
+    if [[ -f "$env_file" && -r "$env_file" ]]; then
+        source=$(grep '^MINIFW_DNS_SOURCE=' "$env_file" 2>/dev/null | cut -d= -f2)
+    fi
+    # If env unreadable or still 'none', infer from running services
+    if [[ -z "$source" || "$source" == "none" ]]; then
+        if systemctl is-active --quiet systemd-resolved 2>/dev/null && \
+           ss -tlnp 2>/dev/null | grep -q ':53 '; then
+            source="journald"
+        elif command -v dnsmasq &>/dev/null && \
+             systemctl is-active --quiet dnsmasq 2>/dev/null; then
+            source="file"
+        else
+            source="none"
+        fi
+    fi
+    echo "$source"
+}
+
 DEMO_VM_IP="${DEMO_VM_IP:-$(_detect_vm_ip)}"
+_MINIFW_DNS_SOURCE="${MINIFW_DNS_SOURCE:-$(_detect_dns_source)}"
+
+# In journald mode queries must reach systemd-resolved's stub (127.0.0.53).
+# In file/udp mode dnsmasq answers on 127.0.0.1.
+if [[ "$_MINIFW_DNS_SOURCE" == "journald" ]]; then
+    DNS_SERVER="${DNS_SERVER:-127.0.0.53}"
+else
+    DNS_SERVER="${DNS_SERVER:-127.0.0.1}"
+fi
+
 DJANGO_DASHBOARD_URL="${DJANGO_DASHBOARD_URL:-http://${DEMO_VM_IP}}"
 MINIFW_EVENTS_URL="${MINIFW_EVENTS_URL:-${DJANGO_DASHBOARD_URL}/ops/minifw/events}"
 
@@ -118,14 +150,43 @@ check_prereqs() {
         warn "hping3 not found — Scenario C disabled. Install: sudo apt install hping3"
     fi
 
-    # DNS reachability
-    info "Testing DNS at $DNS_SERVER ..."
-    if dig +short +time=2 @"$DNS_SERVER" example.com A &>/dev/null; then
-        success "DNS server $DNS_SERVER is reachable"
-    else
-        warn "DNS server $DNS_SERVER unreachable — check dnsmasq is running"
-        ok=false
-    fi
+    # DNS reachability — varies by configured telemetry source
+    info "DNS telemetry source: $_MINIFW_DNS_SOURCE  |  DNS server: $DNS_SERVER"
+    case "$_MINIFW_DNS_SOURCE" in
+        journald)
+            if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+                success "systemd-resolved is active (journald DNS collection enabled)"
+                if dig +short +time=2 @"$DNS_SERVER" example.com A &>/dev/null; then
+                    success "DNS resolver at $DNS_SERVER is answering queries"
+                else
+                    warn "DNS resolver at $DNS_SERVER not answering — demo queries may not generate events"
+                fi
+            else
+                warn "systemd-resolved is not active — journald DNS collection unavailable"
+                ok=false
+            fi
+            ;;
+        file)
+            if dig +short +time=2 @"$DNS_SERVER" example.com A &>/dev/null; then
+                success "DNS server $DNS_SERVER is reachable (dnsmasq)"
+            else
+                warn "DNS server $DNS_SERVER unreachable — check dnsmasq is running"
+                ok=false
+            fi
+            ;;
+        udp)
+            if dig +short +time=2 @"$DNS_SERVER" example.com A &>/dev/null; then
+                success "DNS server $DNS_SERVER is reachable (UDP mode)"
+            else
+                warn "DNS server $DNS_SERVER unreachable — check UDP DNS source"
+                ok=false
+            fi
+            ;;
+        none|*)
+            warn "DNS source is 'none' — Scenarios A/B/D will not generate MiniFW events"
+            warn "Install dnsmasq or ensure systemd-resolved is active, then re-run install.sh"
+            ;;
+    esac
 
     # Policy file
     local pf
@@ -146,8 +207,8 @@ check_prereqs() {
         ok=false
     fi
 
-    info "Resolved VM IP: $DEMO_VM_IP (source: /etc/ritapi/vsentinel.env DJANGO_ALLOWED_HOSTS)"
-    info "Dashboard URL:  $DJANGO_DASHBOARD_URL"
+    info "Resolved VM IP:  $DEMO_VM_IP (source: /etc/ritapi/vsentinel.env DJANGO_ALLOWED_HOSTS)"
+    info "Dashboard URL:   $DJANGO_DASHBOARD_URL"
 
     # MiniFW events dashboard reachability (via Django)
     info "Testing MiniFW events viewer at $MINIFW_EVENTS_URL ..."
@@ -489,7 +550,8 @@ Options:
   -h, --help        Show this help
 
 Environment variables:
-  DNS_SERVER            DNS to target (default: 127.0.0.1)
+  DNS_SERVER            DNS to target (auto: 127.0.0.53 for journald, 127.0.0.1 for file/udp)
+  MINIFW_DNS_SOURCE     Override detected source (journald|file|udp|none)
   DEMO_VM_IP            Override detected VM IP (auto-read from /etc/ritapi/vsentinel.env)
   DJANGO_DASHBOARD_URL  Override dashboard base URL (default: http://<detected-ip>)
   MINIFW_EVENTS_URL     Override events URL (default: http://<detected-ip>/ops/minifw/events)
