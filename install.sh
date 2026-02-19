@@ -831,43 +831,50 @@ install_minifw_ai() {
         cat > "$MINIFW_AI_DIR/config/policy.json" << 'EOF'
 {
   "segments": {
-    "critical": {
+    "default": {
+      "block_threshold": 60,
+      "monitor_threshold": 40
+    },
+    "student": {
+      "block_threshold": 40,
+      "monitor_threshold": 20
+    },
+    "staff": {
       "block_threshold": 80,
       "monitor_threshold": 60
     },
-    "production": {
-      "block_threshold": 75,
-      "monitor_threshold": 50
-    },
-    "staging": {
-      "block_threshold": 85,
-      "monitor_threshold": 65
-    },
-    "default": {
-      "block_threshold": 70,
-      "monitor_threshold": 45
+    "admin": {
+      "block_threshold": 90,
+      "monitor_threshold": 70
     }
   },
   "segment_subnets": {
-    "critical": [],
-    "production": [],
-    "staging": [],
-    "default": []
+    "student": ["10.10.0.0/16"],
+    "staff": ["10.20.0.0/16"],
+    "admin": ["10.30.0.0/16"]
   },
   "features": {
-    "dns_weight": 40,
-    "sni_weight": 35,
+    "dns_weight": 41,
+    "sni_weight": 34,
     "asn_weight": 15,
-    "burst_weight": 10
+    "burst_weight": 10,
+    "mlp_weight": 30,
+    "yara_weight": 35
   },
   "enforcement": {
-    "enabled": true,
-    "ipset_name": "minifw_block_v4",
-    "ip_timeout_seconds": 86400
+    "ipset_name_v4": "minifw_block_v4",
+    "ip_timeout_seconds": 86400,
+    "nft_table": "inet",
+    "nft_chain": "forward"
+  },
+  "collectors": {
+    "dnsmasq_log_path": "/var/log/dnsmasq.log",
+    "zeek_ssl_log_path": "/var/log/zeek/ssl.log",
+    "use_zeek_sni": false
   },
   "burst": {
-    "window_seconds": 10,
-    "threshold": 100
+    "dns_queries_per_minute_monitor": 121,
+    "dns_queries_per_minute_block": 240
   }
 }
 EOF

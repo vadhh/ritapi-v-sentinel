@@ -24,9 +24,9 @@ sudo systemctl status ritapi-gunicorn.service
 sudo nft flush set inet filter minifw_block_v4
 
 # 5. Open browser tabs:
-#    Tab 1: http://<VM_IP>:8080/admin/events  (MiniFW Events Viewer)
-#    Tab 2: http://<VM_IP>:8000/blocking/     (Django Blocked IPs)
-#    Tab 3: http://<VM_IP>:8080/admin/audit   (MiniFW Audit Log)
+#    Tab 1: http://<VM_IP>/ops/minifw/events/    (MiniFW Events Viewer — Django)
+#    Tab 2: http://<VM_IP>/blocking/              (Django Blocked IPs)
+#    Tab 3: http://<VM_IP>/ops/minifw/audit-logs/ (MiniFW Audit Log — Django)
 ```
 
 ---
@@ -251,10 +251,12 @@ sudo systemctl status ritapi-gunicorn.service
 sudo apt install hping3
 ```
 
-### MiniFW admin not reachable
+### MiniFW events not reachable via Django
 ```bash
-sudo systemctl start minifw-ai.service
+sudo systemctl status ritapi-gunicorn.service minifw-ai.service
 sudo journalctl -u minifw-ai.service --no-pager -n 50
+# Verify Nginx is proxying correctly:
+curl -I http://localhost/ops/minifw/events/
 ```
 
 ---

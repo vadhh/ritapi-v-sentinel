@@ -28,8 +28,8 @@ set -euo pipefail
 # --- Configuration -----------------------------------------------------------
 DNS_SERVER="${DNS_SERVER:-127.0.0.1}"
 DEMO_VM_IP="${DEMO_VM_IP:-$(hostname -I | awk '{print $1}')}"
-MINIFW_ADMIN_URL="${MINIFW_ADMIN_URL:-http://localhost:8080}"
-DJANGO_DASHBOARD_URL="${DJANGO_DASHBOARD_URL:-http://localhost:8000}"
+DJANGO_DASHBOARD_URL="${DJANGO_DASHBOARD_URL:-http://localhost}"
+MINIFW_EVENTS_URL="${MINIFW_EVENTS_URL:-${DJANGO_DASHBOARD_URL}/ops/minifw/events}"
 
 # Policy file paths (production then dev fallback)
 POLICY_JSON_PROD="/opt/minifw_ai/config/policy.json"
@@ -130,13 +130,13 @@ check_prereqs() {
         ok=false
     fi
 
-    # MiniFW admin reachability
-    info "Testing MiniFW admin at $MINIFW_ADMIN_URL ..."
-    if curl -sf --max-time 3 "$MINIFW_ADMIN_URL/health" &>/dev/null 2>&1 || \
-       curl -sf --max-time 3 "$MINIFW_ADMIN_URL/" &>/dev/null 2>&1; then
-        success "MiniFW admin reachable at $MINIFW_ADMIN_URL"
+    # MiniFW events dashboard reachability (via Django)
+    info "Testing MiniFW events viewer at $MINIFW_EVENTS_URL ..."
+    if curl -sf --max-time 3 -o /dev/null -w "%{http_code}" "$MINIFW_EVENTS_URL/" 2>/dev/null | grep -qE "^(200|302|301)$"; then
+        success "MiniFW events viewer reachable at $MINIFW_EVENTS_URL"
     else
-        warn "MiniFW admin not responding at $MINIFW_ADMIN_URL — check minifw-ai.service"
+        warn "MiniFW events not reachable at $MINIFW_EVENTS_URL"
+        warn "  Check: sudo systemctl status ritapi-gunicorn.service minifw-ai.service"
     fi
 
     echo ""
@@ -229,7 +229,7 @@ EOF
         "judionline-staging.local"
     )
 
-    pause "Open the Events Viewer: ${MINIFW_ADMIN_URL}/admin/events
+    pause "Open the Events Viewer: ${MINIFW_EVENTS_URL}/
 Switch to another terminal and watch this run."
 
     info "Sending ${#domains[@]} queries to $DNS_SERVER for denied domains..."
@@ -270,7 +270,7 @@ WHAT HAPPENS:
   This demonstrates escalation: ALLOW → MONITOR → BLOCK
 
 EOF
-    pause "Open Events Viewer: ${MINIFW_ADMIN_URL}/admin/events
+    pause "Open Events Viewer: ${MINIFW_EVENTS_URL}/
 Watch for burst_behavior reason and score escalation."
 
     local count=0
@@ -333,7 +333,7 @@ EOF
         return 0
     fi
 
-    pause "Open Events Viewer: ${MINIFW_ADMIN_URL}/admin/events
+    pause "Open Events Viewer: ${MINIFW_EVENTS_URL}/
 This will launch a 10-second SYN flood to $DEMO_VM_IP port 80.
 Watch for score=100, reason=burst_flood, action=BLOCK."
 
@@ -366,7 +366,7 @@ WHAT HAPPENS:
   → BLOCK in student segment (threshold=40) or with demo policy
 
 EOF
-    pause "Open Events Viewer: ${MINIFW_ADMIN_URL}/admin/events
+    pause "Open Events Viewer: ${MINIFW_EVENTS_URL}/
 Watch for multiple reasons on a single event."
 
     info "Phase 1: Querying denied domains while ramping up rate..."
@@ -429,12 +429,12 @@ run_all() {
 
   VM IP:          $DEMO_VM_IP
   DNS Server:     $DNS_SERVER
-  MiniFW Admin:   $MINIFW_ADMIN_URL
+  MiniFW Events:  $MINIFW_EVENTS_URL/
   Django Dash:    $DJANGO_DASHBOARD_URL
 
 EOF
     pause "Confirm demo environment:
-  1. MiniFW admin tab open: ${MINIFW_ADMIN_URL}/admin/events
+  1. MiniFW admin tab open: ${MINIFW_EVENTS_URL}/
   2. Django dashboard tab open: ${DJANGO_DASHBOARD_URL}/blocking/
   3. Terminal 2 ready for: sudo nft list set inet filter minifw_block_v4
   4. Policy mode: run --setup-demo-policy first for BLOCK events"
@@ -472,8 +472,8 @@ Options:
 Environment variables:
   DNS_SERVER        DNS to target (default: 127.0.0.1)
   DEMO_VM_IP        VM public IP (default: auto-detected)
-  MINIFW_ADMIN_URL  MiniFW admin URL (default: http://localhost:8080)
-  DJANGO_DASHBOARD_URL  Django URL (default: http://localhost:8000)
+  MINIFW_EVENTS_URL     MiniFW events URL (default: http://localhost/ops/minifw/events)
+  DJANGO_DASHBOARD_URL  Django dashboard URL (default: http://localhost)
 
 Examples:
   DNS_SERVER=10.0.0.1 ./demos/demo_traffic_gen.sh --scenario A
