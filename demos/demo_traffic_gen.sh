@@ -510,6 +510,93 @@ Watch for multiple reasons on a single event."
   → Compare with Scenario A (single reason, score=41)"
 }
 
+# --- Inject demo events directly into events.jsonl --------------------------
+inject_demo_events() {
+    header "Injecting Demo Events into Dashboard"
+    local events_log="/opt/minifw_ai/logs/events.jsonl"
+    local events_dir
+    events_dir="$(dirname "$events_log")"
+
+    # Ensure directory exists (needs root if /opt/minifw_ai is owned by root)
+    if [[ ! -d "$events_dir" ]]; then
+        info "Creating log directory: $events_dir"
+        mkdir -p "$events_dir" 2>/dev/null || sudo mkdir -p "$events_dir" || {
+            warn "Cannot create $events_dir — try running with sudo"
+            return 1
+        }
+    fi
+    if [[ ! -w "$events_dir" ]]; then
+        warn "$events_dir is not writable by current user — retrying with sudo tee"
+        _USE_SUDO_TEE=1
+    else
+        _USE_SUDO_TEE=0
+    fi
+
+    # Build a spread of timestamps over the last 10 minutes (oldest first)
+    # python3 generates one ISO timestamp per offset in seconds from now
+    local timestamps
+    timestamps=$(python3 - <<'PYEOF'
+from datetime import datetime, timezone, timedelta
+import sys
+now = datetime.now(timezone.utc)
+offsets = [600, 540, 480, 420, 380, 340, 300, 270, 240, 210,
+           180, 160, 140, 120, 100,  80,  60,  40,  20,   5]
+for s in offsets:
+    print((now - timedelta(seconds=s)).isoformat())
+PYEOF
+    )
+    readarray -t TS <<< "$timestamps"
+
+    # 20 realistic events: block/monitor/allow across all scenario types
+    # Format: ts|segment|client_ip|domain|action|score|reasons|sector
+    local -a EVENTS=(
+        "${TS[0]}|default|10.0.1.51|slots-burst.example.com|monitor|41|[\"dns_denied_domain\"]|ESTABLISHMENT"
+        "${TS[1]}|default|10.0.1.51|casino-demo.local|monitor|41|[\"dns_denied_domain\"]|ESTABLISHMENT"
+        "${TS[2]}|default|10.0.1.51|slots-burst.example.com|monitor|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[3]}|student|10.0.2.30|judionline-staging.local|block|41|[\"dns_denied_domain\"]|ESTABLISHMENT"
+        "${TS[4]}|default|10.0.1.51|malware-test.example.com|monitor|41|[\"dns_denied_domain\"]|ESTABLISHMENT"
+        "${TS[5]}|default|10.0.1.75|api.google.com|allow|0|[]|ESTABLISHMENT"
+        "${TS[6]}|default|10.0.1.51|slots-burst.example.com|monitor|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[7]}|default|10.0.1.90|cdn.cloudflare.com|allow|0|[]|ESTABLISHMENT"
+        "${TS[8]}|default|10.0.1.51|slots1.example.com|block|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[9]}|student|10.0.2.31|casino-promo.example.com|block|41|[\"dns_denied_domain\"]|ESTABLISHMENT"
+        "${TS[10]}|default|10.0.1.52|slots2.example.com|block|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[11]}|default|10.0.1.51|slots3.example.com|block|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[12]}|default|10.0.1.99|update.microsoft.com|allow|0|[]|ESTABLISHMENT"
+        "${TS[13]}|default|10.0.1.55|slots-multi.example.com|monitor|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[14]}|default|10.0.1.56|casino-multi.example.com|monitor|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[15]}|default|10.0.1.57|malware-multi.example.com|monitor|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+        "${TS[16]}|default|10.0.1.51|slots-syn.example.com|block|100|[\"pps_saturation\",\"hard_threat_gate_override\"]|ESTABLISHMENT"
+        "${TS[17]}|default|10.0.1.51|slots-burst.example.com|block|100|[\"burst_flood\",\"hard_threat_gate_override\"]|ESTABLISHMENT"
+        "${TS[18]}|default|10.0.1.60|cdn.example.net|allow|0|[]|ESTABLISHMENT"
+        "${TS[19]}|default|10.0.1.51|judionline-final.local|block|51|[\"dns_denied_domain\",\"burst_behavior\"]|ESTABLISHMENT"
+    )
+
+    info "Writing ${#EVENTS[@]} demo events to $events_log ..."
+    local count=0
+    for ev in "${EVENTS[@]}"; do
+        IFS='|' read -r ts seg ip dom action score reasons sector <<< "$ev"
+        local line
+        line=$(printf '{"ts":"%s","segment":"%s","client_ip":"%s","domain":"%s","action":"%s","score":%s,"reasons":%s,"sector":"%s"}' \
+            "$ts" "$seg" "$ip" "$dom" "$action" "$score" "$reasons" "$sector")
+        if [[ "$_USE_SUDO_TEE" -eq 1 ]]; then
+            echo "$line" | sudo tee -a "$events_log" > /dev/null
+        else
+            echo "$line" >> "$events_log"
+        fi
+        count=$((count + 1))
+    done
+
+    success "Injected $count events into $events_log"
+    echo ""
+    info "Open the dashboard to see them:"
+    info "  Events viewer:  ${MINIFW_EVENTS_URL}/"
+    info "  Main dashboard: ${DJANGO_DASHBOARD_URL}/minifw/"
+    echo ""
+    info "To clear injected events (reset to empty):"
+    info "  sudo truncate -s 0 $events_log"
+}
+
 # --- Show blocked IPs --------------------------------------------------------
 show_blocked_ips() {
     header "Current nftables Block Set"
@@ -570,6 +657,7 @@ Options:
   --all             Full demo sequence (all scenarios)
   --setup-demo-policy  Lower policy thresholds for cleaner BLOCK demos
   --restore-policy     Restore production thresholds
+  --inject-events   Write 20 demo events directly to events.jsonl (no MiniFW-AI needed)
   --check           Check prerequisites
   --show-blocked    Show current nftables block set
   -h, --help        Show this help
@@ -600,6 +688,7 @@ case "${1:-}" in
     --all)             run_all ;;
     --setup-demo-policy) setup_demo_policy ;;
     --restore-policy)  restore_policy ;;
+    --inject-events)   inject_demo_events ;;
     --check)           check_prereqs ;;
     --show-blocked)    show_blocked_ips ;;
     -h|--help)         usage ;;
@@ -607,6 +696,7 @@ case "${1:-}" in
         usage
         echo ""
         info "Tip: Run --check first to verify prerequisites."
+        info "Tip: Run --inject-events to populate the dashboard immediately (no MiniFW-AI pipeline needed)."
         ;;
     *)
         echo "Unknown option: $1"
