@@ -11,6 +11,8 @@ PYTHON_DEMO="$SCRIPT_DIR/demo_ritapi_dashboard.py"
 # 1. Automatic Venv Detection
 if [ -f "$DJANGO_DIR/venv/bin/python" ]; then
     VENV_PYTHON="$DJANGO_DIR/venv/bin/python"
+elif [ -f "/opt/ritapi_v_sentinel/venv/bin/python" ]; then
+    VENV_PYTHON="/opt/ritapi_v_sentinel/venv/bin/python"
 elif [ -f "$PROJECT_ROOT/.venv/bin/python" ]; then
     VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
 elif command -v python3 &>/dev/null; then
