@@ -104,16 +104,23 @@ def seed_request_logs():
         )
 
 def seed_blocked_ips():
-    print("Injecting blocked IPs...")
-    ips = ['45.33.22.11', '185.22.33.44', '99.88.77.66', '123.123.123.123']
-    for ip in ips:
+    print("Injecting blocked IPs with Geo-coordinates...")
+    # IP, Reason, Country, Lat, Lon
+    targets = [
+        ('45.33.22.11', "SQL Injection", "US", 37.75, -122.41),
+        ('185.22.33.44', "Brute Force", "RU", 55.75, 37.61),
+        ('99.88.77.66', "Botnet Activity", "CN", 39.90, 116.40),
+        ('123.123.123.123', "DDoS", "NL", 52.36, 4.89)
+    ]
+    for ip, reason, country, lat, lon in targets:
         BlockedIP.objects.update_or_create(
             ip_address=ip,
             defaults={
-                'reason': "Repeated login failures and port scanning detected.",
+                'reason': reason,
                 'severity': random.choice(['high', 'critical']),
-                'country': "RU",
-                'country_name': "Russian Federation",
+                'country': country,
+                'latitude': lat,
+                'longitude': lon,
                 'active': True
             }
         )
