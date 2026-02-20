@@ -2,48 +2,49 @@
 # RITAPI Sentinel - Demo Controller
 # Usage: ./demos/demo_ctl.sh {seed|reset}
 
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
 # Resolve paths
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-DJANGO_DIR="$PROJECT_ROOT/projects/ritapi_django"
 PYTHON_DEMO="$SCRIPT_DIR/demo_ritapi_dashboard.py"
 
-# 1. Automatic Venv Detection
-if [ -f "$DJANGO_DIR/venv/bin/python" ]; then
-    VENV_PYTHON="$DJANGO_DIR/venv/bin/python"
-elif [ -f "/opt/ritapi_v_sentinel/venv/bin/python" ]; then
-    VENV_PYTHON="/opt/ritapi_v_sentinel/venv/bin/python"
+# Production Detection
+PRODUCTION_ROOT="/opt/ritapi_v_sentinel"
+if [ -d "$PRODUCTION_ROOT" ]; then
+    VENV_PYTHON="$PRODUCTION_ROOT/venv/bin/python"
+    DJANGO_DIR="$PRODUCTION_ROOT"
+elif [ -f "$PROJECT_ROOT/projects/ritapi_django/venv/bin/python" ]; then
+    VENV_PYTHON="$PROJECT_ROOT/projects/ritapi_django/venv/bin/python"
+    DJANGO_DIR="$PROJECT_ROOT/projects/ritapi_django"
 elif [ -f "$PROJECT_ROOT/.venv/bin/python" ]; then
     VENV_PYTHON="$PROJECT_ROOT/.venv/bin/python"
-elif command -v python3 &>/dev/null; then
-    VENV_PYTHON="python3"
+    DJANGO_DIR="$PROJECT_ROOT/projects/ritapi_django"
 else
-    echo "Error: Python 3 not found. Please ensure python3 is installed."
-    exit 1
+    VENV_PYTHON="python3"
+    DJANGO_DIR="$PROJECT_ROOT/projects/ritapi_django"
 fi
 
-# 2. Set Demo Environment Variables
-# These defaults ensure the script works even if /etc/ritapi/vsentinel.env is missing
-export DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-"demo-secret-key-12345"}
-export DATABASE_URL=${DATABASE_URL:-"sqlite:///$DJANGO_DIR/demo_db.sqlite3"}
-export DJANGO_SETTINGS_MODULE="ritapi_v_sentinel.settings"
+# Set working directory for Django environment
+cd "$DJANGO_DIR"
 
 case "$1" in
     seed)
-        echo ">>> SEEDING RITAPI DEMO DATA..."
+        echo -e "${BLUE}>>> INJECTING RITAPI DEMO DATA...${NC}"
         $VENV_PYTHON "$PYTHON_DEMO"
-        echo ">>> Done. Dashboard: http://157.66.9.210/ops/"
-        echo ">>> Credentials: admin / admin123"
         ;;
     reset)
-        echo ">>> RESETTING RITAPI DEMO DATA..."
+        echo -e "${RED}>>> REMOVING RITAPI DEMO DATA...${NC}"
         $VENV_PYTHON "$PYTHON_DEMO" --reset
-        echo ">>> Done. Database is now clean."
         ;;
     *)
         echo "Usage: $0 {seed|reset}"
-        echo "  seed  - Populate dashboard with sample alerts, logs, and events"
-        echo "  reset - Clear all demo data for a fresh start"
+        echo "  seed  - Inject realistic sample data into existing database"
+        echo "  reset - Wipe sample logs/alerts for a fresh start"
         exit 1
         ;;
 esac
