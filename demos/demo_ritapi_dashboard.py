@@ -190,3 +190,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+curl -X POST http://157.66.9.210/api/v1/user \
+        -H "Content-Type: application/json" \
+        -d '{"username": "v-sentinel-user", "email":
+"user@example.com"}'
+

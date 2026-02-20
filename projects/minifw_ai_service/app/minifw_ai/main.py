@@ -312,10 +312,17 @@ def run():
     # NEW: Conntrack flow stream for baseline tracking
     conntrack_path = os.environ.get("MINIFW_CONNTRACK_PATH", "/proc/net/nf_conntrack")
     flow_iter = None
-    try:
-        flow_iter = stream_conntrack_flows(conntrack_path)
-    except Exception:
-        logging.warning("Failed to start conntrack flow stream - hard gates may be degraded", exc_info=True)
+    if Path(conntrack_path).exists():
+        try:
+            flow_iter = stream_conntrack_flows(conntrack_path)
+            logging.info(f"[FLOW] Conntrack tracking enabled: {conntrack_path}")
+        except Exception:
+            logging.warning("Failed to start conntrack flow stream - hard gates may be degraded", exc_info=True)
+    else:
+        logging.warning(
+            f"[FLOW] Conntrack unavailable at {conntrack_path} — "
+            "flow tracking disabled (hard threat gates degraded)"
+        )
 
     flow_freq_window = _safe_int_cast(os.environ.get("MINIFW_FLOW_FREQ_WINDOW_SEC"), 60)
     flow_freq_threshold = _safe_int_cast(os.environ.get("MINIFW_FLOW_FREQ_THRESHOLD"), 200)
