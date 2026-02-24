@@ -19,6 +19,8 @@ import argparse
 from pathlib import Path
 import warnings
 
+import pytest
+
 # Add app to path
 script_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(script_dir / 'app'))
@@ -28,40 +30,30 @@ from minifw_ai.collector_flow import FlowTracker, FlowStats, build_feature_vecto
 try:
     from minifw_ai.utils.mlp_engine import MLPThreatDetector, FEATURE_NAMES
     MLP_AVAILABLE = True
-except ImportError as e:
-    print(f"ERROR: MLP engine not available: {e}")
-    print("\nInstall dependencies:")
-    print("  pip install scikit-learn pandas numpy")
-    sys.exit(1)
+except ImportError:
+    MLP_AVAILABLE = False
+
+_DEFAULT_MODEL_PATH = str(script_dir / 'models' / 'mlp_engine.pkl')
 
 
-def test_1_model_loading(model_path: str):
+def _get_detector(model_path=None):
+    """Return a loaded detector or pytest.skip if unavailable."""
+    if not MLP_AVAILABLE:
+        pytest.skip("scikit-learn/pandas not installed")
+    path = model_path or _DEFAULT_MODEL_PATH
+    if not Path(path).exists():
+        pytest.skip(f"MLP model not found: {path}")
+    detector = MLPThreatDetector(model_path=path, threshold=0.5)
+    if not detector.model_loaded:
+        pytest.skip("MLP model failed to load")
+    return detector
+
+
+def test_1_model_loading():
     """Test 1: Model loading and initialization."""
-    print("\n[TEST 1] MLP Model Loading")
-    print("=" * 70)
-    
-    if not Path(model_path).exists():
-        print(f"❌ FAIL: Model file not found: {model_path}")
-        return False
-    
-    try:
-        detector = MLPThreatDetector(model_path=model_path, threshold=0.5)
-        
-        if not detector.model_loaded:
-            print("❌ FAIL: Model not loaded")
-            return False
-        
-        print(f"✓ Model loaded: {model_path}")
-        print(f"  Threshold: {detector.threshold}")
-        print(f"  Scaler available: {detector.scaler is not None}")
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    detector = _get_detector()
+    assert detector.model_loaded, "Model not loaded"
+    assert detector.threshold == 0.5
 
 
 def test_2_feature_names():
@@ -115,58 +107,28 @@ def test_2_feature_names():
         return False
 
 
-def test_3_no_feature_warnings(model_path: str):
-    """Test 3: CRITICAL - No feature name warnings (DataFrame fix)."""
-    print("\n[TEST 3] Feature Name Warning Check (CRITICAL FIX)")
-    print("=" * 70)
-    
-    try:
-        detector = MLPThreatDetector(model_path=model_path)
-        tracker = FlowTracker()
-        
-        # Capture warnings
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            
-            # Test flow 1: Normal
-            flow1 = tracker.update_flow('192.168.1.100', '8.8.8.8', 443, 'tcp', pkt_size=1500)
-            for _ in range(50):
-                flow1.update(pkt_size=1500, direction='out')
-            
-            is_threat1, proba1 = detector.is_suspicious(flow1, return_probability=True)
-            
-            # Test flow 2: Suspicious pattern
-            flow2 = tracker.update_flow('192.168.1.101', '1.2.3.4', 80, 'tcp', pkt_size=100)
-            for _ in range(200):
-                flow2.update(pkt_size=100, direction='out')
-            
-            is_threat2, proba2 = detector.is_suspicious(flow2, return_probability=True)
-            
-            # Check for feature name warnings
-            feature_warnings = [warning for warning in w 
-                              if "feature names" in str(warning.message).lower()]
-            
-            if feature_warnings:
-                print("❌ FAIL: Feature name warnings detected!")
-                print("  This means DataFrame fix not applied correctly.")
-                for warning in feature_warnings:
-                    print(f"  Warning: {warning.message}")
-                return False
-        
-        print("✓ NO feature name warnings (DataFrame fix working!)")
-        
-        print(f"\nTest Results:")
-        print(f"  Flow 1 (Normal): threat={is_threat1}, proba={proba1:.4f}")
-        print(f"  Flow 2 (Suspicious): threat={is_threat2}, proba={proba2:.4f}")
-        
-        print("\n✓ CRITICAL FIX VERIFIED: DataFrame with FEATURE_NAMES working")
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+def test_3_no_feature_warnings():
+    """Test 3: No sklearn feature-name warnings (DataFrame fix)."""
+    detector = _get_detector()
+    tracker = FlowTracker()
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
+        flow1 = tracker.update_flow('192.168.1.100', '8.8.8.8', 443, 'tcp', pkt_size=1500)
+        for _ in range(50):
+            flow1.update(pkt_size=1500, direction='out')
+        detector.is_suspicious(flow1, return_probability=True)
+
+        flow2 = tracker.update_flow('192.168.1.101', '1.2.3.4', 80, 'tcp', pkt_size=100)
+        for _ in range(200):
+            flow2.update(pkt_size=100, direction='out')
+        detector.is_suspicious(flow2, return_probability=True)
+
+        feature_warnings = [warning for warning in w
+                            if "feature names" in str(warning.message).lower()]
+
+    assert not feature_warnings, f"Feature name warnings detected: {feature_warnings}"
 
 
 def test_4_hard_threat_gates():
@@ -264,7 +226,7 @@ def test_4_hard_threat_gates():
         return False
 
 
-def test_5_hard_gate_overrides_mlp(model_path: str):
+def test_5_hard_gate_overrides_mlp():
     """Test 5: Hard gates override MLP decisions."""
     print("\n[TEST 5] Hard Gates Override MLP")
     print("=" * 70)
@@ -276,7 +238,7 @@ def test_5_hard_gate_overrides_mlp(model_path: str):
             monitor_threshold = 40
             block_threshold = 60
         
-        detector = MLPThreatDetector(model_path=model_path)
+        detector = _get_detector()
         tracker = FlowTracker()
         thresholds = SimpleThresholds()
         
@@ -349,15 +311,15 @@ def test_5_hard_gate_overrides_mlp(model_path: str):
         return False
 
 
-def test_6_end_to_end(model_path: str):
+def test_6_end_to_end():
     """Test 6: End-to-end simulation."""
     print("\n[TEST 6] End-to-End Simulation")
     print("=" * 70)
     
     try:
-        detector = MLPThreatDetector(model_path=model_path)
+        detector = _get_detector()
         tracker = FlowTracker()
-        
+
         print("\nSimulating: DNS → Flow → Hard Gates → MLP → Decision")
         
         client_ip = "192.168.1.100"

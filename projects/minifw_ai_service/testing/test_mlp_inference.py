@@ -12,6 +12,8 @@ import argparse
 from pathlib import Path
 import json
 
+import pytest
+
 # Add app to path
 script_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(script_dir / 'app'))
@@ -22,12 +24,32 @@ try:
     from sklearn.metrics import classification_report, confusion_matrix
     PANDAS_AVAILABLE = True
 except ImportError:
-    print("ERROR: pandas and scikit-learn required")
-    print("Install with: pip install pandas scikit-learn")
-    sys.exit(1)
+    PANDAS_AVAILABLE = False
 
 from minifw_ai.utils.mlp_engine import MLPThreatDetector
 from minifw_ai.collector_flow import FlowStats, build_feature_vector_24
+
+_MODEL_PATH = script_dir / 'models' / 'mlp_engine.pkl'
+
+
+@pytest.fixture
+def mlp_detector_fixture():
+    if not PANDAS_AVAILABLE:
+        pytest.skip("pandas/scikit-learn not installed")
+    if not _MODEL_PATH.exists():
+        pytest.skip(f"MLP model not found: {_MODEL_PATH}")
+    detector = MLPThreatDetector(model_path=str(_MODEL_PATH))
+    if not detector.model_loaded:
+        pytest.skip("MLP model failed to load")
+    return detector
+
+
+def test_mlp_single_inference(mlp_detector_fixture):
+    _run_single_inference(mlp_detector_fixture)
+
+
+def test_mlp_model_info(mlp_detector_fixture):
+    _run_model_info(mlp_detector_fixture)
 
 
 def create_flow_from_record(record: dict) -> FlowStats:
@@ -61,7 +83,7 @@ def create_flow_from_record(record: dict) -> FlowStats:
     return flow
 
 
-def test_single_inference(detector: MLPThreatDetector):
+def _run_single_inference(detector: MLPThreatDetector):
     """Test single flow inference."""
     print("\n[TEST 1] Single Flow Inference")
     print("=" * 60)
@@ -100,7 +122,7 @@ def test_single_inference(detector: MLPThreatDetector):
         print("  ✗ Classified as normal")
 
 
-def test_batch_inference(detector: MLPThreatDetector, data_path: str):
+def _run_batch_inference(detector: MLPThreatDetector, data_path: str):
     """Test batch inference on dataset."""
     print("\n[TEST 2] Batch Inference on Dataset")
     print("=" * 60)
@@ -186,7 +208,7 @@ def test_batch_inference(detector: MLPThreatDetector, data_path: str):
             print(f"  {row.get('client_ip', 'N/A'):15s} -> {row.get('domain', 'N/A'):30s} [P={probabilities[idx]:.3f}]")
 
 
-def test_model_info(detector: MLPThreatDetector):
+def _run_model_info(detector: MLPThreatDetector):
     """Display model information."""
     print("\n[MODEL INFO]")
     print("=" * 60)
@@ -246,14 +268,14 @@ def main():
         print("✓ Model loaded successfully")
         
         # Test single inference
-        test_single_inference(detector)
-        
+        _run_single_inference(detector)
+
         # Test batch inference if data provided
         if args.data:
-            test_batch_inference(detector, args.data)
-        
+            _run_batch_inference(detector, args.data)
+
         # Model info
-        test_model_info(detector)
+        _run_model_info(detector)
         
         print("\n" + "=" * 60)
         print("✓ All tests completed!")

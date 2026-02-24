@@ -31,7 +31,7 @@ class TestSectorLock:
     def setup_method(self):
         """Reset singleton state before each test."""
         # Reset the singleton for clean tests
-        from app.minifw_ai import sector_lock
+        from minifw_ai import sector_lock
         sector_lock._sector_lock = None
         sector_lock.SectorLock._instance = None
         sector_lock.SectorLock._initialized = False
@@ -40,7 +40,7 @@ class TestSectorLock:
         """Test that sector loads correctly from MINIFW_SECTOR env var."""
         monkeypatch.setenv("MINIFW_SECTOR", "school")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         
         assert lock.get_sector() == "school"
@@ -52,7 +52,7 @@ class TestSectorLock:
         """Test hospital sector loading."""
         monkeypatch.setenv("MINIFW_SECTOR", "hospital")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         
         assert lock.get_sector() == "hospital"
@@ -63,7 +63,7 @@ class TestSectorLock:
         """Test that sector matching is case-insensitive."""
         monkeypatch.setenv("MINIFW_SECTOR", "SCHOOL")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         
         assert lock.get_sector() == "school"
@@ -73,7 +73,7 @@ class TestSectorLock:
         """Test that invalid sector raises RuntimeError."""
         monkeypatch.setenv("MINIFW_SECTOR", "invalid_sector")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         
         with pytest.raises(RuntimeError, match="Invalid Sector"):
             get_sector_lock()
@@ -83,10 +83,10 @@ class TestSectorLock:
         # Remove env var and ensure no lock file exists
         monkeypatch.delenv("MINIFW_SECTOR", raising=False)
         # Monkey-patch the paths to non-existent locations
-        from app.minifw_ai import sector_lock
+        from minifw_ai import sector_lock
         monkeypatch.setattr(sector_lock, 'LOCK_FILE_PATH', Path('/nonexistent/path.json'))
         monkeypatch.setattr(sector_lock, 'DEV_LOCK_FILE_PATH', Path('/nonexistent/dev.json'))
-        
+
         with pytest.raises(RuntimeError, match="Missing Sector"):
             sector_lock.get_sector_lock()
     
@@ -94,7 +94,7 @@ class TestSectorLock:
         """Test that school sector config has SafeSearch enabled."""
         monkeypatch.setenv("MINIFW_SECTOR", "school")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         config = lock.get_sector_config()
         
@@ -106,7 +106,7 @@ class TestSectorLock:
         """Test that hospital sector config has IoMT priority."""
         monkeypatch.setenv("MINIFW_SECTOR", "hospital")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         config = lock.get_sector_config()
         
@@ -117,7 +117,7 @@ class TestSectorLock:
         """Test that finance sector blocks Tor."""
         monkeypatch.setenv("MINIFW_SECTOR", "finance")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         config = lock.get_sector_config()
         
@@ -128,7 +128,7 @@ class TestSectorLock:
         """Test that government sector has geo-IP restrictions."""
         monkeypatch.setenv("MINIFW_SECTOR", "government")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         config = lock.get_sector_config()
         
@@ -139,7 +139,7 @@ class TestSectorLock:
         """Test that legal sector watches for data exfiltration."""
         monkeypatch.setenv("MINIFW_SECTOR", "legal")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         config = lock.get_sector_config()
         
@@ -150,7 +150,7 @@ class TestSectorLock:
         """Test that establishment sector has balanced defaults."""
         monkeypatch.setenv("MINIFW_SECTOR", "establishment")
         
-        from app.minifw_ai.sector_lock import get_sector_lock
+        from minifw_ai.sector_lock import get_sector_lock
         lock = get_sector_lock()
         config = lock.get_sector_config()
         
@@ -161,7 +161,7 @@ class TestSectorLock:
         """Test that SectorLock is a true singleton."""
         monkeypatch.setenv("MINIFW_SECTOR", "school")
         
-        from app.minifw_ai.sector_lock import get_sector_lock, SectorLock
+        from minifw_ai.sector_lock import get_sector_lock, SectorLock
         
         lock1 = get_sector_lock()
         lock2 = get_sector_lock()
@@ -176,8 +176,8 @@ class TestSectorConfig:
     
     def test_get_threshold_adjustment_school(self):
         """Test threshold adjustment for school sector."""
-        from app.minifw_ai.sector_config import get_threshold_adjustment
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import get_threshold_adjustment
+        from models.user import SectorType
         
         block_adj = get_threshold_adjustment(SectorType.SCHOOL, "block")
         monitor_adj = get_threshold_adjustment(SectorType.SCHOOL, "monitor")
@@ -187,8 +187,8 @@ class TestSectorConfig:
     
     def test_get_threshold_adjustment_hospital(self):
         """Test threshold adjustment for hospital sector."""
-        from app.minifw_ai.sector_config import get_threshold_adjustment
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import get_threshold_adjustment
+        from models.user import SectorType
         
         monitor_adj = get_threshold_adjustment(SectorType.HOSPITAL, "monitor")
         
@@ -196,8 +196,8 @@ class TestSectorConfig:
     
     def test_get_extra_feeds_school(self):
         """Test extra feeds for school sector."""
-        from app.minifw_ai.sector_config import get_extra_feeds
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import get_extra_feeds
+        from models.user import SectorType
         
         feeds = get_extra_feeds(SectorType.SCHOOL)
         
@@ -205,8 +205,8 @@ class TestSectorConfig:
     
     def test_should_force_safesearch(self):
         """Test SafeSearch check for different sectors."""
-        from app.minifw_ai.sector_config import should_force_safesearch
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import should_force_safesearch
+        from models.user import SectorType
         
         assert should_force_safesearch(SectorType.SCHOOL) is True
         assert should_force_safesearch(SectorType.HOSPITAL) is False
@@ -214,16 +214,16 @@ class TestSectorConfig:
     
     def test_should_block_vpns(self):
         """Test VPN blocking check for different sectors."""
-        from app.minifw_ai.sector_config import should_block_vpns
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import should_block_vpns
+        from models.user import SectorType
         
         assert should_block_vpns(SectorType.SCHOOL) is True
         assert should_block_vpns(SectorType.HOSPITAL) is False
     
     def test_is_iomt_priority(self):
         """Test IoMT priority check for different sectors."""
-        from app.minifw_ai.sector_config import is_iomt_priority
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import is_iomt_priority
+        from models.user import SectorType
         
         assert is_iomt_priority(SectorType.HOSPITAL) is True
         assert is_iomt_priority(SectorType.SCHOOL) is False
@@ -235,7 +235,7 @@ class TestSectorTypeEnum:
     
     def test_all_six_sectors_exist(self):
         """Verify all 6 required sectors exist."""
-        from app.models.user import SectorType
+        from models.user import SectorType
         
         expected_sectors = {"hospital", "school", "government", "finance", "legal", "establishment"}
         actual_sectors = {s.value for s in SectorType}
@@ -244,7 +244,7 @@ class TestSectorTypeEnum:
     
     def test_obsolete_sectors_removed(self):
         """Verify obsolete sectors (corporate, general) are removed."""
-        from app.models.user import SectorType
+        from models.user import SectorType
         
         sector_values = {s.value for s in SectorType}
         

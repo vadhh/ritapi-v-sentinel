@@ -136,6 +136,7 @@ jobs:
         env:
           MINIFW_SECRET_KEY: test-secret-key-for-ci-only
           MINIFW_ADMIN_PASSWORD: test-admin-pass-ci
+          GAMBLING_ONLY: "1"
         run: |
           echo "🧪 Running MiniFW-AI tests..."
           pytest testing/ -v --cov=app --cov-report=xml --cov-report=term || echo "⚠️ Some tests failed"

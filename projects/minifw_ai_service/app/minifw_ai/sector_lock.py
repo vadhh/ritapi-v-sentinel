@@ -53,7 +53,7 @@ class SectorLock:
     def _get_valid_sectors(self) -> list[str]:
         """Get list of valid sector values."""
         # Import here to avoid circular imports
-        from app.models.user import SectorType
+        from models.user import SectorType
         return [s.value for s in SectorType]
 
     def _load_sector(self) -> None:
@@ -113,8 +113,8 @@ class SectorLock:
 
     def _load_config(self) -> None:
         """Load sector-specific policy configuration."""
-        from app.minifw_ai.sector_config import SECTOR_POLICIES
-        from app.models.user import SectorType
+        from minifw_ai.sector_config import SECTOR_POLICIES
+        from models.user import SectorType
         
         try:
             sector_enum = SectorType(self._sector)

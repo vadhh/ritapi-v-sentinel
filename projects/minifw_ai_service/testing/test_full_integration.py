@@ -17,59 +17,56 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 # Add app to path
 script_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(script_dir / 'app'))
 
-print("=" * 70)
-print("MiniFW-AI Comprehensive Integration Test")
-print("MLP + Flow Collector + YARA Scanner")
-print("=" * 70)
-print()
-
-# Check dependencies
-missing_deps = []
-
-try:
-    from minifw_ai.collector_flow import FlowTracker, FlowStats, build_feature_vector_24
-    print("✓ Flow Collector available")
-except ImportError as e:
-    print(f"❌ Flow Collector not available: {e}")
-    missing_deps.append("Flow Collector")
+from minifw_ai.collector_flow import FlowTracker, FlowStats, build_feature_vector_24
 
 try:
     from minifw_ai.utils.mlp_engine import MLPThreatDetector
-    print("✓ MLP Engine available")
     MLP_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠ MLP Engine not available: {e}")
-    print("  (Install scikit-learn to enable)")
+except ImportError:
     MLP_AVAILABLE = False
 
 try:
     from minifw_ai.utils.yara_scanner import YARAScanner
-    print("✓ YARA Scanner available")
     YARA_AVAILABLE = True
-except ImportError as e:
-    print(f"⚠ YARA Scanner not available: {e}")
-    print("  (Install yara-python to enable)")
+except ImportError:
     YARA_AVAILABLE = False
 
-if missing_deps:
-    print(f"\n❌ Missing dependencies: {', '.join(missing_deps)}")
-    sys.exit(1)
-
-print()
+_MODEL_PATH = script_dir / 'models' / 'mlp_engine.pkl'
+_RULES_DIR = script_dir / 'yara_rules'
 
 
-def test_flow_tracking():
+@pytest.fixture
+def tracker():
+    return FlowTracker(flow_timeout=300)
+
+
+@pytest.fixture
+def mlp_detector():
+    if not MLP_AVAILABLE:
+        return None
+    if not _MODEL_PATH.exists():
+        return None
+    det = MLPThreatDetector(model_path=str(_MODEL_PATH), threshold=0.5)
+    return det if det.model_loaded else None
+
+
+@pytest.fixture
+def yara_scanner():
+    if not YARA_AVAILABLE or not _RULES_DIR.exists():
+        return None
+    scanner = YARAScanner(rules_dir=str(_RULES_DIR))
+    return scanner if scanner.rules_loaded else None
+
+
+def test_flow_tracking(tracker):
     """Test 1: Flow tracking and feature extraction."""
-    print("[TEST 1] Flow Tracking & Feature Extraction")
-    print("=" * 70)
-    
     try:
-        tracker = FlowTracker(flow_timeout=300)
-        
         # Simulate some flows
         test_flows = [
             ('192.168.1.100', '8.8.8.8', 443, 'tcp', 'google.com'),
@@ -101,119 +98,57 @@ def test_flow_tracking():
             print(f"    Packets: {features[1]:.0f}")
             print(f"    Bytes/sec: {features[3]:.2f}")
         
-        print("\n✓ Flow tracking OK")
-        return True, tracker
-        
-    except Exception as e:
-        print(f"\n❌ FAIL: {e}")
-        import traceback
-        traceback.print_exc()
-        return False, None
-
-
-def test_mlp_detection(tracker):
-    """Test 2: MLP threat detection."""
-    print("\n[TEST 2] MLP Threat Detection")
-    print("=" * 70)
-    
-    if not MLP_AVAILABLE:
-        print("⚠ MLP not available, skipping")
-        return True, None
-    
-    # Check if model exists
-    model_path = script_dir / 'models' / 'mlp_engine.pkl'
-    
-    if not model_path.exists():
-        print(f"⚠ Model not found: {model_path}")
-        print("  Train a model first or skip MLP tests")
-        return True, None
-    
-    try:
-        detector = MLPThreatDetector(model_path=str(model_path), threshold=0.5)
-        
-        if not detector.model_loaded:
-            print("⚠ Model not loaded")
-            return True, None
-        
-        print(f"\n✓ Model loaded: {model_path}")
-        
-        # Test inference on flows
-        flows = tracker.get_all_active_flows()
-        
+        assert len(flows) == 3
         for flow in flows:
-            is_threat, proba = detector.is_suspicious(flow, return_probability=True)
-            
-            print(f"\n  Flow: {flow.client_ip} -> {flow.domain}")
-            print(f"    Threat: {is_threat}")
-            print(f"    Probability: {proba:.4f}")
-            print(f"    Result: {'⚠ THREAT' if is_threat else '✓ Normal'}")
-        
-        print("\n✓ MLP detection OK")
-        return True, detector
-        
+            features = build_feature_vector_24(flow)
+            assert len(features) == 24
+
     except Exception as e:
-        print(f"\n❌ FAIL: {e}")
         import traceback
         traceback.print_exc()
-        return False, None
+        pytest.fail(str(e))
 
 
-def test_yara_scanning():
-    """Test 3: YARA payload scanning."""
-    print("\n[TEST 3] YARA Payload Scanning")
-    print("=" * 70)
-    
-    if not YARA_AVAILABLE:
-        print("⚠ YARA not available, skipping")
-        return True, None
-    
-    rules_dir = script_dir / 'yara_rules'
-    
-    if not rules_dir.exists():
-        print(f"⚠ YARA rules not found: {rules_dir}")
-        return True, None
-    
-    try:
-        scanner = YARAScanner(rules_dir=str(rules_dir))
-        
-        if not scanner.rules_loaded:
-            print("⚠ YARA rules not loaded")
-            return True, None
-        
-        print(f"\n✓ Rules loaded from: {rules_dir}")
-        
-        # Test payloads
-        test_payloads = [
-            ('Gambling site', 'slot gacor online deposit pulsa tanpa potongan'),
-            ('Normal site', 'welcome to our professional website'),
-            ('Malware', 'powershell -enc base64encodedcommand'),
-            ('SQL injection', "username=' OR 1=1--"),
-        ]
-        
-        for name, payload in test_payloads:
-            matches = scanner.scan_payload(payload)
-            
-            print(f"\n  Payload: {name}")
-            print(f"    Text: {payload[:50]}...")
-            
-            if matches:
-                print(f"    ⚠ DETECTED: {len(matches)} match(es)")
-                for match in matches:
-                    print(f"      - {match.rule} ({match.get_category()}, {match.get_severity()})")
-            else:
-                print(f"    ✓ Clean")
-        
-        print("\n✓ YARA scanning OK")
-        return True, scanner
-        
-    except Exception as e:
-        print(f"\n❌ FAIL: {e}")
-        import traceback
-        traceback.print_exc()
-        return False, None
+def test_mlp_detection(tracker, mlp_detector):
+    """Test 2: MLP threat detection (skipped if model unavailable)."""
+    if mlp_detector is None:
+        pytest.skip("MLP model not available")
+
+    # populate tracker with flows
+    test_flows = [
+        ('192.168.1.100', '8.8.8.8', 443, 'tcp', 'google.com'),
+        ('192.168.1.100', '1.2.3.4', 443, 'tcp', 'slot-gacor.xyz'),
+    ]
+    for client_ip, dst_ip, dst_port, proto, domain in test_flows:
+        flow = tracker.update_flow(client_ip, dst_ip, dst_port, proto, pkt_size=1500)
+        for _ in range(50):
+            flow.update(pkt_size=1500, direction='out')
+        tracker.enrich_with_dns(client_ip, domain)
+        flow.domain = domain
+
+    flows = tracker.get_all_active_flows()
+    for flow in flows:
+        is_threat, proba = mlp_detector.is_suspicious(flow, return_probability=True)
+        assert is_threat in (True, False)
+        assert 0.0 <= proba <= 1.0
 
 
-def test_decision_integration(tracker, mlp_detector, yara_scanner):
+def test_yara_scanning(yara_scanner):
+    """Test 3: YARA payload scanning (skipped if rules unavailable)."""
+    if yara_scanner is None:
+        pytest.skip("YARA scanner/rules not available")
+
+    test_payloads = [
+        'slot gacor online deposit pulsa tanpa potongan',
+        'welcome to our professional website',
+        'powershell -enc base64encodedcommand',
+    ]
+    for payload in test_payloads:
+        matches = yara_scanner.scan_payload(payload)
+        assert isinstance(matches, list)
+
+
+def test_decision_integration(tracker, mlp_detector, yara_scanner):  # noqa: F811
     """Test 4: Integrated decision making."""
     print("\n[TEST 4] Integrated Decision Making")
     print("=" * 70)
@@ -420,62 +355,6 @@ def test_end_to_end():
     return True
 
 
-def main():
-    """Main test runner."""
-    
-    tests = []
-    
-    # Test 1: Flow tracking (always runs)
-    success, tracker = test_flow_tracking()
-    tests.append(("Flow Tracking", success))
-    
-    if not success:
-        print("\n❌ Flow tracking failed, cannot continue")
-        sys.exit(1)
-    
-    # Test 2: MLP (optional)
-    success, mlp_detector = test_mlp_detection(tracker)
-    tests.append(("MLP Detection", success))
-    
-    # Test 3: YARA (optional)
-    success, yara_scanner = test_yara_scanning()
-    tests.append(("YARA Scanning", success))
-    
-    # Test 4: Integration
-    success = test_decision_integration(tracker, mlp_detector, yara_scanner)
-    tests.append(("Decision Integration", success))
-    
-    # Test 5: End-to-end
-    success = test_end_to_end()
-    tests.append(("End-to-End", success))
-    
-    # Summary
-    print("\n" + "=" * 70)
-    print("TEST SUMMARY")
-    print("=" * 70)
-    
-    passed = sum(1 for _, result in tests if result)
-    total = len(tests)
-    
-    for test_name, result in tests:
-        status = "✓ PASS" if result else "❌ FAIL"
-        print(f"{status} - {test_name}")
-    
-    print(f"\nTotal: {passed}/{total} tests passed")
-    
-    # Component status
-    print("\nComponents Status:")
-    print(f"  Flow Collector: ✓ Available")
-    print(f"  MLP Engine: {'✓ Available' if MLP_AVAILABLE else '⚠ Not available'}")
-    print(f"  YARA Scanner: {'✓ Available' if YARA_AVAILABLE else '⚠ Not available'}")
-    
-    if passed == total:
-        print("\n✓ All tests passed! Full integration working.")
-        sys.exit(0)
-    else:
-        print(f"\n❌ {total - passed} test(s) failed")
-        sys.exit(1)
-
-
 if __name__ == "__main__":
-    main()
+    import subprocess
+    subprocess.run([sys.executable, "-m", "pytest", __file__, "-v"])
