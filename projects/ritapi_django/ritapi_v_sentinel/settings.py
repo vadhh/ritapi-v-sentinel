@@ -31,9 +31,10 @@ if env_file.exists():
 elif local_env.exists():
     environ.Env.read_env(local_env)
 else:
-    # Allow running without env file for some cases or raise meaningful error
-    if 'test' not in sys.argv:
-         raise Exception(f"Unified env file not found at: {env_file} or {local_env}")
+    import os
+    # Allow CI / container environments where vars are injected directly
+    if 'test' not in sys.argv and not os.environ.get('DJANGO_SECRET_KEY'):
+        raise Exception(f"Unified env file not found at: {env_file} or {local_env}")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
