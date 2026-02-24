@@ -573,7 +573,7 @@ install_system_dependencies() {
     apt-get update -qq
     
     print_step "Installing required packages..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
         python3 \
         python3-pip \
         python3-venv \
@@ -589,7 +589,7 @@ install_system_dependencies() {
         curl \
         wget \
         nginx \
-        > /dev/null 2>&1
+        || { print_error "Package installation failed. Check network connectivity or run 'sudo apt-get install -y python3 build-essential libpq-dev postgresql redis-server nftables ipset nginx' to diagnose."; exit 1; }
     
     print_success "System dependencies installed"
 }
