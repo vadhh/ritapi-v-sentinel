@@ -1,6 +1,9 @@
 from fastapi import Request, HTTPException
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
+from app.models.user import User, UserRole
+from app.services.rbac_service import RBACService
 from app.services.policy.get_policy_service import (
     get_policy,
     get_segments,
@@ -53,25 +56,40 @@ def policy_controller(request: Request):
 
 
 def add_segment_controller(
-    segment_name: str, block_threshold: int, monitor_threshold: int
+    current_user: User,
+    db: Session,
+    segment_name: str,
+    block_threshold: int,
+    monitor_threshold: int,
 ):
     """Add or update a segment"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "modify policy segments"
+    )
     try:
         update_segment(segment_name, block_threshold, monitor_threshold)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def delete_segment_controller(segment_name: str):
+def delete_segment_controller(current_user: User, db: Session, segment_name: str):
     """Delete a segment"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "delete policy segments"
+    )
     try:
         delete_segment(segment_name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def update_segment_subnets_controller(segment_name: str, subnets: list):
+def update_segment_subnets_controller(
+    current_user: User, db: Session, segment_name: str, subnets: list
+):
     """Update segment subnets"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "modify segment subnets"
+    )
     try:
         update_segment_subnets(segment_name, subnets)
     except ValueError as e:
@@ -79,9 +97,17 @@ def update_segment_subnets_controller(segment_name: str, subnets: list):
 
 
 def update_features_controller(
-    dns_weight: int, sni_weight: int, asn_weight: int, burst_weight: int
+    current_user: User,
+    db: Session,
+    dns_weight: int,
+    sni_weight: int,
+    asn_weight: int,
+    burst_weight: int,
 ):
     """Update feature weights"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "modify feature weights"
+    )
     try:
         update_features(dns_weight, sni_weight, asn_weight, burst_weight)
     except ValueError as e:
@@ -89,9 +115,17 @@ def update_features_controller(
 
 
 def update_enforcement_controller(
-    ipset_name_v4: str, ip_timeout_seconds: int, nft_table: str, nft_chain: str
+    current_user: User,
+    db: Session,
+    ipset_name_v4: str,
+    ip_timeout_seconds: int,
+    nft_table: str,
+    nft_chain: str,
 ):
     """Update enforcement configuration"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "modify enforcement configuration"
+    )
     try:
         update_enforcement(ipset_name_v4, ip_timeout_seconds, nft_table, nft_chain)
     except ValueError as e:
@@ -99,9 +133,16 @@ def update_enforcement_controller(
 
 
 def update_collectors_controller(
-    dnsmasq_log_path: str, zeek_ssl_log_path: str, use_zeek_sni: bool
+    current_user: User,
+    db: Session,
+    dnsmasq_log_path: str,
+    zeek_ssl_log_path: str,
+    use_zeek_sni: bool,
 ):
     """Update collectors configuration"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "modify collector configuration"
+    )
     try:
         update_collectors(dnsmasq_log_path, zeek_ssl_log_path, use_zeek_sni)
     except ValueError as e:
@@ -109,9 +150,15 @@ def update_collectors_controller(
 
 
 def update_burst_controller(
-    dns_queries_per_minute_monitor: int, dns_queries_per_minute_block: int
+    current_user: User,
+    db: Session,
+    dns_queries_per_minute_monitor: int,
+    dns_queries_per_minute_block: int,
 ):
     """Update burst detection configuration"""
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "modify burst detection thresholds"
+    )
     try:
         update_burst(dns_queries_per_minute_monitor, dns_queries_per_minute_block)
     except ValueError as e:

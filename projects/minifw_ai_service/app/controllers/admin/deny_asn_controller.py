@@ -1,5 +1,9 @@
 from fastapi import Request, HTTPException
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from app.models.user import User, UserRole
+from app.services.rbac_service import RBACService
 
 from app.services.deny_asn.get_deny_asns_service import get_deny_asns
 from app.services.deny_asn.add_deny_asn_service import add_deny_asn_service
@@ -22,21 +26,28 @@ def deny_asn_controller(request: Request):
     )
 
 
-def add_deny_asn(asn: str):
+def add_deny_asn(current_user: User, db: Session, asn: str):
+    RBACService(db).check_permission(current_user, UserRole.ADMIN, "add deny-list ASNs")
     try:
         add_deny_asn_service(asn)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def update_deny_asn(old_asn: str, new_asn: str):
+def update_deny_asn(current_user: User, db: Session, old_asn: str, new_asn: str):
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "update deny-list ASNs"
+    )
     try:
         update_deny_asn_service(old_asn, new_asn)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def delete_deny_asn(asn: str):
+def delete_deny_asn(current_user: User, db: Session, asn: str):
+    RBACService(db).check_permission(
+        current_user, UserRole.ADMIN, "delete deny-list ASNs"
+    )
     try:
         delete_deny_asn_service(asn)
     except ValueError as e:

@@ -195,25 +195,31 @@ def get_allow_domain(request: Request, current_user: User = Depends(get_current_
 
 @router.post("/allow-domain")
 def post_allow_domain(
-    payload: AddDomainRequest, current_user: User = Depends(get_current_user)
+    payload: AddDomainRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    add_allow_domain(payload.domain)
+    add_allow_domain(current_user, db, payload.domain)
     return {"message": "Domain added successfully"}
 
 
 @router.put("/allow-domain")
 def put_allow_domain(
-    payload: UpdateDomainRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateDomainRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    update_allow_domain(payload.old, payload.new)
+    update_allow_domain(current_user, db, payload.old, payload.new)
     return {"message": "Domain updated successfully"}
 
 
 @router.delete("/allow-domain")
 def del_allow_domain(
-    payload: DeleteDomainRequest, current_user: User = Depends(get_current_user)
+    payload: DeleteDomainRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    delete_allow_domain(payload.domain)
+    delete_allow_domain(current_user, db, payload.domain)
     return {"message": "Domain deleted successfully"}
 
 
@@ -224,24 +230,32 @@ def get_deny_ip(request: Request, current_user: User = Depends(get_current_user)
 
 
 @router.post("/deny-ip")
-def post_deny_ip(payload: AddIpRequest, current_user: User = Depends(get_current_user)):
-    add_deny_ip(payload.ip)
+def post_deny_ip(
+    payload: AddIpRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    add_deny_ip(current_user, db, payload.ip)
     return {"message": "IP address added successfully"}
 
 
 @router.put("/deny-ip")
 def put_deny_ip(
-    payload: UpdateIpRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateIpRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    update_deny_ip(payload.old, payload.new)
+    update_deny_ip(current_user, db, payload.old, payload.new)
     return {"message": "IP address updated successfully"}
 
 
 @router.delete("/deny-ip")
 def del_deny_ip(
-    payload: DeleteIpRequest, current_user: User = Depends(get_current_user)
+    payload: DeleteIpRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    delete_deny_ip(payload.ip)
+    delete_deny_ip(current_user, db, payload.ip)
     return {"message": "IP address deleted successfully"}
 
 
@@ -253,25 +267,31 @@ def get_deny_asn(request: Request, current_user: User = Depends(get_current_user
 
 @router.post("/deny-asn")
 def post_deny_asn(
-    payload: AddAsnRequest, current_user: User = Depends(get_current_user)
+    payload: AddAsnRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    add_deny_asn(payload.asn)
+    add_deny_asn(current_user, db, payload.asn)
     return {"message": "ASN added successfully"}
 
 
 @router.put("/deny-asn")
 def put_deny_asn(
-    payload: UpdateAsnRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateAsnRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    update_deny_asn(payload.old, payload.new)
+    update_deny_asn(current_user, db, payload.old, payload.new)
     return {"message": "ASN updated successfully"}
 
 
 @router.delete("/deny-asn")
 def del_deny_asn(
-    payload: DeleteAsnRequest, current_user: User = Depends(get_current_user)
+    payload: DeleteAsnRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    delete_deny_asn(payload.asn)
+    delete_deny_asn(current_user, db, payload.asn)
     return {"message": "ASN deleted successfully"}
 
 
@@ -283,25 +303,31 @@ def get_deny_domain(request: Request, current_user: User = Depends(get_current_u
 
 @router.post("/deny-domain")
 def post_deny_domain(
-    payload: AddDenyDomainRequest, current_user: User = Depends(get_current_user)
+    payload: AddDenyDomainRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    add_deny_domain(payload.domain)
+    add_deny_domain(current_user, db, payload.domain)
     return {"message": "Domain added successfully"}
 
 
 @router.put("/deny-domain")
 def put_deny_domain(
-    payload: UpdateDenyDomainRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateDenyDomainRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    update_deny_domain(payload.old, payload.new)
+    update_deny_domain(current_user, db, payload.old, payload.new)
     return {"message": "Domain updated successfully"}
 
 
 @router.delete("/deny-domain")
 def del_deny_domain(
-    payload: DeleteDenyDomainRequest, current_user: User = Depends(get_current_user)
+    payload: DeleteDenyDomainRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    delete_deny_domain(payload.domain)
+    delete_deny_domain(current_user, db, payload.domain)
     return {"message": "Domain deleted successfully"}
 
 
@@ -350,43 +376,68 @@ def get_policy(request: Request, current_user: User = Depends(get_current_user))
 
 @router.post("/policy/segment")
 def post_segment(
-    payload: AddSegmentRequest, current_user: User = Depends(get_current_user)
+    payload: AddSegmentRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     add_segment_controller(
-        payload.segment_name, payload.block_threshold, payload.monitor_threshold
+        current_user,
+        db,
+        payload.segment_name,
+        payload.block_threshold,
+        payload.monitor_threshold,
     )
     return {"message": "Segment saved successfully"}
 
 
 @router.delete("/policy/segment/{segment_name}")
-def delete_segment(segment_name: str, current_user: User = Depends(get_current_user)):
-    delete_segment_controller(segment_name)
+def delete_segment(
+    segment_name: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    delete_segment_controller(current_user, db, segment_name)
     return {"message": "Segment deleted successfully"}
 
 
 @router.post("/policy/segment/subnets")
 def post_segment_subnets(
-    payload: UpdateSubnetsRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateSubnetsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    update_segment_subnets_controller(payload.segment_name, payload.subnets)
+    update_segment_subnets_controller(
+        current_user, db, payload.segment_name, payload.subnets
+    )
     return {"message": "Subnets updated successfully"}
 
 
 @router.post("/policy/features")
 def post_features(
-    payload: UpdateFeaturesRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateFeaturesRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     update_features_controller(
-        payload.dns_weight, payload.sni_weight, payload.asn_weight, payload.burst_weight
+        current_user,
+        db,
+        payload.dns_weight,
+        payload.sni_weight,
+        payload.asn_weight,
+        payload.burst_weight,
     )
     return {"message": "Feature weights updated successfully"}
 
 
 @router.post("/policy/enforcement")
 def post_enforcement(
-    payload: UpdateEnforcementRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateEnforcementRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     update_enforcement_controller(
+        current_user,
+        db,
         payload.ipset_name_v4,
         payload.ip_timeout_seconds,
         payload.nft_table,
@@ -397,20 +448,31 @@ def post_enforcement(
 
 @router.post("/policy/collectors")
 def post_collectors(
-    payload: UpdateCollectorsRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateCollectorsRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     update_collectors_controller(
-        payload.dnsmasq_log_path, payload.zeek_ssl_log_path, payload.use_zeek_sni
+        current_user,
+        db,
+        payload.dnsmasq_log_path,
+        payload.zeek_ssl_log_path,
+        payload.use_zeek_sni,
     )
     return {"message": "Collectors configuration updated successfully"}
 
 
 @router.post("/policy/burst")
 def post_burst(
-    payload: UpdateBurstRequest, current_user: User = Depends(get_current_user)
+    payload: UpdateBurstRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     update_burst_controller(
-        payload.dns_queries_per_minute_monitor, payload.dns_queries_per_minute_block
+        current_user,
+        db,
+        payload.dns_queries_per_minute_monitor,
+        payload.dns_queries_per_minute_block,
     )
     return {"message": "Burst detection configuration updated successfully"}
 
