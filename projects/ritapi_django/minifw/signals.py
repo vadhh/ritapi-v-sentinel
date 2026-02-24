@@ -9,7 +9,8 @@ def create_profile_for_superuser(sender, instance, created, **kwargs):
     if not instance.is_superuser:
         return
     from .models import UserProfile
+
     UserProfile.objects.get_or_create(
         user=instance,
-        defaults={'role': 'SUPER_ADMIN'},
+        defaults={"role": "SUPER_ADMIN"},
     )

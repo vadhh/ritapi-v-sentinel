@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from asn.models import AsnInfo, AsnTrustConfig
 from asn.services import AsnScoreService
+
 # Create your views here.
 
 
@@ -30,7 +31,9 @@ def asn_checker(request):
                     record.trust_score = trust_score
                     record.save(update_fields=["trust_score"])
                     result = record
-                    messages.success(request, f"ASN for IP {ip} was found successfully.")
+                    messages.success(
+                        request, f"ASN for IP {ip} was found successfully."
+                    )
                 else:
                     error_message = f"No ASN record found for IP {ip}."
 
@@ -89,8 +92,12 @@ def asn_update_score(request):
             defaults={"name": name, "score": score},
         )
         if created:
-            messages.success(request, f"ASN {asn_number} berhasil ditambahkan dengan score {score}")
+            messages.success(
+                request, f"ASN {asn_number} berhasil ditambahkan dengan score {score}"
+            )
         else:
-            messages.success(request, f"ASN {asn_number} berhasil diperbarui menjadi score {score}")
+            messages.success(
+                request, f"ASN {asn_number} berhasil diperbarui menjadi score {score}"
+            )
 
     return redirect("ops_asn_config")

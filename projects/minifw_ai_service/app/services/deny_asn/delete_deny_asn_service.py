@@ -3,6 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parents[3]
 DENY_ASN_FILE = BASE_DIR / "config" / "feeds" / "deny_asn.txt"
 
+
 def delete_deny_asn_service(asn: str) -> None:
     asn = asn.strip().upper()
 
@@ -20,7 +21,7 @@ def delete_deny_asn_service(asn: str) -> None:
         raise ValueError("ASN not found")
 
     asns.remove(asn)
-    
+
     # Write with header comment
     content = "# one ASN per line like AS12345\n" + "\n".join(sorted(asns)) + "\n"
     DENY_ASN_FILE.write_text(content)

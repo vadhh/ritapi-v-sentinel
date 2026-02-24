@@ -8,7 +8,7 @@ from app.services.policy.get_policy_service import (
     get_features,
     get_enforcement,
     get_collectors,
-    get_burst
+    get_burst,
 )
 from app.services.policy.update_policy_service import (
     update_segment,
@@ -17,7 +17,7 @@ from app.services.policy.update_policy_service import (
     update_features,
     update_enforcement,
     update_collectors,
-    update_burst
+    update_burst,
 )
 
 templates = Jinja2Templates(directory="app/web/templates")
@@ -33,7 +33,7 @@ def policy_controller(request: Request):
         enforcement = get_enforcement()
         collectors = get_collectors()
         burst = get_burst()
-        
+
         return templates.TemplateResponse(
             "admin/policy.html",
             {
@@ -45,14 +45,16 @@ def policy_controller(request: Request):
                 "enforcement": enforcement,
                 "collectors": collectors,
                 "burst": burst,
-                "user": {"name": "Admin"}
-            }
+                "user": {"name": "Admin"},
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def add_segment_controller(segment_name: str, block_threshold: int, monitor_threshold: int):
+def add_segment_controller(
+    segment_name: str, block_threshold: int, monitor_threshold: int
+):
     """Add or update a segment"""
     try:
         update_segment(segment_name, block_threshold, monitor_threshold)
@@ -76,7 +78,9 @@ def update_segment_subnets_controller(segment_name: str, subnets: list):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def update_features_controller(dns_weight: int, sni_weight: int, asn_weight: int, burst_weight: int):
+def update_features_controller(
+    dns_weight: int, sni_weight: int, asn_weight: int, burst_weight: int
+):
     """Update feature weights"""
     try:
         update_features(dns_weight, sni_weight, asn_weight, burst_weight)
@@ -84,7 +88,9 @@ def update_features_controller(dns_weight: int, sni_weight: int, asn_weight: int
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def update_enforcement_controller(ipset_name_v4: str, ip_timeout_seconds: int, nft_table: str, nft_chain: str):
+def update_enforcement_controller(
+    ipset_name_v4: str, ip_timeout_seconds: int, nft_table: str, nft_chain: str
+):
     """Update enforcement configuration"""
     try:
         update_enforcement(ipset_name_v4, ip_timeout_seconds, nft_table, nft_chain)
@@ -92,7 +98,9 @@ def update_enforcement_controller(ipset_name_v4: str, ip_timeout_seconds: int, n
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def update_collectors_controller(dnsmasq_log_path: str, zeek_ssl_log_path: str, use_zeek_sni: bool):
+def update_collectors_controller(
+    dnsmasq_log_path: str, zeek_ssl_log_path: str, use_zeek_sni: bool
+):
     """Update collectors configuration"""
     try:
         update_collectors(dnsmasq_log_path, zeek_ssl_log_path, use_zeek_sni)
@@ -100,7 +108,9 @@ def update_collectors_controller(dnsmasq_log_path: str, zeek_ssl_log_path: str, 
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def update_burst_controller(dns_queries_per_minute_monitor: int, dns_queries_per_minute_block: int):
+def update_burst_controller(
+    dns_queries_per_minute_monitor: int, dns_queries_per_minute_block: int
+):
     """Update burst detection configuration"""
     try:
         update_burst(dns_queries_per_minute_monitor, dns_queries_per_minute_block)

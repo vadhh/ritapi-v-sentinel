@@ -7,28 +7,75 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='RequestLog',
+            name="RequestLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('ip_address', models.GenericIPAddressField(help_text='Source IP address.')),
-                ('path', models.CharField(help_text='Requested URL path.', max_length=255)),
-                ('method', models.CharField(max_length=10)),
-                ('body_size', models.IntegerField(help_text='Request body size in bytes.')),
-                ('timestamp', models.DateTimeField(auto_now_add=True)),
-                ('session_duration_ms', models.BigIntegerField(blank=True, help_text='Duration of session in milliseconds (relevant for session behavior anomalies).', null=True)),
-                ('score', models.FloatField(help_text='Risk score (e.g., 0.0 to 1.0) from the detection engine.')),
-                ('label', models.CharField(help_text='Specific label assigned by the detector based on policy.', max_length=100)),
-                ('action', models.CharField(help_text="Final action taken: 'allow', 'block', or 'monitor'.", max_length=20)),
-                ('reasons', models.TextField(blank=True, help_text='Detailed reasons or list of features/rules that triggered the action.', null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "ip_address",
+                    models.GenericIPAddressField(help_text="Source IP address."),
+                ),
+                (
+                    "path",
+                    models.CharField(help_text="Requested URL path.", max_length=255),
+                ),
+                ("method", models.CharField(max_length=10)),
+                (
+                    "body_size",
+                    models.IntegerField(help_text="Request body size in bytes."),
+                ),
+                ("timestamp", models.DateTimeField(auto_now_add=True)),
+                (
+                    "session_duration_ms",
+                    models.BigIntegerField(
+                        blank=True,
+                        help_text="Duration of session in milliseconds (relevant for session behavior anomalies).",
+                        null=True,
+                    ),
+                ),
+                (
+                    "score",
+                    models.FloatField(
+                        help_text="Risk score (e.g., 0.0 to 1.0) from the detection engine."
+                    ),
+                ),
+                (
+                    "label",
+                    models.CharField(
+                        help_text="Specific label assigned by the detector based on policy.",
+                        max_length=100,
+                    ),
+                ),
+                (
+                    "action",
+                    models.CharField(
+                        help_text="Final action taken: 'allow', 'block', or 'monitor'.",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "reasons",
+                    models.TextField(
+                        blank=True,
+                        help_text="Detailed reasons or list of features/rules that triggered the action.",
+                        null=True,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Request Log',
-                'verbose_name_plural': 'Request Logs',
+                "verbose_name": "Request Log",
+                "verbose_name_plural": "Request Logs",
             },
         ),
     ]

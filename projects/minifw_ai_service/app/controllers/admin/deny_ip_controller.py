@@ -18,8 +18,9 @@ def deny_ip_controller(request: Request):
             "request": request,
             "ips": ips,
             "user": {"name": "Fahrezi"},
-        }
+        },
     )
+
 
 def add_deny_ip(ip: str):
     try:
@@ -27,11 +28,13 @@ def add_deny_ip(ip: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 def update_deny_ip(old_ip: str, new_ip: str):
     try:
         update_deny_ip_service(old_ip, new_ip)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 def delete_deny_ip(ip: str):
     try:

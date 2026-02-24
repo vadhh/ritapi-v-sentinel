@@ -4,6 +4,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+
 @dataclass
 class Event:
     ts: str
@@ -15,8 +16,10 @@ class Event:
     reasons: list[str]
     sector: str = "unknown"  # Factory-set sector (from sector lock)
 
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
 
 class EventWriter:
     def __init__(self, path: str):

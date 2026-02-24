@@ -12,6 +12,7 @@ from blocking.services import BlockingService
 
 # ===================== BLOCKED IP MANAGEMENT =====================
 
+
 @login_required
 def blocked_ip_dashboard(request):
     """Blocked IP Management with search & filtering"""
@@ -48,13 +49,18 @@ def blocked_ip_dashboard(request):
     if filters_applied and not blocked_ips.exists():
         error_message = "No blocked IPs found with the given filters."
 
-    return render(request, "ops_template/blocked_ips.html", {
-        "blocked_ips": blocked_page,
-        "query": query,
-        "severity_filter": severity_filter,
-        "status_filter": status_filter,
-        "error_message": error_message
-    })
+    return render(
+        request,
+        "ops_template/blocked_ips.html",
+        {
+            "blocked_ips": blocked_page,
+            "query": query,
+            "severity_filter": severity_filter,
+            "status_filter": status_filter,
+            "error_message": error_message,
+        },
+    )
+
 
 @login_required
 def block_ip_from_alert(request, ip_address):
@@ -65,6 +71,7 @@ def block_ip_from_alert(request, ip_address):
     # Ganti 'ops_blocked_ip_dashboard' dengan nama view dashboard yang benar di urls.py Anda
     return redirect("ops_blocked_ip_dashboard")
 
+
 @login_required
 def unblock_ip(request, ip_address):
     """Unblock IP"""
@@ -73,7 +80,10 @@ def unblock_ip(request, ip_address):
         messages.success(request, f"IP {ip_address} successfully unblocked ✅")
     else:
         messages.error(request, f"IP {ip_address} not found ❌")
-    return redirect("ops_blocked_ip_dashboard") # Ganti dengan nama view dashboard yang benar
+    return redirect(
+        "ops_blocked_ip_dashboard"
+    )  # Ganti dengan nama view dashboard yang benar
+
 
 @login_required
 def block_ip_manual(request, ip_address):
@@ -82,13 +92,16 @@ def block_ip_manual(request, ip_address):
         ip_address,
         reason="Manual block from dashboard",
         severity="high",
-        duration_minutes=None  # permanent
+        duration_minutes=None,  # permanent
     )
     if blocked:
         messages.warning(request, f"IP {ip_address} successfully re-blocked 🚫")
     else:
         messages.error(request, f"Failed to block IP {ip_address}")
-    return redirect("ops_blocked_ip_dashboard") # Ganti dengan nama view dashboard yang benar
+    return redirect(
+        "ops_blocked_ip_dashboard"
+    )  # Ganti dengan nama view dashboard yang benar
+
 
 @login_required
 def blocked_ip_map(request):
@@ -97,15 +110,14 @@ def blocked_ip_map(request):
     """
     return render(request, "ops_template/blocked_ip_map.html")
 
+
 @login_required
 def blocked_ip_data(request):
     """
     JSON endpoint for map data (sent to Leaflet via fetch)
     """
     blocked = BlockedIP.objects.filter(
-        active=True,
-        latitude__isnull=False,
-        longitude__isnull=False
+        active=True, latitude__isnull=False, longitude__isnull=False
     ).order_by("-blocked_at")
 
     data = [

@@ -5,16 +5,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 FORWARD_EXCLUDED_HEADERS = {
-    "host", "x-target-id", "connection", "keep-alive",
-    "proxy-authenticate", "proxy-authorization",
-    "te", "trailers", "transfer-encoding", "upgrade",
+    "host",
+    "x-target-id",
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
     "content-length",
-    "x-target-sig", "x-target-ts",  # optionally skip these too
+    "x-target-sig",
+    "x-target-ts",  # optionally skip these too
 }
 
-RESPONSE_EXCLUDED_HEADERS = {
-    "transfer-encoding", "connection", "keep-alive"
-}
+RESPONSE_EXCLUDED_HEADERS = {"transfer-encoding", "connection", "keep-alive"}
+
 
 def forward_request_to_backend(request, target_backend_url, service_uuid):
     """
@@ -28,7 +35,8 @@ def forward_request_to_backend(request, target_backend_url, service_uuid):
         url = f"{target_backend_url}{path}"
 
         headers = {
-            k: v for k, v in request.headers.items()
+            k: v
+            for k, v in request.headers.items()
             if k.lower() not in FORWARD_EXCLUDED_HEADERS
         }
 

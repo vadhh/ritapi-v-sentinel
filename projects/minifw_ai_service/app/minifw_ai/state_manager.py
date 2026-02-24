@@ -6,6 +6,7 @@ health. Hard gates remain active in all states.
 
 TODO items: 4.1 (upgrade logic) and 4.2 (downgrade safety).
 """
+
 from __future__ import annotations
 
 import json
@@ -21,6 +22,7 @@ from typing import Any
 
 class ProtectionState(Enum):
     """Protection states for MiniFW-AI."""
+
     BASELINE_PROTECTION = "BASELINE_PROTECTION"
     AI_ENHANCED_PROTECTION = "AI_ENHANCED_PROTECTION"
 

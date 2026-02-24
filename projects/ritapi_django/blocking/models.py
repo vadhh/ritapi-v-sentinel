@@ -12,16 +12,14 @@ class BlockedIP(models.Model):
 
     ip_address = models.GenericIPAddressField(unique=True)
     reason = models.TextField()
-    severity = models.CharField(
-        max_length=10, choices=SEVERITY_CHOICES, default="low"
-    )
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default="low")
     country = models.CharField(max_length=5, blank=True, null=True)
     country_name = models.CharField(max_length=100, blank=True, null=True)
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
-    
+
     blocked_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(null=True, blank=True)   # ⬅️ untuk durasi blokir
+    expires_at = models.DateTimeField(null=True, blank=True)  # ⬅️ untuk durasi blokir
     active = models.BooleanField(default=True)
 
     def __str__(self):

@@ -2,6 +2,7 @@ from django.test import TestCase
 from alert.services import AlertService
 from alert.models import Alert
 
+
 class TestAlertService(TestCase):
 
     def test_create_alert_high_severity_auto(self):
@@ -9,7 +10,7 @@ class TestAlertService(TestCase):
             alert_type="SQL Injection",
             ip_address="1.2.3.4",
             detail="Detected SQL injection attempt",
-            severity="critical"  # biar auto compute
+            severity="critical",  # biar auto compute
         )
         self.assertEqual(alert.severity.lower(), "critical")
         self.assertEqual(alert.alert_type, "SQL Injection")
@@ -21,7 +22,7 @@ class TestAlertService(TestCase):
             alert_type="Info",
             ip_address="5.6.7.8",
             detail="Normal scan",
-            severity="low"
+            severity="low",
         )
         self.assertEqual(alert.severity.lower(), "low")
         self.assertEqual(alert.alert_type, "Info")
@@ -33,6 +34,6 @@ class TestAlertService(TestCase):
             alert_type="Test",
             ip_address="9.8.7.6",
             detail="Detected XSS attempt",  # triggers critical
-            severity="critical"
+            severity="critical",
         )
         self.assertEqual(alert.severity.lower(), "critical")

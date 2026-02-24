@@ -67,19 +67,31 @@ class OpsRootDashboardTests(TestCase):
         """Context should include aggregated statistics."""
         # Seed some data
         Alert.objects.create(
-            alert_type="test", ip_address="10.0.0.1",
-            detail="d", severity="high",
+            alert_type="test",
+            ip_address="10.0.0.1",
+            detail="d",
+            severity="high",
         )
         BlockedIP.objects.create(
             ip_address="10.0.0.2", reason="test", severity="high", active=True
         )
         RequestLog.objects.create(
-            method="GET", path="/test", ip_address="10.0.0.3",
-            action="ALLOW", body_size=0, score=0.1, label="clean",
+            method="GET",
+            path="/test",
+            ip_address="10.0.0.3",
+            action="ALLOW",
+            body_size=0,
+            score=0.1,
+            label="clean",
         )
         RequestLog.objects.create(
-            method="POST", path="/bad", ip_address="10.0.0.4",
-            action="BLOCK", body_size=128, score=0.9, label="gambling_possible",
+            method="POST",
+            path="/bad",
+            ip_address="10.0.0.4",
+            action="BLOCK",
+            body_size=128,
+            score=0.9,
+            label="gambling_possible",
         )
 
         self.client.login(username="admin", password="TestPass123!")

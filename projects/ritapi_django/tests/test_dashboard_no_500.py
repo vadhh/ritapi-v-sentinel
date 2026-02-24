@@ -134,6 +134,7 @@ class DashboardSmokeTestBase(TestCase):
 # 1. Public / Unauthenticated Endpoints
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -168,6 +169,7 @@ class TestPublicEndpoints(DashboardSmokeTestBase):
 # ===========================================================================
 # 2. Authenticated Redirect Tests
 # ===========================================================================
+
 
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
@@ -214,6 +216,7 @@ class TestAuthRedirects(DashboardSmokeTestBase):
 # ===========================================================================
 # 3. Ops Dashboard Pages (Authenticated Superuser)
 # ===========================================================================
+
 
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
@@ -298,6 +301,7 @@ class TestOpsDashboardPages(DashboardSmokeTestBase):
 # 4. MiniFW Dashboard Pages (require mocking external services)
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -354,6 +358,7 @@ class TestMiniFWDashboardPages(DashboardSmokeTestBase):
 # 5. MiniFW JSON API Endpoints (Authenticated)
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -392,7 +397,9 @@ class TestMiniFWAPIEndpoints(DashboardSmokeTestBase):
         self.assertIn("events", data)
 
     def test_api_events_datatable(self):
-        resp = self.client.get("/ops/minifw/api/events/datatable/?draw=1&start=0&length=10")
+        resp = self.client.get(
+            "/ops/minifw/api/events/datatable/?draw=1&start=0&length=10"
+        )
         self.assert_no_500(resp, "/ops/minifw/api/events/datatable/")
 
     def test_api_audit_logs(self):
@@ -423,6 +430,7 @@ class TestMiniFWAPIEndpoints(DashboardSmokeTestBase):
 # ===========================================================================
 # 6. DRF API Endpoints
 # ===========================================================================
+
 
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
@@ -485,6 +493,7 @@ class TestDRFAPIEndpoints(DashboardSmokeTestBase):
 # 7. Ops CRUD Endpoints (POST) - Superuser
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -500,7 +509,12 @@ class TestOpsCRUDEndpoints(DashboardSmokeTestBase):
     def test_geo_block_create(self):
         resp = self.client.post(
             "/ops/geo-block/create/",
-            {"country_code": "CN", "action": "block", "description": "Test", "is_active": "true"},
+            {
+                "country_code": "CN",
+                "action": "block",
+                "description": "Test",
+                "is_active": "true",
+            },
         )
         self.assert_no_500(resp, "/ops/geo-block/create/")
 
@@ -586,6 +600,7 @@ class TestOpsCRUDEndpoints(DashboardSmokeTestBase):
 # 8. Alert Operations
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -606,7 +621,9 @@ class TestAlertOperations(DashboardSmokeTestBase):
         for period in ["1d", "7d", "30d", "all"]:
             with self.subTest(period=period):
                 resp = self.client.get(f"/ops/alerts/alert_chart_data/?period={period}")
-                self.assert_no_500(resp, f"/ops/alerts/alert_chart_data/?period={period}")
+                self.assert_no_500(
+                    resp, f"/ops/alerts/alert_chart_data/?period={period}"
+                )
                 data = resp.json()
                 self.assertIn("labels", data)
                 self.assertIn("data", data)
@@ -622,6 +639,7 @@ class TestAlertOperations(DashboardSmokeTestBase):
 # 9. Blocking Operations
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -635,8 +653,12 @@ class TestBlockingOperations(DashboardSmokeTestBase):
         self.login_superuser()
 
     def test_blocked_ip_dashboard_with_filters(self):
-        resp = self.client.get("/ops/blocked-ips/?q=192.168&severity=high&status=active")
-        self.assert_no_500(resp, "/ops/blocked-ips/?q=192.168&severity=high&status=active")
+        resp = self.client.get(
+            "/ops/blocked-ips/?q=192.168&severity=high&status=active"
+        )
+        self.assert_no_500(
+            resp, "/ops/blocked-ips/?q=192.168&severity=high&status=active"
+        )
 
     @patch("blocking.services.BlockingService.block_ip")
     def test_block_ip_manual(self, mock_block):
@@ -654,6 +676,7 @@ class TestBlockingOperations(DashboardSmokeTestBase):
 # ===========================================================================
 # 10. MiniFW Service Control & POST Endpoints
 # ===========================================================================
+
 
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
@@ -709,6 +732,7 @@ class TestMiniFWServiceControl(DashboardSmokeTestBase):
 # 11. Authentication Flow
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -759,6 +783,7 @@ class TestAuthenticationFlow(DashboardSmokeTestBase):
 # ===========================================================================
 # 12. Edge Cases & Error Handling
 # ===========================================================================
+
 
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
@@ -833,6 +858,7 @@ class TestEdgeCases(DashboardSmokeTestBase):
 # 13. MiniFW User Management API
 # ===========================================================================
 
+
 @override_settings(
     MIDDLEWARE=MIDDLEWARE_FOR_TESTS,
     DATABASES=TEST_DATABASES,
@@ -903,8 +929,6 @@ class TestMiniFWUserManagementAPI(DashboardSmokeTestBase):
 
     def test_delete_self(self):
         """Deleting own account should return 400, not 500."""
-        resp = self.client.delete(
-            f"/ops/minifw/api/users/{self.superuser.id}/delete/"
-        )
+        resp = self.client.delete(f"/ops/minifw/api/users/{self.superuser.id}/delete/")
         self.assert_no_500(resp, "/ops/minifw/api/users/self/delete/")
         self.assertEqual(resp.status_code, 400)

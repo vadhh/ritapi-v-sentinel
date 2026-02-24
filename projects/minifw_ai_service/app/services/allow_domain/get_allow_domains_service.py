@@ -9,10 +9,6 @@ def get_allow_domains():
         return []
 
     with open(ALLOW_DOMAIN_FILE, "r") as f:
-        domains = [
-            {"name": line.strip()}
-            for line in f.readlines()
-            if line.strip()
-        ]
+        domains = [{"name": line.strip()} for line in f.readlines() if line.strip()]
 
     return domains

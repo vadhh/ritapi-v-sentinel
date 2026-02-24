@@ -46,11 +46,18 @@ def _mock_minifw_services():
     """Patches for external system services (subprocess, file I/O). Does NOT mock RBACService."""
     return {
         "minifw.services.MiniFWService.get_status": {
-            "active": False, "enabled": False, "status": "stopped",
+            "active": False,
+            "enabled": False,
+            "status": "stopped",
         },
         "minifw.services.MiniFWStats.get_stats": {
-            "total_events": 0, "blocked": 0, "monitored": 0, "allowed": 0,
-            "top_blocked_ips": {}, "top_blocked_domains": {}, "by_segment": {},
+            "total_events": 0,
+            "blocked": 0,
+            "monitored": 0,
+            "allowed": 0,
+            "top_blocked_ips": {},
+            "top_blocked_domains": {},
+            "by_segment": {},
         },
         "minifw.services.MiniFWStats.get_recent_events": [],
         "minifw.services.MiniFWIPSet.list_blocked_ips": [],
@@ -65,11 +72,17 @@ def _mock_minifw_services():
         "minifw.services.MiniFWConfig.get_enforcement": {},
         "minifw.services.MiniFWFeeds.read_feed": [],
         "minifw.services.MiniFWEventsService.get_events_datatable": {
-            "draw": 1, "recordsTotal": 0, "recordsFiltered": 0, "data": [],
+            "draw": 1,
+            "recordsTotal": 0,
+            "recordsFiltered": 0,
+            "data": [],
         },
         "minifw.services.AuditService.get_logs": {"total": 0, "logs": []},
         "minifw.services.AuditService.get_statistics": {
-            "total": 0, "critical": 0, "warning": 0, "info": 0,
+            "total": 0,
+            "critical": 0,
+            "warning": 0,
+            "info": 0,
         },
         "minifw.services.AuditService.export_logs": "[]",
         "minifw.services.AuditService.log_action": True,
@@ -85,40 +98,56 @@ class RBACTestBase(TestCase):
 
         # Signal auto-creates profile for superusers, so use get_or_create
         cls.superuser = User.objects.create_superuser(
-            username="superadmin", email="sa@test.local", password="TestPass123!",
+            username="superadmin",
+            email="sa@test.local",
+            password="TestPass123!",
         )
         profile, _ = UserProfile.objects.get_or_create(user=cls.superuser)
         profile.role = "SUPER_ADMIN"
         profile.save()
 
         cls.admin_user = User.objects.create_user(
-            username="admin_user", email="admin@test.local", password="TestPass123!",
+            username="admin_user",
+            email="admin@test.local",
+            password="TestPass123!",
         )
         UserProfile.objects.create(user=cls.admin_user, role="ADMIN")
 
         cls.operator_user = User.objects.create_user(
-            username="operator_user", email="op@test.local", password="TestPass123!",
+            username="operator_user",
+            email="op@test.local",
+            password="TestPass123!",
         )
         UserProfile.objects.create(user=cls.operator_user, role="OPERATOR")
 
         cls.auditor_user = User.objects.create_user(
-            username="auditor_user", email="aud@test.local", password="TestPass123!",
+            username="auditor_user",
+            email="aud@test.local",
+            password="TestPass123!",
         )
         UserProfile.objects.create(user=cls.auditor_user, role="AUDITOR")
 
         cls.viewer_user = User.objects.create_user(
-            username="viewer_user", email="viewer@test.local", password="TestPass123!",
+            username="viewer_user",
+            email="viewer@test.local",
+            password="TestPass123!",
         )
         UserProfile.objects.create(user=cls.viewer_user, role="VIEWER")
 
         cls.no_profile_user = User.objects.create_user(
-            username="noprofile", email="np@test.local", password="TestPass123!",
+            username="noprofile",
+            email="np@test.local",
+            password="TestPass123!",
         )
 
         cls.locked_user = User.objects.create_user(
-            username="locked_user", email="locked@test.local", password="TestPass123!",
+            username="locked_user",
+            email="locked@test.local",
+            password="TestPass123!",
         )
-        UserProfile.objects.create(user=cls.locked_user, role="OPERATOR", is_locked=True)
+        UserProfile.objects.create(
+            user=cls.locked_user, role="OPERATOR", is_locked=True
+        )
 
     def setUp(self):
         self.client = Client()
@@ -139,6 +168,7 @@ class RBACTestBase(TestCase):
 # ===========================================================================
 # 1. TestMiddlewareDenyByDefault (TODO 1.1)
 # ===========================================================================
+
 
 @override_settings(**COMMON_SETTINGS)
 class TestMiddlewareDenyByDefault(RBACTestBase):
@@ -165,8 +195,11 @@ class TestMiddlewareDenyByDefault(RBACTestBase):
     def test_superuser_allowed_without_profile(self):
         """Superuser without profile can still access /ops/."""
         from minifw.models import UserProfile
+
         superuser_no_profile = User.objects.create_superuser(
-            username="su_noprofile", email="sunp@test.local", password="TestPass123!",
+            username="su_noprofile",
+            email="sunp@test.local",
+            password="TestPass123!",
         )
         # Signal auto-creates profile for superusers; delete it to test fallback
         UserProfile.objects.filter(user=superuser_no_profile).delete()
@@ -185,6 +218,7 @@ class TestMiddlewareDenyByDefault(RBACTestBase):
 # 2. TestRoleDowngrade (TODO 1.2)
 # ===========================================================================
 
+
 @override_settings(**COMMON_SETTINGS)
 class TestRoleDowngrade(RBACTestBase):
     """Role changes take effect immediately."""
@@ -193,6 +227,7 @@ class TestRoleDowngrade(RBACTestBase):
     def test_admin_downgraded_to_viewer_cannot_post_policy(self, _mock_update):
         """ADMIN downgraded to VIEWER mid-session cannot POST policy."""
         from minifw.models import UserProfile
+
         self.login_as(self.admin_user)
 
         # Downgrade role
@@ -216,6 +251,7 @@ class TestRoleDowngrade(RBACTestBase):
     def test_operator_downgraded_cannot_block_ip(self, _mock_add):
         """OPERATOR downgraded to VIEWER cannot block IPs."""
         from minifw.models import UserProfile
+
         self.login_as(self.operator_user)
 
         profile = UserProfile.objects.get(user=self.operator_user)
@@ -238,6 +274,7 @@ class TestRoleDowngrade(RBACTestBase):
 # 3. TestRoleAbsence (TODO 1.2)
 # ===========================================================================
 
+
 @override_settings(**COMMON_SETTINGS)
 class TestRoleAbsence(RBACTestBase):
     """Missing or invalid profiles are denied."""
@@ -245,9 +282,12 @@ class TestRoleAbsence(RBACTestBase):
     def test_profile_deleted_cannot_access_ops(self):
         """User whose profile is deleted cannot access /ops/."""
         temp_user = User.objects.create_user(
-            username="temp_user", email="temp@test.local", password="TestPass123!",
+            username="temp_user",
+            email="temp@test.local",
+            password="TestPass123!",
         )
         from minifw.models import UserProfile
+
         UserProfile.objects.create(user=temp_user, role="OPERATOR")
 
         self.login_as(temp_user)
@@ -258,8 +298,8 @@ class TestRoleAbsence(RBACTestBase):
         # Delete profile
         UserProfile.objects.filter(user=temp_user).delete()
         # Clear cached profile
-        if hasattr(temp_user, '_profile_cache'):
-            delattr(temp_user, '_profile_cache')
+        if hasattr(temp_user, "_profile_cache"):
+            delattr(temp_user, "_profile_cache")
 
         resp = self.client.get("/ops/minifw/dashboard/", follow=False)
         self.assertIn(resp.status_code, [301, 302])
@@ -267,8 +307,11 @@ class TestRoleAbsence(RBACTestBase):
     def test_malformed_role_treated_as_lowest(self):
         """Invalid role string cannot modify policy (treated as unknown level)."""
         from minifw.models import UserProfile
+
         temp_user = User.objects.create_user(
-            username="malformed_role", email="mal@test.local", password="TestPass123!",
+            username="malformed_role",
+            email="mal@test.local",
+            password="TestPass123!",
         )
         UserProfile.objects.create(user=temp_user, role="INVALID_ROLE")
 
@@ -286,6 +329,7 @@ class TestRoleAbsence(RBACTestBase):
 # 4. TestSessionManipulation (TODO 1.2)
 # ===========================================================================
 
+
 @override_settings(**COMMON_SETTINGS)
 class TestSessionManipulation(RBACTestBase):
     """Session edge cases."""
@@ -301,9 +345,12 @@ class TestSessionManipulation(RBACTestBase):
     def test_inactive_user_denied(self):
         """User with is_active=False cannot access ops."""
         from minifw.models import UserProfile
+
         inactive_user = User.objects.create_user(
-            username="inactive_user", email="inactive@test.local",
-            password="TestPass123!", is_active=False,
+            username="inactive_user",
+            email="inactive@test.local",
+            password="TestPass123!",
+            is_active=False,
         )
         UserProfile.objects.create(user=inactive_user, role="ADMIN")
 
@@ -319,6 +366,7 @@ class TestSessionManipulation(RBACTestBase):
 # 5. TestRoleEnforcement (TODO 1.3) — POST endpoint permission matrix
 # ===========================================================================
 
+
 @override_settings(**COMMON_SETTINGS)
 class TestRoleEnforcement(RBACTestBase):
     """Verify RBAC checks on all minifw POST endpoints."""
@@ -326,12 +374,18 @@ class TestRoleEnforcement(RBACTestBase):
     # Endpoints requiring ADMIN (can_modify_policy)
     ADMIN_POST_ENDPOINTS = [
         ("/ops/minifw/policy/", {"action": "update_segments"}),
-        ("/ops/minifw/feeds/", {"action": "update_feed", "feed_name": "deny_ips", "entries": "1.2.3.4"}),
+        (
+            "/ops/minifw/feeds/",
+            {"action": "update_feed", "feed_name": "deny_ips", "entries": "1.2.3.4"},
+        ),
     ]
 
     # Endpoints requiring OPERATOR (can_execute_enforcement)
     OPERATOR_POST_ENDPOINTS = [
-        ("/ops/minifw/blocked-ips/", {"action": "block_ip", "ip": "10.0.0.1", "timeout": "3600"}),
+        (
+            "/ops/minifw/blocked-ips/",
+            {"action": "block_ip", "ip": "10.0.0.1", "timeout": "3600"},
+        ),
         ("/ops/minifw/service/control/", {"action": "restart"}),
     ]
 
@@ -345,8 +399,11 @@ class TestRoleEnforcement(RBACTestBase):
         for url, data in self.ADMIN_POST_ENDPOINTS + self.OPERATOR_POST_ENDPOINTS:
             with self.subTest(url=url):
                 resp = self.client.post(url, data, follow=False)
-                self.assertIn(resp.status_code, [301, 302],
-                    f"VIEWER should be denied on POST {url}")
+                self.assertIn(
+                    resp.status_code,
+                    [301, 302],
+                    f"VIEWER should be denied on POST {url}",
+                )
 
     @patch("minifw.services.MiniFWConfig.update_segments", return_value=True)
     @patch("minifw.services.MiniFWFeeds.write_feed", return_value=True)
@@ -358,8 +415,11 @@ class TestRoleEnforcement(RBACTestBase):
         for url, data in self.ADMIN_POST_ENDPOINTS + self.OPERATOR_POST_ENDPOINTS:
             with self.subTest(url=url):
                 resp = self.client.post(url, data, follow=False)
-                self.assertIn(resp.status_code, [301, 302],
-                    f"AUDITOR should be denied on POST {url}")
+                self.assertIn(
+                    resp.status_code,
+                    [301, 302],
+                    f"AUDITOR should be denied on POST {url}",
+                )
 
     @patch("minifw.services.MiniFWConfig.update_segments", return_value=True)
     @patch("minifw.services.MiniFWFeeds.write_feed", return_value=True)
@@ -373,8 +433,11 @@ class TestRoleEnforcement(RBACTestBase):
         for url, data in self.ADMIN_POST_ENDPOINTS:
             with self.subTest(url=url, expected="denied"):
                 resp = self.client.post(url, data, follow=False)
-                self.assertIn(resp.status_code, [301, 302],
-                    f"OPERATOR should be denied on POST {url}")
+                self.assertIn(
+                    resp.status_code,
+                    [301, 302],
+                    f"OPERATOR should be denied on POST {url}",
+                )
 
         # Allowed on OPERATOR endpoints (redirect on success = 302 to same page)
         for url, data in self.OPERATOR_POST_ENDPOINTS:
@@ -393,8 +456,9 @@ class TestRoleEnforcement(RBACTestBase):
         for url, data in self.ADMIN_POST_ENDPOINTS + self.OPERATOR_POST_ENDPOINTS:
             with self.subTest(url=url):
                 resp = self.client.post(url, data, follow=False)
-                self.assertEqual(resp.status_code, 302,
-                    f"ADMIN should be allowed on POST {url}")
+                self.assertEqual(
+                    resp.status_code, 302, f"ADMIN should be allowed on POST {url}"
+                )
 
     @patch("minifw.services.MiniFWConfig.update_segments", return_value=True)
     @patch("minifw.services.MiniFWFeeds.write_feed", return_value=True)
@@ -406,13 +470,17 @@ class TestRoleEnforcement(RBACTestBase):
         for url, data in self.ADMIN_POST_ENDPOINTS + self.OPERATOR_POST_ENDPOINTS:
             with self.subTest(url=url):
                 resp = self.client.post(url, data, follow=False)
-                self.assertEqual(resp.status_code, 302,
-                    f"SUPER_ADMIN should be allowed on POST {url}")
+                self.assertEqual(
+                    resp.status_code,
+                    302,
+                    f"SUPER_ADMIN should be allowed on POST {url}",
+                )
 
 
 # ===========================================================================
 # 6. TestAuditAPIPermissions (TODO 1.3) — Audit API RBAC checks
 # ===========================================================================
+
 
 @override_settings(**COMMON_SETTINGS)
 class TestAuditAPIPermissions(RBACTestBase):
@@ -453,6 +521,7 @@ class TestAuditAPIPermissions(RBACTestBase):
 # 7. TestLoginRequiredOnAPIs (TODO 1.3) — @login_required on AJAX endpoints
 # ===========================================================================
 
+
 @override_settings(**COMMON_SETTINGS)
 class TestLoginRequiredOnAPIs(RBACTestBase):
     """Verify @login_required on previously unprotected AJAX endpoints."""
@@ -482,6 +551,7 @@ class TestLoginRequiredOnAPIs(RBACTestBase):
 # ===========================================================================
 # 8. TestUserManagementAPIPermissions — User Management API RBAC
 # ===========================================================================
+
 
 @override_settings(**COMMON_SETTINGS)
 class TestUserManagementAPIPermissions(RBACTestBase):
@@ -539,7 +609,9 @@ class TestUserManagementAPIPermissions(RBACTestBase):
         self.login_as(self.admin_user)
         resp = self.client.post(
             self.USERS_CREATE_URL,
-            json.dumps({"username": "newuser", "password": "TestPass123!", "role": "VIEWER"}),
+            json.dumps(
+                {"username": "newuser", "password": "TestPass123!", "role": "VIEWER"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 403)
@@ -549,6 +621,7 @@ class TestUserManagementAPIPermissions(RBACTestBase):
     def test_super_admin_can_create_user(self, mock_create):
         """SUPER_ADMIN gets 200 on user create with mocked service."""
         from minifw.models import UserProfile
+
         new_user = MagicMock()
         new_user.id = 999
         new_user.username = "newuser"
@@ -558,7 +631,9 @@ class TestUserManagementAPIPermissions(RBACTestBase):
         self.login_as(self.superuser)
         resp = self.client.post(
             self.USERS_CREATE_URL,
-            json.dumps({"username": "newuser", "password": "TestPass123!", "role": "VIEWER"}),
+            json.dumps(
+                {"username": "newuser", "password": "TestPass123!", "role": "VIEWER"}
+            ),
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)

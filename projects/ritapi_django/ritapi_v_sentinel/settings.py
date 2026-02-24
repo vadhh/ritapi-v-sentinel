@@ -32,8 +32,9 @@ elif local_env.exists():
     environ.Env.read_env(local_env)
 else:
     import os
+
     # Allow CI / container environments where vars are injected directly
-    if 'test' not in sys.argv and not os.environ.get('DJANGO_SECRET_KEY'):
+    if "test" not in sys.argv and not os.environ.get("DJANGO_SECRET_KEY"):
         raise Exception(f"Unified env file not found at: {env_file} or {local_env}")
 
 # Quick-start development settings - unsuitable for production
@@ -51,52 +52,50 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django_extensions',
-    
-    'authentication',
-    'asn',
-    'ip_reputation',
-    'alert',
-    'blocking',
-    'json_schema',
-    'log_channel',
-    'minifw',
-    
-    'ops',
-    'ops.ops_asn',
-    'ops.ops_iprep',
-    'ops.ops_json',
-    'ops.ops_alert',
-    'ops.ops_blocking',
-    'ops.ops_geoblock',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django_extensions",
+    "authentication",
+    "asn",
+    "ip_reputation",
+    "alert",
+    "blocking",
+    "json_schema",
+    "log_channel",
+    "minifw",
+    "ops",
+    "ops.ops_asn",
+    "ops.ops_iprep",
+    "ops.ops_json",
+    "ops.ops_alert",
+    "ops.ops_blocking",
+    "ops.ops_geoblock",
 ]
 
 MIDDLEWARE = [
-    'middlewares.rate_limit.RateLimiterMiddleware',
-    'middlewares.security_enforcement.SecurityEnforcementMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'authentication.middleware.OpsAuthMiddleware',
+    "middlewares.rate_limit.RateLimiterMiddleware",
+    "middlewares.security_enforcement.SecurityEnforcementMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "authentication.middleware.OpsAuthMiddleware",
 ]
 
-ROOT_URLCONF = 'ritapi_v_sentinel.urls'
+ROOT_URLCONF = "ritapi_v_sentinel.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
-            BASE_DIR / "templates", 
+            BASE_DIR / "templates",
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -110,7 +109,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'ritapi_v_sentinel.wsgi.application'
+WSGI_APPLICATION = "ritapi_v_sentinel.wsgi.application"
 
 
 # Database
@@ -126,31 +125,30 @@ WSGI_APPLICATION = 'ritapi_v_sentinel.wsgi.application'
 _database_url = env("DATABASE_URL", default="")
 if _database_url:
     DATABASES = {
-        'default': dj_database_url.parse(_database_url, conn_max_age=600),
+        "default": dj_database_url.parse(_database_url, conn_max_age=600),
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': env("DB_NAME"),
-            'USER': env("DB_USER"),
-            'PASSWORD': env("DB_PASSWORD"),
-            'HOST': env("DB_HOST"),
-            'PORT': env("DB_PORT"),
-            'TEST': {
-                'NAME': 'ritapi_v_sentinel_test_db',
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env("DB_NAME"),
+            "USER": env("DB_USER"),
+            "PASSWORD": env("DB_PASSWORD"),
+            "HOST": env("DB_HOST"),
+            "PORT": env("DB_PORT"),
+            "TEST": {
+                "NAME": "ritapi_v_sentinel_test_db",
             },
         }
     }
 
-if 'test' in sys.argv:
+if "test" in sys.argv:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': ':memory:',
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
         }
     }
-
 
 
 # Password validation
@@ -158,16 +156,16 @@ if 'test' in sys.argv:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -175,9 +173,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -187,12 +185,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ============================================
 # Security Enforcement Configuration
@@ -224,6 +222,6 @@ SECURITY_ENFORCEMENT_EXCLUDED_PATHS = [
     "/ops/ip-reputation/",
 ]
 
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'ops_dashboard'
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "ops_dashboard"
+LOGOUT_REDIRECT_URL = "login"

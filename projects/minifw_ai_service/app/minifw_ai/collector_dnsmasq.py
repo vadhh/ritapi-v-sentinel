@@ -4,6 +4,7 @@ from typing import Iterator, Tuple, Optional
 import time
 import os
 
+
 def parse_dnsmasq(line: str) -> Optional[Tuple[str, str]]:
     if " query[" not in line or " from " not in line:
         return None
@@ -16,7 +17,10 @@ def parse_dnsmasq(line: str) -> Optional[Tuple[str, str]]:
     except Exception:
         return None
 
-def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterator[Tuple[str, str]]:
+
+def stream_dns_events_udp(
+    port: int = 5514, bind_ip: str = "0.0.0.0"
+) -> Iterator[Tuple[str, str]]:
     """
     Listens for DNS log lines via UDP syslog/netcat stream.
     Yields (client_ip, domain) tuples.
@@ -29,7 +33,9 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
         print(f"[*] DNS Collector listening on UDP {bind_ip}:{port}")
     except PermissionError:
         print(f"[!] Warning: Cannot bind to UDP port {port} (permission denied).")
-        print("[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions.")
+        print(
+            "[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions."
+        )
         # Yield empty events indefinitely - NEVER EXIT
         while True:
             time.sleep(10)
@@ -37,10 +43,14 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
     except OSError as e:
         if e.errno == 98:  # EADDRINUSE
             print(f"[!] Warning: UDP port {port} already in use (EADDRINUSE).")
-            print("[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions.")
+            print(
+                "[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions."
+            )
         else:
             print(f"[!] Warning: Cannot bind to UDP port {port}: {e}")
-            print("[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions.")
+            print(
+                "[BASELINE_PROTECTION] DNS UDP collection disabled, service continues with other functions."
+            )
         # Yield empty events indefinitely - NEVER EXIT
         while True:
             time.sleep(10)
@@ -49,9 +59,9 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
     while True:
         try:
             data, addr = sock.recvfrom(4096)
-            raw_text = data.decode('utf-8', errors='replace')
+            raw_text = data.decode("utf-8", errors="replace")
             # print(f"[DEBUG] Received raw UDP: {raw_text!r}")
-            
+
             # Netcat might batch lines, so we split them
             for line in raw_text.splitlines():
                 line = line.strip()
@@ -65,6 +75,7 @@ def stream_dns_events_udp(port: int = 5514, bind_ip: str = "0.0.0.0") -> Iterato
         except Exception as e:
             print(f"[!] UDP Socket error: {e}")
 
+
 def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
     """
     Tails a dnsmasq log file and yields (client_ip, domain) tuples.
@@ -73,8 +84,12 @@ def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
     """
     if not os.path.exists(log_path):
         print(f"[!] Warning: DNS log file not found at {log_path}.")
-        print("[BASELINE_PROTECTION] Service will continue monitoring for file creation...")
-        print("[BASELINE_PROTECTION] Other security functions remain active (Fail-Closed)")
+        print(
+            "[BASELINE_PROTECTION] Service will continue monitoring for file creation..."
+        )
+        print(
+            "[BASELINE_PROTECTION] Other security functions remain active (Fail-Closed)"
+        )
         # Wait indefinitely for file to appear - NEVER EXIT
         while not os.path.exists(log_path):
             time.sleep(10)  # Check every 10 seconds
@@ -87,9 +102,9 @@ def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
     while True:  # Outer loop for reconnection
         try:
             if f is None:
-                f = open(log_path, 'r')
+                f = open(log_path, "r")
                 f.seek(0, os.SEEK_END)
-            
+
             while True:
                 try:
                     line = f.readline()
@@ -101,7 +116,9 @@ def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
                             file_size = os.path.getsize(log_path)
                         except FileNotFoundError:
                             # File deleted - close and wait for recreation
-                            print(f"[!] Log file {log_path} deleted. Waiting for recreation...")
+                            print(
+                                f"[!] Log file {log_path} deleted. Waiting for recreation..."
+                            )
                             if f:
                                 f.close()
                                 f = None
@@ -115,7 +132,7 @@ def stream_dns_events_file(log_path: str) -> Iterator[Tuple[str, str]]:
                         if current_pos > file_size and file_size > 0:
                             print(f"[!] Log file rotated. Re-opening {log_path}")
                             f.close()
-                            f = open(log_path, 'r')
+                            f = open(log_path, "r")
                             # No seek, start from beginning of new file
                         continue
 
@@ -151,27 +168,28 @@ def stream_dns_events(
 ):
     """
     Compatibility shim.
-    
+
     Why this exists:
     - Older tests import `stream_dns_events` directly.
     - Internals now expose specific backends (file/udp/journald/none).
     - This keeps imports stable and prevents pytest collection failures.
-    
+
     Design choice:
     - For `none` / `journald` we return an empty iterator (finite).
       This avoids "infinite test hangs" under pytest.
       Production uses the main engine loop, not this shim.
     """
     src = (source or "none").lower()
-    
+
     if src == "file":
         return stream_dns_events_file(log_path)
     if src == "udp":
         return stream_dns_events_udp(port=udp_port, bind_ip=bind_ip)
     if src == "journald":
         from minifw_ai.collector_journald import stream_dns_events_journald
+
         return stream_dns_events_journald()
     if src == "none":
         return iter([])
-    
+
     raise ValueError(f"Unknown DNS source: {source}")

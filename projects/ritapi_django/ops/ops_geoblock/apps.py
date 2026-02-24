@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class OpsGeoblockConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'ops.ops_geoblock'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "ops.ops_geoblock"

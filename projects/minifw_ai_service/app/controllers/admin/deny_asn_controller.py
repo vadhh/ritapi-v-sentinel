@@ -18,8 +18,9 @@ def deny_asn_controller(request: Request):
             "request": request,
             "asns": asns,
             "user": {"name": "Fahrezi"},
-        }
+        },
     )
+
 
 def add_deny_asn(asn: str):
     try:
@@ -27,11 +28,13 @@ def add_deny_asn(asn: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 def update_deny_asn(old_asn: str, new_asn: str):
     try:
         update_deny_asn_service(old_asn, new_asn)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 def delete_deny_asn(asn: str):
     try:

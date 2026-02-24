@@ -1,10 +1,13 @@
 # utils/logging.py
 import hashlib
+
 # Pastikan path import model ini benar
-from log_channel.models import RequestLog 
+from log_channel.models import RequestLog
 
 
-def log_request(ip, path, method, size, score, action, reasons, label, duration_ms=None):
+def log_request(
+    ip, path, method, size, score, action, reasons, label, duration_ms=None
+):
     """
     Mencatat detail request ke database RequestLog.
 
@@ -39,5 +42,5 @@ def log_request(ip, path, method, size, score, action, reasons, label, duration_
     except Exception as e:
         # Never fail request because of logging
         # Anda mungkin ingin menambahkan logging error di sini
-        # print(f"Error logging request: {e}") 
+        # print(f"Error logging request: {e}")
         pass

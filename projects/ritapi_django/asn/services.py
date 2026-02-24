@@ -3,7 +3,6 @@ from .models import AsnInfo, AsnTrustConfig
 import socket
 
 
-
 class AsnScoreService:
     @classmethod
     def get_trust_score(cls, asn_number: str) -> float:
@@ -17,8 +16,8 @@ class AsnScoreService:
         except AsnTrustConfig.DoesNotExist:
             AsnTrustConfig.objects.create(
                 asn_number=asn_number,
-                name=asn_number,   # default: pakai nomor ASN
-                score=0
+                name=asn_number,  # default: pakai nomor ASN
+                score=0,
             )
             return 0
 
@@ -55,18 +54,19 @@ class AsnScoreService:
 
         # ✅ Buat atau ambil konfigurasi ASN
         config, created = AsnTrustConfig.objects.get_or_create(
-            asn_number=asn_number,
-            defaults={"name": asn_description, "score": 0}
+            asn_number=asn_number, defaults={"name": asn_description, "score": 0}
         )
 
-        AsnInfo.objects.filter(ip_address=ip_address, is_latest=True).update(is_latest=False)
+        AsnInfo.objects.filter(ip_address=ip_address, is_latest=True).update(
+            is_latest=False
+        )
         # ✅ Simpan hasil lookup ke ASN Info
         record = AsnInfo.objects.create(
             ip_address=ip_address,
             asn_number=asn_number,
             asn_description=asn_description,
             trust_score=config.score,
-            is_latest=True
+            is_latest=True,
         )
 
         return record

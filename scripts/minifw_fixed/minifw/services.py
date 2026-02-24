@@ -1,6 +1,7 @@
 """
 Service layer untuk operasi MiniFW-AI
 """
+
 import io
 import json
 import logging
@@ -19,20 +20,20 @@ logger = logging.getLogger(__name__)
 
 class MiniFWConfig:
     """Handler untuk policy.json configuration"""
-    
+
     POLICY_PATH = "/opt/minifw_ai/config/policy.json"
-    
+
     @classmethod
     def load_policy(cls) -> Dict:
         """Load policy configuration"""
         try:
-            with open(cls.POLICY_PATH, 'r') as f:
+            with open(cls.POLICY_PATH, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
             return {}
         except json.JSONDecodeError:
             return {}
-    
+
     @classmethod
     def save_policy(cls, policy: Dict) -> bool:
         """Save policy configuration"""
@@ -40,133 +41,133 @@ class MiniFWConfig:
             # Backup existing policy
             if os.path.exists(cls.POLICY_PATH):
                 backup_path = f"{cls.POLICY_PATH}.backup"
-                with open(cls.POLICY_PATH, 'r') as f:
-                    with open(backup_path, 'w') as bf:
+                with open(cls.POLICY_PATH, "r") as f:
+                    with open(backup_path, "w") as bf:
                         bf.write(f.read())
-            
+
             # Write new policy
-            with open(cls.POLICY_PATH, 'w') as f:
+            with open(cls.POLICY_PATH, "w") as f:
                 json.dump(policy, f, indent=2)
-            
+
             return True
         except Exception as e:
             logger.error("Error saving policy: %s", e)
             return False
-    
+
     @classmethod
     def get_segments(cls) -> Dict:
         """Get segment configuration"""
         policy = cls.load_policy()
-        return policy.get('segments', {})
-    
+        return policy.get("segments", {})
+
     @classmethod
     def get_segment_subnets(cls) -> Dict:
         """Get segment subnet mappings"""
         policy = cls.load_policy()
-        return policy.get('segment_subnets', {})
-    
+        return policy.get("segment_subnets", {})
+
     @classmethod
     def update_segments(cls, segments: Dict) -> bool:
         """Update segment thresholds"""
         policy = cls.load_policy()
-        policy['segments'] = segments
+        policy["segments"] = segments
         return cls.save_policy(policy)
-    
+
     @classmethod
     def update_segment_subnets(cls, subnets: Dict) -> bool:
         """Update segment subnet mappings"""
         policy = cls.load_policy()
-        policy['segment_subnets'] = subnets
+        policy["segment_subnets"] = subnets
         return cls.save_policy(policy)
-    
+
     @classmethod
     def get_features(cls) -> Dict:
         """Get feature weights"""
         policy = cls.load_policy()
-        return policy.get('features', {})
-    
+        return policy.get("features", {})
+
     @classmethod
     def update_features(cls, features: Dict) -> bool:
         """Update feature weights"""
         policy = cls.load_policy()
-        policy['features'] = features
+        policy["features"] = features
         return cls.save_policy(policy)
-    
+
     @classmethod
     def get_enforcement(cls) -> Dict:
         """Get enforcement configuration"""
         policy = cls.load_policy()
-        return policy.get('enforcement', {})
-    
+        return policy.get("enforcement", {})
+
     @classmethod
     def get_burst(cls) -> Dict:
         """Get burst configuration"""
         policy = cls.load_policy()
-        return policy.get('burst', {})
+        return policy.get("burst", {})
 
 
 class MiniFWFeeds:
     """Handler untuk feed files (allow/deny lists)"""
-    
+
     FEEDS_DIR = "/opt/minifw_ai/config/feeds"
-    
+
     FEED_FILES = {
-        'allow_domains': 'allow_domains.txt',
-        'deny_domains': 'deny_domains.txt',
-        'deny_ips': 'deny_ips.txt',
-        'deny_asn': 'deny_asn.txt',
+        "allow_domains": "allow_domains.txt",
+        "deny_domains": "deny_domains.txt",
+        "deny_ips": "deny_ips.txt",
+        "deny_asn": "deny_asn.txt",
     }
-    
+
     @classmethod
     def read_feed(cls, feed_name: str) -> List[str]:
         """Read feed file and return list of entries"""
-        file_path = os.path.join(cls.FEEDS_DIR, cls.FEED_FILES.get(feed_name, ''))
-        
+        file_path = os.path.join(cls.FEEDS_DIR, cls.FEED_FILES.get(feed_name, ""))
+
         if not os.path.exists(file_path):
             return []
-        
+
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 lines = f.readlines()
-            
+
             # Filter out comments and empty lines
             entries = []
             for line in lines:
                 line = line.strip()
-                if line and not line.startswith('#'):
+                if line and not line.startswith("#"):
                     entries.append(line)
-            
+
             return entries
         except Exception as e:
             logger.error("Error reading feed %s: %s", feed_name, e)
             return []
-    
+
     @classmethod
     def write_feed(cls, feed_name: str, entries: List[str]) -> bool:
         """Write entries to feed file"""
-        file_path = os.path.join(cls.FEEDS_DIR, cls.FEED_FILES.get(feed_name, ''))
-        
+        file_path = os.path.join(cls.FEEDS_DIR, cls.FEED_FILES.get(feed_name, ""))
+
         try:
             # Backup existing file
             if os.path.exists(file_path):
                 backup_path = f"{file_path}.backup"
-                with open(file_path, 'r') as f:
-                    with open(backup_path, 'w') as bf:
+                with open(file_path, "r") as f:
+                    with open(backup_path, "w") as bf:
                         bf.write(f.read())
-            
+
             # Write new entries
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.write("# Updated via RITAPI Dashboard\n")
                 f.write(f"# Total entries: {len(entries)}\n\n")
                 for entry in entries:
                     if entry.strip():
                         f.write(f"{entry.strip()}\n")
-            
+
             return True
         except Exception as e:
             logger.error("Error writing feed %s: %s", feed_name, e)
             return False
-    
+
     @classmethod
     def add_to_feed(cls, feed_name: str, entry: str) -> bool:
         """Add single entry to feed"""
@@ -175,7 +176,7 @@ class MiniFWFeeds:
             entries.append(entry)
             return cls.write_feed(feed_name, entries)
         return True
-    
+
     @classmethod
     def remove_from_feed(cls, feed_name: str, entry: str) -> bool:
         """Remove single entry from feed"""
@@ -195,10 +196,17 @@ class MiniFWService:
     # States reported by `systemctl is-active` on stdout.
     # Any other output (e.g. "Failed to connect to bus: ...") means the check
     # itself failed — return None so get_status() falls back to _check_process.
-    _KNOWN_SYSTEMCTL_STATES = frozenset({
-        'active', 'inactive', 'failed', 'activating',
-        'deactivating', 'reloading', 'maintenance',
-    })
+    _KNOWN_SYSTEMCTL_STATES = frozenset(
+        {
+            "active",
+            "inactive",
+            "failed",
+            "activating",
+            "deactivating",
+            "reloading",
+            "maintenance",
+        }
+    )
 
     @classmethod
     def _check_systemctl(cls) -> Optional[Dict]:
@@ -206,10 +214,10 @@ class MiniFWService:
         cannot connect to D-Bus (so caller falls back to process check)."""
         try:
             result = subprocess.run(
-                ['systemctl', 'is-active', cls.SERVICE_NAME],
+                ["systemctl", "is-active", cls.SERVICE_NAME],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             state = result.stdout.strip()
             # If stdout is not a recognised state word, systemctl failed to query
@@ -217,20 +225,20 @@ class MiniFWService:
             # Return None to trigger the pgrep fallback in get_status().
             if state not in cls._KNOWN_SYSTEMCTL_STATES:
                 return None
-            is_active = state == 'active'
+            is_active = state == "active"
 
             result = subprocess.run(
-                ['systemctl', 'is-enabled', cls.SERVICE_NAME],
+                ["systemctl", "is-enabled", cls.SERVICE_NAME],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             is_enabled = result.returncode == 0
 
             return {
-                'active': is_active,
-                'enabled': is_enabled,
-                'status': 'running' if is_active else 'stopped'
+                "active": is_active,
+                "enabled": is_enabled,
+                "status": "running" if is_active else "stopped",
             }
         except (FileNotFoundError, PermissionError, OSError, subprocess.TimeoutExpired):
             return None
@@ -240,10 +248,10 @@ class MiniFWService:
         """Check if minifw_ai process is running via /proc."""
         try:
             result = subprocess.run(
-                ['pgrep', '-f', 'python.*minifw_ai'],
+                ["pgrep", "-f", "python.*minifw_ai"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
             return result.returncode == 0
         except (FileNotFoundError, PermissionError, OSError, subprocess.TimeoutExpired):
@@ -260,60 +268,75 @@ class MiniFWService:
         # Fallback: check if the process is running directly
         is_active = cls._check_process()
         return {
-            'active': is_active,
-            'enabled': False,
-            'status': 'running' if is_active else 'stopped'
+            "active": is_active,
+            "enabled": False,
+            "status": "running" if is_active else "stopped",
         }
-    
+
     @classmethod
     def restart(cls) -> bool:
         """Restart MiniFW-AI service"""
         try:
-            subprocess.run(['systemctl', 'restart', cls.SERVICE_NAME], check=True)
+            subprocess.run(["systemctl", "restart", cls.SERVICE_NAME], check=True)
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return False
 
     @classmethod
     def stop(cls) -> bool:
         """Stop MiniFW-AI service"""
         try:
-            subprocess.run(['systemctl', 'stop', cls.SERVICE_NAME], check=True)
+            subprocess.run(["systemctl", "stop", cls.SERVICE_NAME], check=True)
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return False
 
     @classmethod
     def start(cls) -> bool:
         """Start MiniFW-AI service"""
         try:
-            subprocess.run(['systemctl', 'start', cls.SERVICE_NAME], check=True)
+            subprocess.run(["systemctl", "start", cls.SERVICE_NAME], check=True)
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return False
 
 
 class MiniFWIPSet:
     """Handler untuk ipset operations"""
-    
+
     IPSET_NAME = "minifw_block_v4"
-    
+
     @classmethod
     def list_blocked_ips(cls) -> List[str]:
         """List all blocked IPs from ipset"""
         try:
             result = subprocess.run(
-                ['ipset', 'list', cls.IPSET_NAME],
+                ["ipset", "list", cls.IPSET_NAME],
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             # Parse ipset output
             ips = []
             in_members = False
-            for line in result.stdout.split('\n'):
-                if line.startswith('Members:'):
+            for line in result.stdout.split("\n"):
+                if line.startswith("Members:"):
                     in_members = True
                     continue
                 if in_members and line.strip():
@@ -323,7 +346,12 @@ class MiniFWIPSet:
                         ips.append(parts[0])
 
             return ips
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return []
 
     @classmethod
@@ -331,52 +359,61 @@ class MiniFWIPSet:
         """Add IP to block list"""
         try:
             subprocess.run(
-                ['ipset', 'add', cls.IPSET_NAME, ip, 'timeout', str(timeout)],
-                check=True
+                ["ipset", "add", cls.IPSET_NAME, ip, "timeout", str(timeout)],
+                check=True,
             )
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return False
 
     @classmethod
     def remove_ip(cls, ip: str) -> bool:
         """Remove IP from block list"""
         try:
-            subprocess.run(
-                ['ipset', 'del', cls.IPSET_NAME, ip],
-                check=True
-            )
+            subprocess.run(["ipset", "del", cls.IPSET_NAME, ip], check=True)
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return False
 
     @classmethod
     def flush_all(cls) -> bool:
         """Flush all blocked IPs"""
         try:
-            subprocess.run(
-                ['ipset', 'flush', cls.IPSET_NAME],
-                check=True
-            )
+            subprocess.run(["ipset", "flush", cls.IPSET_NAME], check=True)
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            PermissionError,
+            OSError,
+        ):
             return False
 
 
 class MiniFWStats:
     """Handler untuk statistics dan monitoring"""
-    
+
     EVENTS_LOG = "/opt/minifw_ai/logs/events.jsonl"
-    
+
     @classmethod
     def get_recent_events(cls, limit: int = 100) -> List[Dict]:
         """Get recent events from JSONL log"""
         if not os.path.exists(cls.EVENTS_LOG):
             return []
-        
+
         events = []
         try:
-            with open(cls.EVENTS_LOG, 'r') as f:
+            with open(cls.EVENTS_LOG, "r") as f:
                 # Read last N lines
                 lines = f.readlines()
                 for line in lines[-limit:]:
@@ -385,56 +422,72 @@ class MiniFWStats:
                         events.append(event)
                     except json.JSONDecodeError:
                         continue
-            
+
             return events
         except Exception as e:
             logger.error("Error reading events: %s", e)
             return []
-    
+
     @classmethod
     def get_stats(cls) -> Dict:
         """Get statistics from events"""
         events = cls.get_recent_events(1000)
-        
+
         stats = {
-            'total_events': len(events),
-            'blocked': 0,
-            'monitored': 0,
-            'allowed': 0,
-            'top_blocked_ips': {},
-            'top_blocked_domains': {},
-            'by_segment': {}
+            "total_events": len(events),
+            "blocked": 0,
+            "monitored": 0,
+            "allowed": 0,
+            "top_blocked_ips": {},
+            "top_blocked_domains": {},
+            "by_segment": {},
         }
-        
+
         for event in events:
-            action = event.get('action', 'unknown')
-            if action == 'block':
-                stats['blocked'] += 1
-            elif action == 'monitor':
-                stats['monitored'] += 1
-            elif action == 'allow':
-                stats['allowed'] += 1
-            
+            action = event.get("action", "unknown")
+            if action == "block":
+                stats["blocked"] += 1
+            elif action == "monitor":
+                stats["monitored"] += 1
+            elif action == "allow":
+                stats["allowed"] += 1
+
             # Count by IP
-            ip = event.get('client_ip', 'unknown')
-            if action == 'block':
-                stats['top_blocked_ips'][ip] = stats['top_blocked_ips'].get(ip, 0) + 1
-            
+            ip = event.get("client_ip", "unknown")
+            if action == "block":
+                stats["top_blocked_ips"][ip] = stats["top_blocked_ips"].get(ip, 0) + 1
+
             # Count by domain
-            domain = event.get('domain', 'unknown')
-            if action == 'block':
-                stats['top_blocked_domains'][domain] = stats['top_blocked_domains'].get(domain, 0) + 1
-            
+            domain = event.get("domain", "unknown")
+            if action == "block":
+                stats["top_blocked_domains"][domain] = (
+                    stats["top_blocked_domains"].get(domain, 0) + 1
+                )
+
             # Count by segment
-            segment = event.get('segment', 'unknown')
-            if segment not in stats['by_segment']:
-                stats['by_segment'][segment] = {'blocked': 0, 'monitored': 0, 'allowed': 0}
-            stats['by_segment'][segment][action] = stats['by_segment'][segment].get(action, 0) + 1
-        
+            segment = event.get("segment", "unknown")
+            if segment not in stats["by_segment"]:
+                stats["by_segment"][segment] = {
+                    "blocked": 0,
+                    "monitored": 0,
+                    "allowed": 0,
+                }
+            stats["by_segment"][segment][action] = (
+                stats["by_segment"][segment].get(action, 0) + 1
+            )
+
         # Sort top IPs and domains
-        stats['top_blocked_ips'] = dict(sorted(stats['top_blocked_ips'].items(), key=lambda x: x[1], reverse=True)[:10])
-        stats['top_blocked_domains'] = dict(sorted(stats['top_blocked_domains'].items(), key=lambda x: x[1], reverse=True)[:10])
-        
+        stats["top_blocked_ips"] = dict(
+            sorted(stats["top_blocked_ips"].items(), key=lambda x: x[1], reverse=True)[
+                :10
+            ]
+        )
+        stats["top_blocked_domains"] = dict(
+            sorted(
+                stats["top_blocked_domains"].items(), key=lambda x: x[1], reverse=True
+            )[:10]
+        )
+
         return stats
 
 
@@ -442,7 +495,7 @@ class AuditService:
     """Service for recording and querying audit logs"""
 
     SENSITIVE_KEYS = re.compile(
-        r'(token|secret|password|credential|api_key|private_key|auth_header)',
+        r"(token|secret|password|credential|api_key|private_key|auth_header)",
         re.IGNORECASE,
     )
 
@@ -451,7 +504,11 @@ class AuditService:
         """Recursively redact values whose keys match SENSITIVE_KEYS."""
         if isinstance(obj, dict):
             return {
-                k: '***REDACTED***' if cls.SENSITIVE_KEYS.search(k) else cls._sanitize_value(v)
+                k: (
+                    "***REDACTED***"
+                    if cls.SENSITIVE_KEYS.search(k)
+                    else cls._sanitize_value(v)
+                )
                 for k, v in obj.items()
             }
         if isinstance(obj, list):
@@ -459,23 +516,36 @@ class AuditService:
         return obj
 
     @classmethod
-    def log_action(cls, request, action, description, severity='info',
-                   resource_type=None, resource_id=None,
-                   before_value=None, after_value=None):
+    def log_action(
+        cls,
+        request,
+        action,
+        description,
+        severity="info",
+        resource_type=None,
+        resource_id=None,
+        before_value=None,
+        after_value=None,
+    ):
         """Record a user action in the audit log"""
         try:
             from .models import AuditLog
+
             user = request.user
 
             AuditLog.objects.create(
                 username=user.username if user.is_authenticated else "anonymous",
-                user_role=RBACService.get_user_role(user) if user.is_authenticated else 'anonymous',
+                user_role=(
+                    RBACService.get_user_role(user)
+                    if user.is_authenticated
+                    else "anonymous"
+                ),
                 action=action,
                 description=description,
                 severity=severity,
                 resource_type=resource_type,
                 resource_id=resource_id,
-                ip_address=request.META.get('REMOTE_ADDR'),
+                ip_address=request.META.get("REMOTE_ADDR"),
                 before_value=before_value,
                 after_value=after_value,
             )
@@ -488,46 +558,63 @@ class AuditService:
     def get_logs(cls, limit=50, offset=0, filters=None):
         """Query AuditLog with optional filters, return paginated results."""
         from .models import AuditLog
+
         qs = AuditLog.objects.all()
 
         if filters:
-            if filters.get('action'):
-                qs = qs.filter(action=filters['action'])
-            if filters.get('severity'):
-                qs = qs.filter(severity=filters['severity'])
-            if filters.get('username'):
-                qs = qs.filter(username__icontains=filters['username'])
-            if filters.get('resource_type'):
-                qs = qs.filter(resource_type=filters['resource_type'])
-            if filters.get('start_date'):
-                qs = qs.filter(timestamp__gte=filters['start_date'])
-            if filters.get('end_date'):
-                qs = qs.filter(timestamp__lte=filters['end_date'])
+            if filters.get("action"):
+                qs = qs.filter(action=filters["action"])
+            if filters.get("severity"):
+                qs = qs.filter(severity=filters["severity"])
+            if filters.get("username"):
+                qs = qs.filter(username__icontains=filters["username"])
+            if filters.get("resource_type"):
+                qs = qs.filter(resource_type=filters["resource_type"])
+            if filters.get("start_date"):
+                qs = qs.filter(timestamp__gte=filters["start_date"])
+            if filters.get("end_date"):
+                qs = qs.filter(timestamp__lte=filters["end_date"])
 
         total = qs.count()
         logs = list(
-            qs[offset:offset + limit].values(
-                'id', 'timestamp', 'username', 'user_role', 'action',
-                'severity', 'resource_type', 'resource_id', 'description',
-                'ip_address', 'success', 'before_value', 'after_value',
+            qs[offset : offset + limit].values(
+                "id",
+                "timestamp",
+                "username",
+                "user_role",
+                "action",
+                "severity",
+                "resource_type",
+                "resource_id",
+                "description",
+                "ip_address",
+                "success",
+                "before_value",
+                "after_value",
             )
         )
         for log in logs:
-            log['timestamp'] = log['timestamp'].isoformat() if log['timestamp'] else None
-        return {'total': total, 'logs': logs}
+            log["timestamp"] = (
+                log["timestamp"].isoformat() if log["timestamp"] else None
+            )
+        return {"total": total, "logs": logs}
 
     @classmethod
     def get_statistics(cls, days=7):
         """Aggregate counts by severity for the last N days."""
         from .models import AuditLog
+
         since = timezone.now() - timedelta(days=days)
         qs = AuditLog.objects.filter(timestamp__gte=since)
-        counts = {r['severity']: r['count'] for r in qs.values('severity').annotate(count=Count('id'))}
+        counts = {
+            r["severity"]: r["count"]
+            for r in qs.values("severity").annotate(count=Count("id"))
+        }
         return {
-            'total': sum(counts.values()),
-            'critical': counts.get('critical', 0),
-            'warning': counts.get('warning', 0),
-            'info': counts.get('info', 0),
+            "total": sum(counts.values()),
+            "critical": counts.get("critical", 0),
+            "warning": counts.get("warning", 0),
+            "info": counts.get("info", 0),
         }
 
     @classmethod
@@ -538,53 +625,68 @@ class AuditService:
         Sensitive fields in before_value/after_value are redacted.
         """
         from .models import AuditLog
+
         qs = AuditLog.objects.all()
         if start_date:
             qs = qs.filter(timestamp__gte=start_date)
         if end_date:
             qs = qs.filter(timestamp__lte=end_date)
 
-        logs = list(qs.values(
-            'id', 'timestamp', 'username', 'user_role', 'action',
-            'severity', 'resource_type', 'resource_id', 'description',
-            'ip_address', 'success', 'before_value', 'after_value',
-        ))
+        logs = list(
+            qs.values(
+                "id",
+                "timestamp",
+                "username",
+                "user_role",
+                "action",
+                "severity",
+                "resource_type",
+                "resource_id",
+                "description",
+                "ip_address",
+                "success",
+                "before_value",
+                "after_value",
+            )
+        )
         for log in logs:
-            log['timestamp'] = log['timestamp'].isoformat() if log['timestamp'] else None
-            log['before_value'] = cls._sanitize_value(log.get('before_value'))
-            log['after_value'] = cls._sanitize_value(log.get('after_value'))
+            log["timestamp"] = (
+                log["timestamp"].isoformat() if log["timestamp"] else None
+            )
+            log["before_value"] = cls._sanitize_value(log.get("before_value"))
+            log["after_value"] = cls._sanitize_value(log.get("after_value"))
 
         deployment_state = DeploymentStateService.get_state()
         envelope = {
-            'deployment_state': {
-                'protection_state': deployment_state['protection_state'],
-                'ai_enabled': deployment_state['ai_enabled'],
-                'last_state_check': deployment_state.get('last_state_check'),
+            "deployment_state": {
+                "protection_state": deployment_state["protection_state"],
+                "ai_enabled": deployment_state["ai_enabled"],
+                "last_state_check": deployment_state.get("last_state_check"),
             },
-            'exported_at': timezone.now().isoformat(),
-            'total_logs': len(logs),
-            'logs': logs,
+            "exported_at": timezone.now().isoformat(),
+            "total_logs": len(logs),
+            "logs": logs,
         }
         return json.dumps(envelope, indent=2, ensure_ascii=False)
 
 
 class SectorLock:
     """Service for accessing factory-set sector configuration"""
-    
+
     LOCK_FILE = "/opt/minifw_ai/config/sector_lock.json"
-    
+
     @classmethod
     def get_sector(cls) -> str:
         """Get the current locked sector"""
         try:
             if os.path.exists(cls.LOCK_FILE):
-                with open(cls.LOCK_FILE, 'r') as f:
-                    return json.load(f).get('sector', 'unknown')
+                with open(cls.LOCK_FILE, "r") as f:
+                    return json.load(f).get("sector", "unknown")
         except Exception:
             pass
-        
-        return os.getenv('MINIFW_SECTOR', 'unknown')
-    
+
+        return os.getenv("MINIFW_SECTOR", "unknown")
+
     @classmethod
     def get_description(cls) -> str:
         """Get human-readable description of the sector"""
@@ -604,11 +706,11 @@ class SectorLock:
         """Return full sector_lock.json content (read-only)."""
         try:
             if os.path.exists(cls.LOCK_FILE):
-                with open(cls.LOCK_FILE, 'r') as f:
+                with open(cls.LOCK_FILE, "r") as f:
                     return json.load(f)
         except Exception:
             pass
-        return {'sector': os.getenv('MINIFW_SECTOR', 'unknown')}
+        return {"sector": os.getenv("MINIFW_SECTOR", "unknown")}
 
 
 class DeploymentStateService:
@@ -620,35 +722,36 @@ class DeploymentStateService:
     def get_state(cls) -> Dict:
         """Read deployment_state.json and return parsed state info."""
         try:
-            with open(cls.STATE_FILE, 'r') as f:
+            with open(cls.STATE_FILE, "r") as f:
                 raw = json.load(f)
-            protection_state = raw.get('current_protection_state',
-                                       raw.get('status', 'BASELINE_PROTECTION'))
-            ai_enabled = protection_state == 'AI_ENHANCED_PROTECTION'
+            protection_state = raw.get(
+                "current_protection_state", raw.get("status", "BASELINE_PROTECTION")
+            )
+            ai_enabled = protection_state == "AI_ENHANCED_PROTECTION"
             return {
-                'protection_state': protection_state,
-                'ai_enabled': ai_enabled,
-                'last_state_check': raw.get('last_state_check'),
-                'service_unavailable': False,
-                'unavailable_reason': None,
-                'raw': raw,
+                "protection_state": protection_state,
+                "ai_enabled": ai_enabled,
+                "last_state_check": raw.get("last_state_check"),
+                "service_unavailable": False,
+                "unavailable_reason": None,
+                "raw": raw,
             }
         except FileNotFoundError:
-            return cls._unavailable_state('State file not found')
+            return cls._unavailable_state("State file not found")
         except (json.JSONDecodeError, ValueError, KeyError) as e:
-            return cls._unavailable_state(f'Invalid state file: {e}')
+            return cls._unavailable_state(f"Invalid state file: {e}")
         except OSError as e:
-            return cls._unavailable_state(f'Cannot read state file: {e}')
+            return cls._unavailable_state(f"Cannot read state file: {e}")
 
     @classmethod
     def _unavailable_state(cls, reason: str) -> Dict:
         return {
-            'protection_state': 'UNAVAILABLE',
-            'ai_enabled': False,
-            'last_state_check': None,
-            'service_unavailable': True,
-            'unavailable_reason': reason,
-            'raw': {},
+            "protection_state": "UNAVAILABLE",
+            "ai_enabled": False,
+            "last_state_check": None,
+            "service_unavailable": True,
+            "unavailable_reason": reason,
+            "raw": {},
         }
 
     @classmethod
@@ -656,28 +759,28 @@ class DeploymentStateService:
         """Strip AI-specific reasons (mlp_*, yara_*) from a reasons list."""
         if not isinstance(reasons, list):
             return reasons
-        return [r for r in reasons if not r.startswith(('mlp_', 'yara_'))]
+        return [r for r in reasons if not r.startswith(("mlp_", "yara_"))]
 
     @classmethod
     def filter_event_for_baseline(cls, event: Dict) -> Dict:
         """Remove score and AI reasons from an event dict."""
-        filtered = {k: v for k, v in event.items() if k != 'score'}
-        if 'reasons' in filtered:
-            filtered['reasons'] = cls.filter_ai_reasons(filtered['reasons'])
+        filtered = {k: v for k, v in event.items() if k != "score"}
+        if "reasons" in filtered:
+            filtered["reasons"] = cls.filter_ai_reasons(filtered["reasons"])
         return filtered
 
     @classmethod
     def filter_stats_for_baseline(cls, stats: Dict) -> Dict:
         """Set monitored to None and strip monitored from by_segment."""
         stats = dict(stats)
-        stats['monitored'] = None
-        if 'by_segment' in stats:
+        stats["monitored"] = None
+        if "by_segment" in stats:
             by_segment = {}
-            for seg, counts in stats['by_segment'].items():
+            for seg, counts in stats["by_segment"].items():
                 counts = dict(counts)
-                counts.pop('monitored', None)
+                counts.pop("monitored", None)
                 by_segment[seg] = counts
-            stats['by_segment'] = by_segment
+            stats["by_segment"] = by_segment
         return stats
 
 
@@ -692,7 +795,7 @@ class MiniFWEventsService:
             return []
         events = []
         try:
-            with open(cls.EVENTS_LOG, 'r') as f:
+            with open(cls.EVENTS_LOG, "r") as f:
                 for line in f:
                     line = line.strip()
                     if line:
@@ -705,7 +808,9 @@ class MiniFWEventsService:
         return events
 
     @classmethod
-    def get_events_datatable(cls, draw, start, length, search='', order_col=0, order_dir='desc'):
+    def get_events_datatable(
+        cls, draw, start, length, search="", order_col=0, order_dir="desc"
+    ):
         """Return DataTables-compatible dict with server-side processing."""
         all_events = cls._read_all_events()
         total = len(all_events)
@@ -714,45 +819,53 @@ class MiniFWEventsService:
         if search:
             search_lower = search.lower()
             all_events = [
-                e for e in all_events
-                if search_lower in str(e.get('client_ip', '')).lower()
-                or search_lower in str(e.get('domain', '')).lower()
-                or search_lower in str(e.get('action', '')).lower()
-                or search_lower in str(e.get('segment', '')).lower()
+                e
+                for e in all_events
+                if search_lower in str(e.get("client_ip", "")).lower()
+                or search_lower in str(e.get("domain", "")).lower()
+                or search_lower in str(e.get("action", "")).lower()
+                or search_lower in str(e.get("segment", "")).lower()
             ]
         filtered = len(all_events)
 
         # Sort
-        col_map = {0: 'ts', 1: 'client_ip', 2: 'domain', 3: 'action', 4: 'score', 5: 'segment'}
-        sort_key = col_map.get(order_col, 'ts')
-        reverse = order_dir == 'desc'
+        col_map = {
+            0: "ts",
+            1: "client_ip",
+            2: "domain",
+            3: "action",
+            4: "score",
+            5: "segment",
+        }
+        sort_key = col_map.get(order_col, "ts")
+        reverse = order_dir == "desc"
         try:
-            all_events.sort(key=lambda e: e.get(sort_key, ''), reverse=reverse)
+            all_events.sort(key=lambda e: e.get(sort_key, ""), reverse=reverse)
         except TypeError:
             pass
 
         # Paginate
-        page = all_events[start:start + length]
+        page = all_events[start : start + length]
 
         return {
-            'draw': draw,
-            'recordsTotal': total,
-            'recordsFiltered': filtered,
-            'data': page,
+            "draw": draw,
+            "recordsTotal": total,
+            "recordsFiltered": filtered,
+            "data": page,
         }
 
     @classmethod
     def get_event_statistics(cls):
         events = cls._read_all_events()
-        stats = {'allowed': 0, 'blocked': 0, 'threats': 0, 'total': len(events)}
+        stats = {"allowed": 0, "blocked": 0, "threats": 0, "total": len(events)}
         for e in events:
-            action = e.get('action', '')
-            if action == 'allow':
-                stats['allowed'] += 1
-            elif action == 'block':
-                stats['blocked'] += 1
-            elif action in ('deny', 'monitor'):
-                stats['threats'] += 1
+            action = e.get("action", "")
+            if action == "allow":
+                stats["allowed"] += 1
+            elif action == "block":
+                stats["blocked"] += 1
+            elif action in ("deny", "monitor"):
+                stats["threats"] += 1
         return stats
 
     @classmethod
@@ -766,8 +879,8 @@ class MiniFWEventsService:
         from openpyxl.styles import Font, PatternFill, Alignment
 
         events = cls._read_all_events()
-        if action_filter and action_filter != 'all':
-            events = [e for e in events if e.get('action') == action_filter]
+        if action_filter and action_filter != "all":
+            events = [e for e in events if e.get("action") == action_filter]
 
         deployment_state = DeploymentStateService.get_state()
 
@@ -778,7 +891,7 @@ class MiniFWEventsService:
         ws_stats.title = "Summary"
         header_font = Font(bold=True, size=12)
         ws_stats.append(["MiniFW-AI Security Events Report"])
-        ws_stats['A1'].font = Font(bold=True, size=14)
+        ws_stats["A1"].font = Font(bold=True, size=14)
         ws_stats.append([f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"])
         ws_stats.append([f"Protection State: {deployment_state['protection_state']}"])
         ws_stats.append([f"AI Modules: {'Active' if ai_enabled else 'Inactive'}"])
@@ -789,10 +902,10 @@ class MiniFWEventsService:
         unique_ips = set()
         unique_domains = set()
         for e in events:
-            a = e.get('action', 'unknown')
+            a = e.get("action", "unknown")
             action_counts[a] = action_counts.get(a, 0) + 1
-            unique_ips.add(e.get('client_ip', ''))
-            unique_domains.add(e.get('domain', ''))
+            unique_ips.add(e.get("client_ip", ""))
+            unique_domains.add(e.get("domain", ""))
 
         ws_stats.append(["Action", "Count"])
         row_num = ws_stats.max_row
@@ -807,11 +920,28 @@ class MiniFWEventsService:
         # -- Events sheet --
         ws_events = wb.create_sheet("Events")
         if ai_enabled:
-            columns = ["Timestamp", "Date", "Time", "Client IP", "Domain",
-                        "Action", "Score", "Segment", "Reasons"]
+            columns = [
+                "Timestamp",
+                "Date",
+                "Time",
+                "Client IP",
+                "Domain",
+                "Action",
+                "Score",
+                "Segment",
+                "Reasons",
+            ]
         else:
-            columns = ["Timestamp", "Date", "Time", "Client IP", "Domain",
-                        "Action", "Segment", "Reasons"]
+            columns = [
+                "Timestamp",
+                "Date",
+                "Time",
+                "Client IP",
+                "Domain",
+                "Action",
+                "Segment",
+                "Reasons",
+            ]
         ws_events.append(columns)
         for col_idx in range(1, len(columns) + 1):
             ws_events.cell(row=1, column=col_idx).font = header_font
@@ -819,33 +949,58 @@ class MiniFWEventsService:
         action_col = columns.index("Action") + 1
 
         action_fills = {
-            'allow': PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'),
-            'deny': PatternFill(start_color='FFC7CE', end_color='FFC7CE', fill_type='solid'),
-            'block': PatternFill(start_color='FFEB9C', end_color='FFEB9C', fill_type='solid'),
+            "allow": PatternFill(
+                start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"
+            ),
+            "deny": PatternFill(
+                start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"
+            ),
+            "block": PatternFill(
+                start_color="FFEB9C", end_color="FFEB9C", fill_type="solid"
+            ),
         }
 
         for e in events:
-            ts = e.get('ts', '')
+            ts = e.get("ts", "")
             date_part = ts[:10] if len(ts) >= 10 else ts
-            time_part = ts[11:19] if len(ts) >= 19 else ''
-            raw_reasons = e.get('reasons', [])
+            time_part = ts[11:19] if len(ts) >= 19 else ""
+            raw_reasons = e.get("reasons", [])
             if not ai_enabled:
                 raw_reasons = DeploymentStateService.filter_ai_reasons(
                     raw_reasons if isinstance(raw_reasons, list) else []
                 )
-            reasons = ', '.join(raw_reasons) if isinstance(raw_reasons, list) else str(raw_reasons)
+            reasons = (
+                ", ".join(raw_reasons)
+                if isinstance(raw_reasons, list)
+                else str(raw_reasons)
+            )
 
             if ai_enabled:
-                row = [ts, date_part, time_part, e.get('client_ip', ''),
-                       e.get('domain', ''), e.get('action', ''),
-                       e.get('score', 0), e.get('segment', ''), reasons]
+                row = [
+                    ts,
+                    date_part,
+                    time_part,
+                    e.get("client_ip", ""),
+                    e.get("domain", ""),
+                    e.get("action", ""),
+                    e.get("score", 0),
+                    e.get("segment", ""),
+                    reasons,
+                ]
             else:
-                row = [ts, date_part, time_part, e.get('client_ip', ''),
-                       e.get('domain', ''), e.get('action', ''),
-                       e.get('segment', ''), reasons]
+                row = [
+                    ts,
+                    date_part,
+                    time_part,
+                    e.get("client_ip", ""),
+                    e.get("domain", ""),
+                    e.get("action", ""),
+                    e.get("segment", ""),
+                    reasons,
+                ]
             ws_events.append(row)
             row_num = ws_events.max_row
-            fill = action_fills.get(e.get('action'))
+            fill = action_fills.get(e.get("action"))
             if fill:
                 ws_events.cell(row=row_num, column=action_col).fill = fill
 
@@ -856,7 +1011,7 @@ class MiniFWEventsService:
                 col_letter = col[0].column_letter
                 for cell in col:
                     try:
-                        max_len = max(max_len, len(str(cell.value or '')))
+                        max_len = max(max_len, len(str(cell.value or "")))
                     except Exception:
                         pass
                 ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
@@ -871,29 +1026,30 @@ class RBACService:
     """Role-based access control helpers."""
 
     ROLE_HIERARCHY = {
-        'SUPER_ADMIN': 5,
-        'ADMIN': 4,
-        'OPERATOR': 3,
-        'AUDITOR': 2,
-        'VIEWER': 1,
+        "SUPER_ADMIN": 5,
+        "ADMIN": 4,
+        "OPERATOR": 3,
+        "AUDITOR": 2,
+        "VIEWER": 1,
     }
 
     @classmethod
     def get_user_role(cls, user):
         if not user or not user.is_authenticated:
-            return 'VIEWER'
-        profile = getattr(user, 'profile', None)
+            return "VIEWER"
+        profile = getattr(user, "profile", None)
         if profile is None:
             try:
                 from .models import UserProfile
+
                 profile = UserProfile.objects.get(user=user)
             except Exception:
                 pass
         if profile:
             return profile.role
         if user.is_superuser:
-            return 'SUPER_ADMIN'
-        return 'VIEWER'
+            return "SUPER_ADMIN"
+        return "VIEWER"
 
     @classmethod
     def check_permission(cls, user, required_role):
@@ -903,43 +1059,48 @@ class RBACService:
 
     @classmethod
     def can_modify_policy(cls, user):
-        return cls.check_permission(user, 'ADMIN')
+        return cls.check_permission(user, "ADMIN")
 
     @classmethod
     def can_execute_enforcement(cls, user):
-        return cls.check_permission(user, 'OPERATOR')
+        return cls.check_permission(user, "OPERATOR")
 
     @classmethod
     def can_access_audit(cls, user):
-        return cls.check_permission(user, 'AUDITOR')
+        return cls.check_permission(user, "AUDITOR")
 
     @classmethod
     def can_export_data(cls, user):
-        return cls.check_permission(user, 'AUDITOR')
+        return cls.check_permission(user, "AUDITOR")
 
 
 class UserManagementService:
     """CRUD operations for user accounts + profiles."""
 
     @classmethod
-    def create_user(cls, username, email, password, role, sector,
-                    created_by, request=None, **kwargs):
+    def create_user(
+        cls, username, email, password, role, sector, created_by, request=None, **kwargs
+    ):
         from .models import UserProfile
-        user = User.objects.create_user(username=username, email=email, password=password)
+
+        user = User.objects.create_user(
+            username=username, email=email, password=password
+        )
         profile = UserProfile.objects.create(
             user=user,
             role=role,
             sector=sector,
-            full_name=kwargs.get('full_name', ''),
-            department=kwargs.get('department', ''),
-            phone=kwargs.get('phone', ''),
+            full_name=kwargs.get("full_name", ""),
+            department=kwargs.get("department", ""),
+            phone=kwargs.get("phone", ""),
         )
         if request:
             AuditService.log_action(
-                request, 'user_created',
-                f'Created user {username} with role {role}',
-                severity='warning',
-                resource_type='user',
+                request,
+                "user_created",
+                f"Created user {username} with role {role}",
+                severity="warning",
+                resource_type="user",
                 resource_id=str(user.id),
             )
         return user, profile
@@ -947,22 +1108,23 @@ class UserManagementService:
     @classmethod
     def update_user(cls, user_id, updated_by, request=None, **fields):
         from .models import UserProfile
+
         user = User.objects.get(id=user_id)
         profile, _ = UserProfile.objects.get_or_create(user=user)
 
         before = {
-            'email': user.email,
-            'role': profile.role,
-            'sector': profile.sector,
-            'full_name': profile.full_name,
-            'department': profile.department,
-            'phone': profile.phone,
+            "email": user.email,
+            "role": profile.role,
+            "sector": profile.sector,
+            "full_name": profile.full_name,
+            "department": profile.department,
+            "phone": profile.phone,
         }
 
-        if 'email' in fields:
-            user.email = fields['email']
-            user.save(update_fields=['email'])
-        profile_fields = ['role', 'sector', 'full_name', 'department', 'phone']
+        if "email" in fields:
+            user.email = fields["email"]
+            user.save(update_fields=["email"])
+        profile_fields = ["role", "sector", "full_name", "department", "phone"]
         changed = []
         for f in profile_fields:
             if f in fields:
@@ -972,19 +1134,20 @@ class UserManagementService:
             profile.save(update_fields=changed)
 
         after = {
-            'email': user.email,
-            'role': profile.role,
-            'sector': profile.sector,
-            'full_name': profile.full_name,
-            'department': profile.department,
-            'phone': profile.phone,
+            "email": user.email,
+            "role": profile.role,
+            "sector": profile.sector,
+            "full_name": profile.full_name,
+            "department": profile.department,
+            "phone": profile.phone,
         }
         if request:
             AuditService.log_action(
-                request, 'user_updated',
+                request,
+                "user_updated",
                 f'Updated user {user.username}: {", ".join(changed or ["email"])}',
-                severity='warning',
-                resource_type='user',
+                severity="warning",
+                resource_type="user",
                 resource_id=str(user.id),
                 before_value=before,
                 after_value=after,
@@ -995,23 +1158,25 @@ class UserManagementService:
     def change_password(cls, user_id, new_password, changed_by, request=None):
         user = User.objects.get(id=user_id)
         user.set_password(new_password)
-        user.save(update_fields=['password'])
+        user.save(update_fields=["password"])
 
         from .models import UserProfile
+
         try:
             profile = user.profile
             profile.last_password_change = timezone.now()
             profile.must_change_password = False
-            profile.save(update_fields=['last_password_change', 'must_change_password'])
+            profile.save(update_fields=["last_password_change", "must_change_password"])
         except Exception:
             pass
 
         if request:
             AuditService.log_action(
-                request, 'password_changed',
-                f'Password changed for user {user.username}',
-                severity='warning',
-                resource_type='user',
+                request,
+                "password_changed",
+                f"Password changed for user {user.username}",
+                severity="warning",
+                resource_type="user",
                 resource_id=str(user.id),
             )
         return True
@@ -1025,10 +1190,11 @@ class UserManagementService:
         user.delete()
         if request:
             AuditService.log_action(
-                request, 'user_deleted',
-                f'Deleted user {username}',
-                severity='critical',
-                resource_type='user',
+                request,
+                "user_deleted",
+                f"Deleted user {username}",
+                severity="critical",
+                resource_type="user",
                 resource_id=str(user_id),
             )
         return True

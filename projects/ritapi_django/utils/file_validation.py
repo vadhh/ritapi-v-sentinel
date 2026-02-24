@@ -13,6 +13,7 @@ ALLOWED_MIME = {"image/png", "image/jpeg", "application/pdf"}
 MAX_UPLOAD_SIZE = 8 * 1024 * 1024  # 8 MB
 FORBIDDEN_EXT = {".php", ".js", ".jsp", ".exe", ".sh", ".bat"}
 
+
 def inspect_file_upload(request, alert_module=None):
     """
     Validasi file upload (multipart/form-data)
@@ -41,13 +42,13 @@ def inspect_file_upload(request, alert_module=None):
                         alert_type="UPLOAD_BLOCKED",
                         ip_address=request.META.get("REMOTE_ADDR", "0.0.0.0"),
                         detail=reason,
-                        severity=sev
+                        severity=sev,
                     )
                     send_telegram_message(
                         alert_type="UPLOAD_BLOCKED",
                         client_ip=request.META.get("REMOTE_ADDR", "0.0.0.0"),
                         severity=sev,
-                        reason=reason
+                        reason=reason,
                     )
                 except Exception as e:
                     logger.error(f"Failed to send alert for forbidden file: {e}")
@@ -64,13 +65,13 @@ def inspect_file_upload(request, alert_module=None):
                         alert_type="UPLOAD_UNSUPPORTED_MIME",
                         ip_address=request.META.get("REMOTE_ADDR", "0.0.0.0"),
                         detail=reason,
-                        severity=sev
+                        severity=sev,
                     )
                     send_telegram_message(
                         alert_type="UPLOAD_UNSUPPORTED_MIME",
                         client_ip=request.META.get("REMOTE_ADDR", "0.0.0.0"),
                         severity=sev,
-                        reason=reason
+                        reason=reason,
                     )
                 except Exception as e:
                     logger.error(f"Failed to send alert for MIME violation: {e}")
@@ -87,13 +88,13 @@ def inspect_file_upload(request, alert_module=None):
                         alert_type="UPLOAD_TOO_LARGE",
                         ip_address=request.META.get("REMOTE_ADDR", "0.0.0.0"),
                         detail=reason,
-                        severity=sev
+                        severity=sev,
                     )
                     send_telegram_message(
                         alert_type="UPLOAD_TOO_LARGE",
                         client_ip=request.META.get("REMOTE_ADDR", "0.0.0.0"),
                         severity=sev,
-                        reason=reason
+                        reason=reason,
                     )
                 except Exception as e:
                     logger.error(f"Failed to send alert for file size: {e}")

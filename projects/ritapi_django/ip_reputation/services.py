@@ -7,6 +7,7 @@ from .models import IpReputation, InternalIPList
 
 logger = logging.getLogger(__name__)
 
+
 class IpReputationService:
     TOR_URL = "https://check.torproject.org/torbulkexitlist"
     FIREHOL_URL = "https://iplists.firehol.org/files/firehol_level1.netset"
@@ -24,7 +25,11 @@ class IpReputationService:
                 resp = requests.get(url, timeout=10)
                 if resp.status_code == 200:
                     lines = resp.text.strip().splitlines()
-                    return set(line.strip() for line in lines if line and not line.startswith("#"))
+                    return set(
+                        line.strip()
+                        for line in lines
+                        if line and not line.startswith("#")
+                    )
             except Exception as e:
                 logger.error("Error loading feed %s: %s", url, e)
             return set()
@@ -37,16 +42,16 @@ class IpReputationService:
 
     @staticmethod
     # Perubahan: Hapus parameter service_id yang tidak digunakan
-    def check_reputation(ip_address: str): 
+    def check_reputation(ip_address: str):
         try:
             IpReputationService.load_threat_feeds()
 
             # === Internal allow/deny override check ===
             now = timezone.now()
             # Perubahan: Hapus filter yang berhubungan dengan service
-            overrides = InternalIPList.objects.filter(
-                ip_address=ip_address
-            ).order_by("-created_at") # Tambahkan ordering agar konsisten mengambil yang terbaru/terdahulu
+            overrides = InternalIPList.objects.filter(ip_address=ip_address).order_by(
+                "-created_at"
+            )  # Tambahkan ordering agar konsisten mengambil yang terbaru/terdahulu
 
             for override in overrides:
                 if override.expires_at and override.expires_at < now:
@@ -125,6 +130,6 @@ class IpReputationService:
                 "country": country,
                 "is_tor": is_tor,
                 "timestamp": timezone.now(),
-            }
+            },
         )
         return record

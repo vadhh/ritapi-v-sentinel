@@ -28,16 +28,12 @@ from typing import Iterator, Optional, Tuple
 # --- Patterns for systemd-resolved log lines (verified against systemd v245+) ---
 
 # "Looking up RR for example.com IN A"  — emitted for every new lookup
-_RE_LOOKUP = re.compile(
-    r"Looking up RR for\s+(\S+)\s+IN\s+", re.IGNORECASE
-)
+_RE_LOOKUP = re.compile(r"Looking up RR for\s+(\S+)\s+IN\s+", re.IGNORECASE)
 
 # "Regular transaction 3083 for <example.com IN AAAA> scope dns on eth0/*"
 # "Transaction 3083 for <example.com IN AAAA> scope dns on eth0/*"
 # re.IGNORECASE handles the optional qualifier word(s) before "transaction"
-_RE_TRANSACTION = re.compile(
-    r"transaction\s+\d+\s+for\s+<(\S+)\s+IN\s+", re.IGNORECASE
-)
+_RE_TRANSACTION = re.compile(r"transaction\s+\d+\s+for\s+<(\S+)\s+IN\s+", re.IGNORECASE)
 
 # "Added positive unauthenticated non-confidential cache entry for example.com IN A"
 # "Added positive unauthenticated cache entry for example.com IN A"
@@ -48,19 +44,13 @@ _RE_CACHE_ADD = re.compile(
 )
 
 # "Positive cache hit for example.com IN A"  (present in some systemd versions)
-_RE_CACHE_HIT = re.compile(
-    r"Positive cache hit for\s+(\S+)\s+IN\s+", re.IGNORECASE
-)
+_RE_CACHE_HIT = re.compile(r"Positive cache hit for\s+(\S+)\s+IN\s+", re.IGNORECASE)
 
 # "DNSSEC validation succeeded for example.com IN A"
-_RE_DNSSEC = re.compile(
-    r"DNSSEC validation\s+\S+\s+for\s+(\S+)\s+IN\s+", re.IGNORECASE
-)
+_RE_DNSSEC = re.compile(r"DNSSEC validation\s+\S+\s+for\s+(\S+)\s+IN\s+", re.IGNORECASE)
 
 # dnsmasq-style: "query[A] example.com from 192.168.1.5"  (dnsmasq forwarding via resolved)
-_RE_DNSMASQ_QUERY = re.compile(
-    r"query\[\S+\]\s+(\S+)\s+from\s+(\S+)"
-)
+_RE_DNSMASQ_QUERY = re.compile(r"query\[\S+\]\s+(\S+)\s+from\s+(\S+)")
 
 _RECONNECT_DELAY = 5  # seconds before restarting journalctl after unexpected exit
 
@@ -83,7 +73,13 @@ def parse_resolved_log(line: str) -> Optional[Tuple[str, str]]:
 
     # systemd-resolved patterns (client is always localhost stub resolver)
     # Priority: lookup > transaction > cache add > cache hit > dnssec
-    for pattern in (_RE_LOOKUP, _RE_TRANSACTION, _RE_CACHE_ADD, _RE_CACHE_HIT, _RE_DNSSEC):
+    for pattern in (
+        _RE_LOOKUP,
+        _RE_TRANSACTION,
+        _RE_CACHE_ADD,
+        _RE_CACHE_HIT,
+        _RE_DNSSEC,
+    ):
         m = pattern.search(line)
         if m:
             domain = m.group(1).rstrip(".")
@@ -109,11 +105,14 @@ def stream_dns_events_journald(
     """
     cmd = [
         "journalctl",
-        "-u", unit,
-        "-f",           # follow (like tail -f)
-        "-o", "cat",    # plain message text, no metadata prefix
+        "-u",
+        unit,
+        "-f",  # follow (like tail -f)
+        "-o",
+        "cat",  # plain message text, no metadata prefix
         "--no-pager",
-        "-n", "0",      # skip existing entries, only new ones
+        "-n",
+        "0",  # skip existing entries, only new ones
     ]
 
     while True:
@@ -180,7 +179,9 @@ def stream_dns_events_journald(
         try:
             stderr_out = proc.stderr.read()
             if stderr_out:
-                logging.warning(f"[DNS_COLLECTOR] journalctl stderr: {stderr_out.strip()}")
+                logging.warning(
+                    f"[DNS_COLLECTOR] journalctl stderr: {stderr_out.strip()}"
+                )
                 if "permission" in stderr_out.lower() or "access" in stderr_out.lower():
                     logging.warning(
                         "[DNS_COLLECTOR] journalctl access denied — "

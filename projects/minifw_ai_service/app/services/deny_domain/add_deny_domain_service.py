@@ -3,6 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parents[3]
 DENY_DOMAIN_FILE = BASE_DIR / "config" / "feeds" / "deny_domains.txt"
 
+
 def add_deny_domain_service(domain: str) -> None:
     domain = domain.strip().lower()
 
@@ -20,18 +21,24 @@ def add_deny_domain_service(domain: str) -> None:
         raise ValueError("Domain already exists")
 
     domains.add(domain)
-    
+
     # Write with header comment if file had one, otherwise just write domains
     if DENY_DOMAIN_FILE.exists():
         original_content = DENY_DOMAIN_FILE.read_text()
-        has_comment = any(line.startswith("#") for line in original_content.splitlines())
+        has_comment = any(
+            line.startswith("#") for line in original_content.splitlines()
+        )
         if has_comment:
             # Preserve comment
-            comment_lines = [line for line in original_content.splitlines() if line.startswith("#")]
-            content = "\n".join(comment_lines) + "\n" + "\n".join(sorted(domains)) + "\n"
+            comment_lines = [
+                line for line in original_content.splitlines() if line.startswith("#")
+            ]
+            content = (
+                "\n".join(comment_lines) + "\n" + "\n".join(sorted(domains)) + "\n"
+            )
         else:
             content = "\n".join(sorted(domains)) + "\n"
     else:
         content = "\n".join(sorted(domains)) + "\n"
-    
+
     DENY_DOMAIN_FILE.write_text(content)

@@ -44,16 +44,22 @@ class OpsAlertDashboardTests(TestCase):
         )
         # Create a few alerts for filtering tests
         cls.alert_high = Alert.objects.create(
-            alert_type="Brute Force", ip_address="10.0.0.1",
-            detail="SSH brute force attempt", severity="high",
+            alert_type="Brute Force",
+            ip_address="10.0.0.1",
+            detail="SSH brute force attempt",
+            severity="high",
         )
         cls.alert_low = Alert.objects.create(
-            alert_type="Port Scan", ip_address="192.168.1.5",
-            detail="Nmap scan detected", severity="low",
+            alert_type="Port Scan",
+            ip_address="192.168.1.5",
+            detail="Nmap scan detected",
+            severity="low",
         )
         cls.alert_critical = Alert.objects.create(
-            alert_type="SQL Injection", ip_address="10.0.0.99",
-            detail="SQLi payload", severity="critical",
+            alert_type="SQL Injection",
+            ip_address="10.0.0.99",
+            detail="SQLi payload",
+            severity="critical",
         )
 
     def setUp(self):

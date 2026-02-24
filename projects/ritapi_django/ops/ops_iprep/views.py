@@ -3,15 +3,17 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import render
 from ip_reputation.models import IpReputation
-from ip_reputation.services import IpReputationService # Tetap dipertahankan
+from ip_reputation.services import IpReputationService  # Tetap dipertahankan
 from django.contrib import messages
 from django.utils import timezone
 from uuid import UUID
 from django.http import JsonResponse
 from ip_reputation.models import InternalIPList
 from django.views.decorators.http import require_http_methods
+
 # Hapus import Service
-# from ops.ops_services.models import Service 
+# from ops.ops_services.models import Service
+
 
 @login_required
 def ip_reputation_dashboard(request):
@@ -31,11 +33,14 @@ def ip_reputation_dashboard(request):
                 error_message = f"'{ip_address}' is not a valid IP address."
             else:
                 # Perubahan: Tidak ada lagi service_id yang dilewatkan
-                result = IpReputationService.check_reputation(ip_address) 
+                result = IpReputationService.check_reputation(ip_address)
                 if not result:
                     error_message = f"No reputation data found for IP {ip_address}."
                 else:
-                    messages.success(request, f"Reputation check for IP {ip_address} completed successfully.")
+                    messages.success(
+                        request,
+                        f"Reputation check for IP {ip_address} completed successfully.",
+                    )
 
     # ✅ Fetch history with pagination
     records = IpReputation.objects.all().order_by("-timestamp")
@@ -43,11 +48,16 @@ def ip_reputation_dashboard(request):
     page_number = request.GET.get("page")
     history = paginator.get_page(page_number)
 
-    return render(request, "ops_template/ip_reputation.html", {
-        "result": result,
-        "error_message": error_message,  # ✅ pass to template
-        "history": history,
-    })
+    return render(
+        request,
+        "ops_template/ip_reputation.html",
+        {
+            "result": result,
+            "error_message": error_message,  # ✅ pass to template
+            "history": history,
+        },
+    )
+
 
 @login_required
 def internal_ip_dashboard(request):
@@ -55,7 +65,7 @@ def internal_ip_dashboard(request):
     Dashboard to manage internal allow/deny IP list
     """
     # Perubahan: Hapus .select_related("service")
-    entries = InternalIPList.objects.all().order_by("-created_at") 
+    entries = InternalIPList.objects.all().order_by("-created_at")
     paginator = Paginator(entries, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
@@ -63,12 +73,17 @@ def internal_ip_dashboard(request):
     # Perubahan: Hapus fetching services
     # services = Service.objects.all().order_by("target_base_url")
 
-    return render(request, "ops_template/internal_ip_dashboard.html", {
-        "page_obj": page_obj,
-        # Perubahan: Hapus "services" dari context
-        # "services": services, 
-    })
-    
+    return render(
+        request,
+        "ops_template/internal_ip_dashboard.html",
+        {
+            "page_obj": page_obj,
+            # Perubahan: Hapus "services" dari context
+            # "services": services,
+        },
+    )
+
+
 @login_required
 @require_http_methods(["POST"])
 def internal_ip_create(request):
@@ -76,7 +91,7 @@ def internal_ip_create(request):
         ip_address = request.POST.get("ip_address")
         list_type = request.POST.get("list_type")
         # Perubahan: Hapus service_uuid
-        # service_uuid = request.POST.get("service_uuid") 
+        # service_uuid = request.POST.get("service_uuid")
         expires_at = request.POST.get("expires_at")
         reason = request.POST.get("reason", "")
 
@@ -91,8 +106,8 @@ def internal_ip_create(request):
             ip_address=ip_address,
             list_type=list_type,
             # Perubahan: Hapus service=service
-            # service=service, 
-            reason=reason
+            # service=service,
+            reason=reason,
         )
 
         if expires_at:
@@ -113,7 +128,7 @@ def internal_ip_update(request, pk):
         ip_address = request.POST.get("ip_address")
         list_type = request.POST.get("list_type")
         # Perubahan: Hapus service_uuid
-        # service_uuid = request.POST.get("service_uuid") 
+        # service_uuid = request.POST.get("service_uuid")
         expires_at = request.POST.get("expires_at")
         reason = request.POST.get("reason", "")
 
@@ -127,7 +142,7 @@ def internal_ip_update(request, pk):
         entry.ip_address = ip_address
         entry.list_type = list_type
         # Perubahan: Hapus entry.service = service
-        # entry.service = service 
+        # entry.service = service
         entry.reason = reason
 
         if expires_at:
@@ -141,6 +156,7 @@ def internal_ip_update(request, pk):
     except Exception as e:
         return JsonResponse({"success": False, "message": str(e)}, status=400)
 
+
 @login_required
 @require_http_methods(["POST"])
 def internal_ip_delete(request, pk):
@@ -149,4 +165,6 @@ def internal_ip_delete(request, pk):
         entry.delete()
         return JsonResponse({"success": True, "message": "Entry deleted"})
     except InternalIPList.DoesNotExist:
-        return JsonResponse({"success": False, "message": "Entry not found"}, status=404)
+        return JsonResponse(
+            {"success": False, "message": "Entry not found"}, status=404
+        )

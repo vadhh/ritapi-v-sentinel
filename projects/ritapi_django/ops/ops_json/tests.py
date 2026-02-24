@@ -55,15 +55,18 @@ class OpsJsonSchemaDashboardTests(TestCase):
 
     def test_create_schema(self):
         """POST with valid data should create a schema."""
-        resp = self.client.post("/ops/json-schema/create/", {
-            "name": "Test Schema",
-            "endpoint": "/api/test",
-            "method": "POST",
-            "schema_json": '{"type": "object"}',
-            "description": "A test schema",
-            "rollout_mode": "monitor",
-            "version": "v1",
-        })
+        resp = self.client.post(
+            "/ops/json-schema/create/",
+            {
+                "name": "Test Schema",
+                "endpoint": "/api/test",
+                "method": "POST",
+                "schema_json": '{"type": "object"}',
+                "description": "A test schema",
+                "rollout_mode": "monitor",
+                "version": "v1",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -71,12 +74,15 @@ class OpsJsonSchemaDashboardTests(TestCase):
 
     def test_create_invalid_json(self):
         """POST with invalid schema_json should return 400."""
-        resp = self.client.post("/ops/json-schema/create/", {
-            "name": "Bad Schema",
-            "endpoint": "/api/bad",
-            "method": "POST",
-            "schema_json": "not-valid-json{{{",
-        })
+        resp = self.client.post(
+            "/ops/json-schema/create/",
+            {
+                "name": "Bad Schema",
+                "endpoint": "/api/bad",
+                "method": "POST",
+                "schema_json": "not-valid-json{{{",
+            },
+        )
         self.assertEqual(resp.status_code, 400)
         data = resp.json()
         self.assertFalse(data["success"])
@@ -84,16 +90,22 @@ class OpsJsonSchemaDashboardTests(TestCase):
     def test_update_schema(self):
         """POST update should modify existing schema."""
         schema = JsonSchema.objects.create(
-            name="Original", endpoint="/api/orig", method="GET",
-            schema_json={"type": "object"}, version="v1",
+            name="Original",
+            endpoint="/api/orig",
+            method="GET",
+            schema_json={"type": "object"},
+            version="v1",
         )
-        resp = self.client.post(f"/ops/json-schema/update/{schema.pk}/", {
-            "name": "Updated",
-            "endpoint": "/api/orig",
-            "method": "GET",
-            "schema_json": '{"type": "array"}',
-            "version": "v1",
-        })
+        resp = self.client.post(
+            f"/ops/json-schema/update/{schema.pk}/",
+            {
+                "name": "Updated",
+                "endpoint": "/api/orig",
+                "method": "GET",
+                "schema_json": '{"type": "array"}',
+                "version": "v1",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -102,16 +114,24 @@ class OpsJsonSchemaDashboardTests(TestCase):
 
     def test_update_not_found(self):
         """POST update nonexistent pk should return 404."""
-        resp = self.client.post("/ops/json-schema/update/99999/", {
-            "name": "x", "endpoint": "/x", "schema_json": "{}",
-        })
+        resp = self.client.post(
+            "/ops/json-schema/update/99999/",
+            {
+                "name": "x",
+                "endpoint": "/x",
+                "schema_json": "{}",
+            },
+        )
         self.assertEqual(resp.status_code, 404)
 
     def test_delete_schema(self):
         """POST delete should remove schema from DB."""
         schema = JsonSchema.objects.create(
-            name="ToDelete", endpoint="/api/del", method="DELETE",
-            schema_json={"type": "object"}, version="v1",
+            name="ToDelete",
+            endpoint="/api/del",
+            method="DELETE",
+            schema_json={"type": "object"},
+            version="v1",
         )
         resp = self.client.post(f"/ops/json-schema/delete/{schema.pk}/")
         self.assertEqual(resp.status_code, 200)
@@ -122,8 +142,12 @@ class OpsJsonSchemaDashboardTests(TestCase):
     def test_toggle_schema(self):
         """POST toggle should flip is_active."""
         schema = JsonSchema.objects.create(
-            name="Toggle", endpoint="/api/toggle", method="POST",
-            schema_json={"type": "object"}, version="v1", is_active=True,
+            name="Toggle",
+            endpoint="/api/toggle",
+            method="POST",
+            schema_json={"type": "object"},
+            version="v1",
+            is_active=True,
         )
         resp = self.client.post(f"/ops/json-schema/toggle/{schema.pk}/")
         self.assertEqual(resp.status_code, 200)

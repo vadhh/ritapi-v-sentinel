@@ -4,10 +4,13 @@ from unittest.mock import patch, MagicMock
 from asn.services import AsnScoreService
 from asn.models import AsnTrustConfig, AsnInfo
 
+
 class TestAsnScoreService(TestCase):
 
     def test_get_trust_score_existing(self):
-        config = AsnTrustConfig.objects.create(asn_number="12345", name="Test ASN", score=75)
+        config = AsnTrustConfig.objects.create(
+            asn_number="12345", name="Test ASN", score=75
+        )
         score = AsnScoreService.get_trust_score("12345")
         self.assertEqual(score, 75)
 

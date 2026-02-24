@@ -9,12 +9,12 @@ SQLALCHEMY_DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 # Create engine
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
 
 # Create session
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 # Dependency to get DB session
 def get_db():
@@ -24,7 +24,9 @@ def get_db():
     finally:
         db.close()
 
+
 # Create tables
 def init_db():
     from app.models.user import Base
+
     Base.metadata.create_all(bind=engine)

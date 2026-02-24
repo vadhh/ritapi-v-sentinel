@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class FeedMatcher:
     def __init__(self, feeds_dir: str):
         self.feeds_dir = Path(feeds_dir)
@@ -28,10 +29,10 @@ class FeedMatcher:
     def load_sector_feeds(self, extra_feeds: list[str]) -> int:
         """
         Load additional sector-specific feeds into deny_domains.
-        
+
         Args:
             extra_feeds: List of feed filenames (e.g., ["school_blacklist.txt"])
-            
+
         Returns:
             Number of new patterns loaded
         """
@@ -58,4 +59,3 @@ class FeedMatcher:
 
     def asn_denied(self, asn: str) -> bool:
         return asn in self.deny_asn
-

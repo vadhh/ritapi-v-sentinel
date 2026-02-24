@@ -101,11 +101,14 @@ class OpsInternalIPListTests(TestCase):
 
     def test_internal_ip_create(self):
         """POST create with valid data should create entry."""
-        resp = self.client.post("/ops/ip-reputation/internal-ip/create/", {
-            "ip_address": "10.0.0.1",
-            "list_type": "allow",
-            "reason": "Trusted server",
-        })
+        resp = self.client.post(
+            "/ops/ip-reputation/internal-ip/create/",
+            {
+                "ip_address": "10.0.0.1",
+                "list_type": "allow",
+                "reason": "Trusted server",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -113,10 +116,13 @@ class OpsInternalIPListTests(TestCase):
 
     def test_internal_ip_create_invalid_ip(self):
         """POST with invalid IP should return 400."""
-        resp = self.client.post("/ops/ip-reputation/internal-ip/create/", {
-            "ip_address": "not-an-ip",
-            "list_type": "allow",
-        })
+        resp = self.client.post(
+            "/ops/ip-reputation/internal-ip/create/",
+            {
+                "ip_address": "not-an-ip",
+                "list_type": "allow",
+            },
+        )
         self.assertEqual(resp.status_code, 400)
         data = resp.json()
         self.assertFalse(data["success"])
@@ -126,11 +132,14 @@ class OpsInternalIPListTests(TestCase):
         entry = InternalIPList.objects.create(
             ip_address="10.0.0.2", list_type="allow", reason="Old reason"
         )
-        resp = self.client.post(f"/ops/ip-reputation/internal-ip/update/{entry.pk}/", {
-            "ip_address": "10.0.0.2",
-            "list_type": "deny",
-            "reason": "Changed to deny",
-        })
+        resp = self.client.post(
+            f"/ops/ip-reputation/internal-ip/update/{entry.pk}/",
+            {
+                "ip_address": "10.0.0.2",
+                "list_type": "deny",
+                "reason": "Changed to deny",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])

@@ -14,23 +14,22 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import path, include
 from ritapi_v_sentinel.views import healthz, home
 
 urlpatterns = [
-    path('', home, name='home'),
-    path('admin/', admin.site.urls),
+    path("", home, name="home"),
+    path("admin/", admin.site.urls),
     path("healthz", healthz, name="healthz"),
-    
-    path('', include('authentication.urls')),
+    path("", include("authentication.urls")),
     path("asn/", include("asn.urls")),
     path("ip-reputation/", include("ip_reputation.urls")),
-    path('alerts/', include('alert.urls')),
-    path('blocking/', include('blocking.urls')),
-    path('json/', include('json_schema.urls')),
+    path("alerts/", include("alert.urls")),
+    path("blocking/", include("blocking.urls")),
+    path("json/", include("json_schema.urls")),
     path("ops/requestlogs/", include("log_channel.urls")),
-    
     # ops dashboard
     path("ops/", include("ops.urls")),
     path("ops/minifw/", include("minifw.urls")),

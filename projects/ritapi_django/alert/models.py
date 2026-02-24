@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class Alert(models.Model):
     SEVERITY_CHOICES = [
         ("low", "Low"),
@@ -12,9 +13,7 @@ class Alert(models.Model):
     alert_type = models.CharField(max_length=100)
     ip_address = models.GenericIPAddressField()
     detail = models.TextField()
-    severity = models.CharField(
-        max_length=10, choices=SEVERITY_CHOICES, default="low"
-    )
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, default="low")
     resolved = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
 

@@ -7,19 +7,33 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='GeoBlockSetting',
+            name="GeoBlockSetting",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('country_code', models.CharField(max_length=5, unique=True)),
-                ('action', models.CharField(choices=[('block', 'Block'), ('allow', 'Allow')], default='block', max_length=10)),
-                ('description', models.TextField(blank=True, null=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("country_code", models.CharField(max_length=5, unique=True)),
+                (
+                    "action",
+                    models.CharField(
+                        choices=[("block", "Block"), ("allow", "Allow")],
+                        default="block",
+                        max_length=10,
+                    ),
+                ),
+                ("description", models.TextField(blank=True, null=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
             ],
         ),
     ]

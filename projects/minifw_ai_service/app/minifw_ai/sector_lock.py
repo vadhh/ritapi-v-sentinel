@@ -9,6 +9,7 @@ Priority:
 2. Lock File: /opt/minifw_ai/config/sector_lock.json (production hardware)
 3. Fallback: Fail closed (system cannot start without valid sector)
 """
+
 from __future__ import annotations
 import os
 import json
@@ -19,28 +20,30 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Production lock file path
-LOCK_FILE_PATH = Path(os.environ.get(
-    "MINIFW_SECTOR_LOCK_FILE", 
-    "/opt/minifw_ai/config/sector_lock.json"
-))
+LOCK_FILE_PATH = Path(
+    os.environ.get("MINIFW_SECTOR_LOCK_FILE", "/opt/minifw_ai/config/sector_lock.json")
+)
 
 # Development fallback path (relative to project)
-DEV_LOCK_FILE_PATH = Path(__file__).parent.parent.parent.parent / "config" / "sector_lock.json"
+DEV_LOCK_FILE_PATH = (
+    Path(__file__).parent.parent.parent.parent / "config" / "sector_lock.json"
+)
 
 
 class SectorLock:
     """
     Singleton class that enforces factory-set sector configuration.
-    
+
     Once initialized, the sector CANNOT be changed programmatically.
     This prevents a compromised Admin UI from changing device identity.
     """
-    _instance: Optional['SectorLock'] = None
+
+    _instance: Optional["SectorLock"] = None
     _sector: Optional[str] = None
     _config: Dict[str, Any] = {}
     _initialized: bool = False
 
-    def __new__(cls) -> 'SectorLock':
+    def __new__(cls) -> "SectorLock":
         if cls._instance is None:
             cls._instance = super(SectorLock, cls).__new__(cls)
         return cls._instance
@@ -54,21 +57,22 @@ class SectorLock:
         """Get list of valid sector values."""
         # Import here to avoid circular imports
         from models.user import SectorType
+
         return [s.value for s in SectorType]
 
     def _load_sector(self) -> None:
         """
         Load sector from environment or lock file.
-        
+
         Priority 1: Environment Variable (Container/Dev)
         Priority 2: Lock File (Production Hardware)
         Fallback: Error (Fail Closed)
         """
         valid_sectors = self._get_valid_sectors()
-        
+
         # Priority 1: Environment Variable
         env_sector = os.getenv("MINIFW_SECTOR")
-        
+
         if env_sector:
             sector_lower = env_sector.lower().strip()
             if sector_lower in valid_sectors:
@@ -77,52 +81,66 @@ class SectorLock:
                 self._load_config()
                 return
             else:
-                logger.critical(f"[SECTOR_LOCK] Invalid MINIFW_SECTOR in ENV: {env_sector}")
+                logger.critical(
+                    f"[SECTOR_LOCK] Invalid MINIFW_SECTOR in ENV: {env_sector}"
+                )
                 logger.critical(f"[SECTOR_LOCK] Valid sectors: {valid_sectors}")
                 raise RuntimeError(f"Invalid Sector Configuration: {env_sector}")
-        
+
         # Priority 2: Production Lock File
         lock_file = LOCK_FILE_PATH if LOCK_FILE_PATH.exists() else DEV_LOCK_FILE_PATH
-        
+
         if lock_file.exists():
             try:
-                with open(lock_file, 'r', encoding='utf-8') as f:
+                with open(lock_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     sector_value = data.get("sector", "").lower().strip()
-                    
+
                     if sector_value in valid_sectors:
                         self._sector = sector_value
-                        logger.info(f"[SECTOR_LOCK] Loaded from LOCKFILE: {self._sector}")
+                        logger.info(
+                            f"[SECTOR_LOCK] Loaded from LOCKFILE: {self._sector}"
+                        )
                         self._load_config()
                         return
                     else:
-                        logger.critical(f"[SECTOR_LOCK] Invalid sector in lock file: {sector_value}")
-                        raise RuntimeError(f"Invalid Sector in Lock File: {sector_value}")
-                        
+                        logger.critical(
+                            f"[SECTOR_LOCK] Invalid sector in lock file: {sector_value}"
+                        )
+                        raise RuntimeError(
+                            f"Invalid Sector in Lock File: {sector_value}"
+                        )
+
             except json.JSONDecodeError as e:
                 logger.critical(f"[SECTOR_LOCK] Corrupted lock file: {e}")
                 raise RuntimeError("Corrupted Sector Lock File")
             except Exception as e:
                 logger.critical(f"[SECTOR_LOCK] Failed to read lock file: {e}")
                 raise RuntimeError(f"Failed to read Sector Lock File: {e}")
-        
+
         # Fallback: Fail Closed
         logger.critical("[SECTOR_LOCK] NO SECTOR CONFIGURED. System cannot start.")
-        logger.critical(f"[SECTOR_LOCK] Set MINIFW_SECTOR env var or create {LOCK_FILE_PATH}")
+        logger.critical(
+            f"[SECTOR_LOCK] Set MINIFW_SECTOR env var or create {LOCK_FILE_PATH}"
+        )
         raise RuntimeError("Missing Sector Configuration. Device is unprovisioned.")
 
     def _load_config(self) -> None:
         """Load sector-specific policy configuration."""
         from minifw_ai.sector_config import SECTOR_POLICIES
         from models.user import SectorType
-        
+
         try:
             sector_enum = SectorType(self._sector)
             self._config = SECTOR_POLICIES.get(sector_enum, {})
-            logger.info(f"[SECTOR_LOCK] Loaded config for {self._sector}: {list(self._config.keys())}")
+            logger.info(
+                f"[SECTOR_LOCK] Loaded config for {self._sector}: {list(self._config.keys())}"
+            )
         except ValueError:
             self._config = {}
-            logger.warning(f"[SECTOR_LOCK] No policy config found for sector: {self._sector}")
+            logger.warning(
+                f"[SECTOR_LOCK] No policy config found for sector: {self._sector}"
+            )
 
     def get_sector(self) -> str:
         """Get the locked sector value."""
@@ -171,7 +189,7 @@ _sector_lock: Optional[SectorLock] = None
 def get_sector_lock() -> SectorLock:
     """
     Get the global SectorLock singleton instance.
-    
+
     This is the recommended way to access sector configuration.
     """
     global _sector_lock

@@ -1,4 +1,3 @@
-
 import requests
 import os
 import logging
@@ -9,8 +8,10 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
+
 def escape(text):
     return html.escape(str(text))
+
 
 def send_telegram_message(alert_type: str, client_ip: str, severity: str, reason: str):
     logger.debug("Sending Telegram alert...")
@@ -28,7 +29,7 @@ def send_telegram_message(alert_type: str, client_ip: str, severity: str, reason
         "chat_id": CHAT_ID,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": True
+        "disable_web_page_preview": True,
     }
     try:
         requests.post(url, json=payload, timeout=5)

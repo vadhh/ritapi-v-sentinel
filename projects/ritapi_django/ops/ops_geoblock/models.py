@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class GeoBlockSetting(models.Model):
     country_code = models.CharField(max_length=5, unique=True)
     action = models.CharField(

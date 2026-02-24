@@ -3,6 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parents[3]
 ALLOW_DOMAIN_FILE = BASE_DIR / "config" / "feeds" / "allow_domains.txt"
 
+
 def add_allow_domain_service(domain: str) -> None:
     domain = domain.strip()
 

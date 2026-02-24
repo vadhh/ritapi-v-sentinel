@@ -9,7 +9,10 @@ class IpReputationLookupView(APIView):
     def post(self, request):
         ip = request.data.get("ip")
         if not ip:
-            return Response({"error": "The 'ip' parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "The 'ip' parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         record = IpReputationService.check_reputation(ip)
 
@@ -17,14 +20,16 @@ class IpReputationLookupView(APIView):
         sources = record.scores.get("sources", [])
         malicious = record.reputation_score < 0  # kalau skornya negatif → malicious
 
-        return Response({
-            "id": record.id,
-            "ip_address": record.ip_address,
-            "reputation_score": record.reputation_score,
-            "isp": record.isp,
-            "country": record.country,
-            "is_tor": record.is_tor,
-            "sources": sources,
-            "malicious": malicious,
-            "timestamp": record.timestamp,
-        })
+        return Response(
+            {
+                "id": record.id,
+                "ip_address": record.ip_address,
+                "reputation_score": record.reputation_score,
+                "isp": record.isp,
+                "country": record.country,
+                "is_tor": record.is_tor,
+                "sources": sources,
+                "malicious": malicious,
+                "timestamp": record.timestamp,
+            }
+        )

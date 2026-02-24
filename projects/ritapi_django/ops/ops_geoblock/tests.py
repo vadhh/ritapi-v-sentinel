@@ -54,12 +54,15 @@ class GeoBlockDashboardTests(TestCase):
 
     def test_create_entry(self):
         """POST create with valid data should create entry in DB."""
-        resp = self.client.post("/ops/geo-block/create/", {
-            "country_code": "CN",
-            "action": "block",
-            "description": "Test block",
-            "is_active": "true",
-        })
+        resp = self.client.post(
+            "/ops/geo-block/create/",
+            {
+                "country_code": "CN",
+                "action": "block",
+                "description": "Test block",
+                "is_active": "true",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -67,9 +70,12 @@ class GeoBlockDashboardTests(TestCase):
 
     def test_create_missing_country_code(self):
         """POST create without country_code should return 400."""
-        resp = self.client.post("/ops/geo-block/create/", {
-            "action": "block",
-        })
+        resp = self.client.post(
+            "/ops/geo-block/create/",
+            {
+                "action": "block",
+            },
+        )
         self.assertEqual(resp.status_code, 400)
         data = resp.json()
         self.assertFalse(data["success"])
@@ -79,12 +85,15 @@ class GeoBlockDashboardTests(TestCase):
         GeoBlockSetting.objects.create(
             country_code="US", action="block", description="Old"
         )
-        resp = self.client.post("/ops/geo-block/create/", {
-            "country_code": "US",
-            "action": "allow",
-            "description": "Updated",
-            "is_active": "true",
-        })
+        resp = self.client.post(
+            "/ops/geo-block/create/",
+            {
+                "country_code": "US",
+                "action": "allow",
+                "description": "Updated",
+                "is_active": "true",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         entry = GeoBlockSetting.objects.get(country_code="US")
         self.assertEqual(entry.action, "allow")
@@ -95,12 +104,15 @@ class GeoBlockDashboardTests(TestCase):
         entry = GeoBlockSetting.objects.create(
             country_code="RU", action="block", description="Old"
         )
-        resp = self.client.post(f"/ops/geo-block/update/{entry.pk}/", {
-            "country_code": "RU",
-            "action": "allow",
-            "description": "New desc",
-            "is_active": "true",
-        })
+        resp = self.client.post(
+            f"/ops/geo-block/update/{entry.pk}/",
+            {
+                "country_code": "RU",
+                "action": "allow",
+                "description": "New desc",
+                "is_active": "true",
+            },
+        )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertTrue(data["success"])
@@ -110,17 +122,18 @@ class GeoBlockDashboardTests(TestCase):
 
     def test_update_not_found(self):
         """POST update nonexistent pk should return 404."""
-        resp = self.client.post("/ops/geo-block/update/99999/", {
-            "country_code": "XX",
-            "action": "block",
-        })
+        resp = self.client.post(
+            "/ops/geo-block/update/99999/",
+            {
+                "country_code": "XX",
+                "action": "block",
+            },
+        )
         self.assertEqual(resp.status_code, 404)
 
     def test_delete_entry(self):
         """POST delete should remove entry from DB."""
-        entry = GeoBlockSetting.objects.create(
-            country_code="IR", action="block"
-        )
+        entry = GeoBlockSetting.objects.create(country_code="IR", action="block")
         resp = self.client.post(f"/ops/geo-block/delete/{entry.pk}/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()

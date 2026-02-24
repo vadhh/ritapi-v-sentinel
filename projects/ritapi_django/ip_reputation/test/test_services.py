@@ -5,18 +5,21 @@ from ip_reputation.services import IpReputationService
 from ip_reputation.models import IpReputation, InternalIPList
 from django.utils import timezone
 
+
 class TestIpReputationService(TestCase):
 
     @patch("ip_reputation.services.requests.get")
     @patch("ip_reputation.services.IpReputation.objects.update_or_create")
     @patch("ip_reputation.services.IpReputationService.load_threat_feeds")
-    def test_check_reputation_tor(self, mock_load_feeds, mock_update_or_create, mock_requests_get):
+    def test_check_reputation_tor(
+        self, mock_load_feeds, mock_update_or_create, mock_requests_get
+    ):
         # Mock API response
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = {
             "org": "Test ISP",
             "country_name": "Test Country",
-            "asn": "AS12345"
+            "asn": "AS12345",
         }
 
         # Mock update_or_create return
@@ -39,13 +42,15 @@ class TestIpReputationService(TestCase):
     @patch("ip_reputation.services.requests.get")
     @patch("ip_reputation.services.IpReputation.objects.update_or_create")
     @patch("ip_reputation.services.IpReputationService.load_threat_feeds")
-    def test_check_reputation_allowlist(self, mock_load_feeds, mock_update_or_create, mock_requests_get):
+    def test_check_reputation_allowlist(
+        self, mock_load_feeds, mock_update_or_create, mock_requests_get
+    ):
         # Mock API response
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = {
             "org": "Test ISP",
             "country_name": "Test Country",
-            "asn": "AS12345"
+            "asn": "AS12345",
         }
 
         mock_record = MagicMock()
@@ -64,7 +69,9 @@ class TestIpReputationService(TestCase):
     @patch("ip_reputation.services.requests.get")
     @patch("ip_reputation.services.IpReputation.objects.update_or_create")
     @patch("ip_reputation.services.IpReputationService.load_threat_feeds")
-    def test_check_reputation_api_fail(self, mock_load_feeds, mock_update_or_create, mock_requests_get):
+    def test_check_reputation_api_fail(
+        self, mock_load_feeds, mock_update_or_create, mock_requests_get
+    ):
         # Simulate API failure
         mock_requests_get.return_value.status_code = 500
 

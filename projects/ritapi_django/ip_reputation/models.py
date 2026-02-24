@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class IpReputation(models.Model):
     ip_address = models.GenericIPAddressField()
     scores = models.JSONField()  # detail breakdown

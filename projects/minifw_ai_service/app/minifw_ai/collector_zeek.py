@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 from typing import Iterator, Optional, Tuple
 
+
 def tail_lines(path: Path) -> Iterator[str]:
     with path.open("r", encoding="utf-8", errors="replace") as f:
         f.seek(0, 2)
@@ -12,6 +13,7 @@ def tail_lines(path: Path) -> Iterator[str]:
                 time.sleep(0.2)
                 continue
             yield line.rstrip("\n")
+
 
 def parse_zeek_ssl_tsv(line: str) -> Optional[Tuple[str, str]]:
     if not line or line.startswith("#"):
@@ -29,6 +31,7 @@ def parse_zeek_ssl_tsv(line: str) -> Optional[Tuple[str, str]]:
     except Exception:
         return None
     return None
+
 
 def stream_zeek_sni_events(log_path: str):
     p = Path(log_path)

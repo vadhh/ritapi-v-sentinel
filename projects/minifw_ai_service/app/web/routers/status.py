@@ -3,9 +3,7 @@ from app.minifw_ai import policy, events
 
 router = APIRouter()
 
+
 @router.get("/")
 def system_status():
-    return {
-        "policy_loaded": True,
-        "events_active": True
-    }
+    return {"policy_loaded": True, "events_active": True}

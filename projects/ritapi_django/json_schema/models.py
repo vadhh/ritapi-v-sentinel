@@ -1,16 +1,17 @@
 from django.db import models
 
+
 class JsonSchema(models.Model):
     name = models.CharField(max_length=100)
-    endpoint = models.CharField(max_length=255, help_text="Path prefix or full path, e.g. /api/data")
+    endpoint = models.CharField(
+        max_length=255, help_text="Path prefix or full path, e.g. /api/data"
+    )
     method = models.CharField(max_length=10, help_text="GET, POST, etc.")
     schema_json = models.JSONField()
     description = models.TextField(blank=True, null=True)
 
     version = models.CharField(
-        max_length=32,
-        default="v1",
-        help_text="Schema version, e.g., v1, v2-beta"
+        max_length=32, default="v1", help_text="Schema version, e.g., v1, v2-beta"
     )
 
     rollout_mode = models.CharField(
@@ -20,7 +21,7 @@ class JsonSchema(models.Model):
             ("enforce", "Strict enforcement"),
         ),
         default="monitor",
-        help_text="If enforce, invalid schema will be blocked. If monitor, only logged."
+        help_text="If enforce, invalid schema will be blocked. If monitor, only logged.",
     )
 
     is_active = models.BooleanField(default=True)

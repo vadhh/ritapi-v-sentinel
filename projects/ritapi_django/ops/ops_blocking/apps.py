@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class OpsBlockingConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'ops.ops_blocking'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "ops.ops_blocking"

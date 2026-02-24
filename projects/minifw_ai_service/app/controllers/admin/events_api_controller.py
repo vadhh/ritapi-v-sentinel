@@ -7,11 +7,11 @@ def events_datatable_controller(
     length: int,
     search_value: str,
     order_column: int,
-    order_dir: str
+    order_dir: str,
 ):
     """
     Controller for DataTables API endpoint
-    
+
     Args:
         draw: DataTables draw counter
         start: Starting record index
@@ -19,7 +19,7 @@ def events_datatable_controller(
         search_value: Search keyword
         order_column: Column index to sort
         order_dir: Sort direction
-    
+
     Returns:
         DataTables response dictionary
     """
@@ -29,5 +29,5 @@ def events_datatable_controller(
         length=length,
         search_value=search_value,
         order_column=order_column,
-        order_dir=order_dir
+        order_dir=order_dir,
     )

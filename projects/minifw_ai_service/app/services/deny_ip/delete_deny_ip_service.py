@@ -3,6 +3,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parents[3]
 DENY_IP_FILE = BASE_DIR / "config" / "feeds" / "deny_ips.txt"
 
+
 def delete_deny_ip_service(ip: str) -> None:
     ip = ip.strip()
 
@@ -20,7 +21,7 @@ def delete_deny_ip_service(ip: str) -> None:
         raise ValueError("IP address not found")
 
     ips.remove(ip)
-    
+
     # Write with header comment
     content = "# one IPv4 per line\n" + "\n".join(sorted(ips)) + "\n"
     DENY_IP_FILE.write_text(content)

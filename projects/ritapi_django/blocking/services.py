@@ -11,22 +11,29 @@ logger = logging.getLogger("alerts")
 
 class BlockingService:
     @staticmethod
-    def block_ip(ip_address: str, reason: str, severity: str = "low", duration_minutes: int = None):
+    def block_ip(
+        ip_address: str,
+        reason: str,
+        severity: str = "low",
+        duration_minutes: int = None,
+    ):
         """
         Blocks an IP address. If duration_minutes is provided, sets an expiration time.
         """
         expires_at = None
         if duration_minutes:
             expires_at = timezone.now() + timedelta(minutes=duration_minutes)
-        
+
         country = None
         country_name = None
         latitude = None
         longitude = None
-        
+
         # Geolocation lookup using GeoLite2 City DB
-        db_path_city = getattr(settings, "GEOLITE2_CITY_DB", "/usr/share/GeoIP/GeoLite2-City.mmdb")
-        
+        db_path_city = getattr(
+            settings, "GEOLITE2_CITY_DB", "/usr/share/GeoIP/GeoLite2-City.mmdb"
+        )
+
         try:
             with geoip2.database.Reader(db_path_city) as reader:
                 response = reader.city(ip_address)
@@ -82,7 +89,7 @@ class BlockingService:
             return True
         except BlockedIP.DoesNotExist:
             return False
-        
+
     @staticmethod
     def soft_block_ip(ip_address: str, reason: str, severity: str = "medium"):
         """
@@ -94,7 +101,7 @@ class BlockingService:
             defaults={
                 "reason": reason,
                 "severity": severity,
-                "active": False,   # ✅ The difference is here
+                "active": False,  # ✅ The difference is here
                 "expires_at": None,
             },
         )

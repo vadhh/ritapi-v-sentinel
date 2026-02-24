@@ -10,9 +10,11 @@ from django.utils.timezone import now, timedelta
 
 # Import model Alert
 from alert.models import Alert
+
 # Hapus import BlockingService karena tidak digunakan lagi di file ini
 
 # ===================== ALERT MANAGEMENT =====================
+
 
 @login_required
 def alert_dashboard(request):
@@ -29,9 +31,9 @@ def alert_dashboard(request):
     # 🔍 Search by message or source IP
     if query:
         alerts = alerts.filter(
-            Q(ip_address__icontains=query) |
-            Q(alert_type__icontains=query) |
-            Q(detail__icontains=query)
+            Q(ip_address__icontains=query)
+            | Q(alert_type__icontains=query)
+            | Q(detail__icontains=query)
         )
 
     # 🎯 Filter by severity
@@ -48,13 +50,18 @@ def alert_dashboard(request):
     if filters_applied and not alerts.exists():
         error_message = "No alerts found with the given filters."
 
-    return render(request, "ops_template/alerts.html", {
-        "alerts": alerts_page,
-        "query": query,
-        "severity_filter": severity_filter,
-        "status_filter": status_filter,
-        "error_message": error_message
-    })
+    return render(
+        request,
+        "ops_template/alerts.html",
+        {
+            "alerts": alerts_page,
+            "query": query,
+            "severity_filter": severity_filter,
+            "status_filter": status_filter,
+            "error_message": error_message,
+        },
+    )
+
 
 @login_required
 def resolve_alert(request, alert_id):
@@ -89,7 +96,9 @@ def alert_chart_data(request):
     severity_labels = ["low", "medium", "high", "critical"]
     data = [alerts.filter(severity=s).count() for s in severity_labels]
 
-    return JsonResponse({
-        "labels": [s.capitalize() for s in severity_labels],
-        "data": data,
-    })
+    return JsonResponse(
+        {
+            "labels": [s.capitalize() for s in severity_labels],
+            "data": data,
+        }
+    )

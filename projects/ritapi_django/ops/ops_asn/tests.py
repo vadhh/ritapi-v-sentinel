@@ -74,8 +74,11 @@ class AsnCheckerViewTests(TestCase):
         """GET ?search=8.8.8 should return matching rows only."""
         # Add a non-matching record
         AsnInfo.objects.create(
-            ip_address="1.1.1.1", asn_number="AS13335",
-            asn_description="Cloudflare", trust_score=0, is_latest=True,
+            ip_address="1.1.1.1",
+            asn_number="AS13335",
+            asn_description="Cloudflare",
+            trust_score=0,
+            is_latest=True,
         )
         resp = self.client.get("/ops/asn/asn-checker/?search=8.8.8")
         self.assertEqual(resp.status_code, 200)
@@ -248,7 +251,9 @@ class AsnUpdateScoreViewTests(TestCase):
             "/ops/asn/asn-update-score/",
             {"asn_number": "AS13335", "name": "Cloudflare", "score": 60},
         )
-        self.assertRedirects(resp, "/ops/asn/asn-config/", fetch_redirect_response=False)
+        self.assertRedirects(
+            resp, "/ops/asn/asn-config/", fetch_redirect_response=False
+        )
         cfg = AsnTrustConfig.objects.get(asn_number="AS13335")
         self.assertEqual(cfg.name, "Cloudflare")
         self.assertEqual(float(cfg.score), 60.0)
@@ -261,7 +266,9 @@ class AsnUpdateScoreViewTests(TestCase):
             "/ops/asn/asn-update-score/",
             {"asn_number": "AS15169", "name": "Google LLC Updated", "score": -50},
         )
-        self.assertRedirects(resp, "/ops/asn/asn-config/", fetch_redirect_response=False)
+        self.assertRedirects(
+            resp, "/ops/asn/asn-config/", fetch_redirect_response=False
+        )
         self.existing_cfg.refresh_from_db()
         self.assertEqual(self.existing_cfg.name, "Google LLC Updated")
         self.assertEqual(float(self.existing_cfg.score), -50.0)
@@ -272,7 +279,9 @@ class AsnUpdateScoreViewTests(TestCase):
         """GET to asn_update_score should redirect without touching the DB."""
         count_before = AsnTrustConfig.objects.count()
         resp = self.client.get("/ops/asn/asn-update-score/")
-        self.assertRedirects(resp, "/ops/asn/asn-config/", fetch_redirect_response=False)
+        self.assertRedirects(
+            resp, "/ops/asn/asn-config/", fetch_redirect_response=False
+        )
         self.assertEqual(AsnTrustConfig.objects.count(), count_before)
 
     # ── Auth ─────────────────────────────────────────────────────────────────

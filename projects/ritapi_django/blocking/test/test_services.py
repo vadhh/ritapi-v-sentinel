@@ -6,8 +6,9 @@ from blocking.services import BlockingService
 from blocking.models import BlockedIP
 
 # Path untuk fungsi/kelas yang akan di-mock
-TIMEZONE_NOW_PATH = 'blocking.services.timezone.now'
-GEOLITE2_PATH = 'blocking.services.geoip2.database.Reader'
+TIMEZONE_NOW_PATH = "blocking.services.timezone.now"
+GEOLITE2_PATH = "blocking.services.geoip2.database.Reader"
+
 
 class TestBlockingService(TestCase):
 
@@ -23,11 +24,15 @@ class TestBlockingService(TestCase):
         mock_response.country.name = "United States"
         mock_response.location.latitude = 37.751
         mock_response.location.longitude = -97.822
-        mock_reader.return_value.__enter__.return_value.city.return_value = mock_response
+        mock_reader.return_value.__enter__.return_value.city.return_value = (
+            mock_response
+        )
 
     def mock_geoip2_failure(self, mock_reader):
         """Helper untuk mensimulasikan lookup GeoIP gagal."""
-        mock_reader.return_value.__enter__.return_value.city.side_effect = Exception("GeoIP failed")
+        mock_reader.return_value.__enter__.return_value.city.side_effect = Exception(
+            "GeoIP failed"
+        )
 
     @patch(GEOLITE2_PATH)
     @patch(TIMEZONE_NOW_PATH, autospec=True)
@@ -40,7 +45,7 @@ class TestBlockingService(TestCase):
             ip_address=self.ip,
             reason="Test Block Permanent",
             severity="critical",
-            duration_minutes=None
+            duration_minutes=None,
         )
 
         self.assertTrue(blocked.active)
@@ -58,11 +63,9 @@ class TestBlockingService(TestCase):
         mock_now.return_value = self.mock_now
 
         blocked = BlockingService.block_ip(
-            ip_address=self.ip,
-            reason="Test Block Temporary",
-            duration_minutes=30
+            ip_address=self.ip, reason="Test Block Temporary", duration_minutes=30
         )
-        
+
         self.assertTrue(blocked.active)
         self.assertIsNotNone(blocked.expires_at)
         # expires_at harus dihitung: self.mock_now + 30 menit
@@ -70,16 +73,16 @@ class TestBlockingService(TestCase):
         # Pastikan data geo kosong
         self.assertIsNone(blocked.country)
         self.assertIsNone(blocked.latitude)
-        
+
     def test_unblock_ip_success(self):
         """Test unblock IP yang ada."""
         BlockedIP.objects.create(ip_address=self.ip, reason="Test", active=True)
-        
+
         unblocked = BlockingService.unblock_ip(self.ip)
-        
+
         self.assertFalse(unblocked.active)
         self.assertEqual(unblocked.ip_address, self.ip)
-        
+
     def test_unblock_ip_not_found(self):
         """Test unblock IP yang tidak ada."""
         unblocked = BlockingService.unblock_ip("99.99.99.99")
@@ -90,7 +93,7 @@ class TestBlockingService(TestCase):
         """Test is_blocked() untuk IP yang aktif diblokir."""
         mock_now.return_value = self.mock_now
         BlockedIP.objects.create(ip_address=self.ip, reason="Test", active=True)
-        
+
         self.assertTrue(BlockingService.is_blocked(self.ip))
 
     @patch(TIMEZONE_NOW_PATH, autospec=True)
@@ -98,17 +101,14 @@ class TestBlockingService(TestCase):
         """Test is_blocked() untuk IP yang expired (harus auto-unblock)."""
         expired_time = self.mock_now - timedelta(minutes=1)
         mock_now.return_value = self.mock_now
-        
+
         BlockedIP.objects.create(
-            ip_address=self.ip, 
-            reason="Expired", 
-            active=True,
-            expires_at=expired_time
+            ip_address=self.ip, reason="Expired", active=True, expires_at=expired_time
         )
-        
+
         # is_blocked harus mengembalikan False
         self.assertFalse(BlockingService.is_blocked(self.ip))
-        
+
         # Cek database, harus sudah jadi active=False
         blocked_db = BlockedIP.objects.get(ip_address=self.ip)
         self.assertFalse(blocked_db.active)

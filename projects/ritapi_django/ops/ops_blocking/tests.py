@@ -45,12 +45,19 @@ class OpsBlockingDashboardTests(TestCase):
             username="admin", email="admin@test.local", password="TestPass123!"
         )
         cls.blocked_active = BlockedIP.objects.create(
-            ip_address="10.0.0.1", reason="Brute force", severity="high",
-            active=True, latitude=39.9, longitude=116.4,
-            country="CN", country_name="China",
+            ip_address="10.0.0.1",
+            reason="Brute force",
+            severity="high",
+            active=True,
+            latitude=39.9,
+            longitude=116.4,
+            country="CN",
+            country_name="China",
         )
         cls.blocked_inactive = BlockedIP.objects.create(
-            ip_address="192.168.1.1", reason="Old scan", severity="low",
+            ip_address="192.168.1.1",
+            reason="Old scan",
+            severity="low",
             active=False,
         )
 
