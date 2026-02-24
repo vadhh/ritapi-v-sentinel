@@ -34,7 +34,27 @@
     missingok
     notifempty
     copytruncate
-    create 640 root root
+    su root www-data
+    create 640 www-data www-data
+}
+
+# JSONL event and flow record logs — high-frequency write, size-based rotation
+# Uses copytruncate because the MiniFW daemon holds the file open continuously.
+# size: rotate when the file reaches this size (checked at each logrotate run)
+# maxsize: hard cap — triggers rotation even between scheduled runs
+/opt/minifw_ai/logs/*.jsonl {
+    su root www-data
+    size 100M
+    maxsize 200M
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    dateext
+    dateformat -%Y%m%d
+    create 640 www-data www-data
 }
 
 /var/log/ritapi/*.json /var/log/ritapi/*.jsonl {
