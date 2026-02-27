@@ -12,6 +12,7 @@ Network security enforcement platform combining a Django operations dashboard wi
 - [Project Structure](#project-structure)
 - [System Requirements](#system-requirements)
 - [Installation](#installation)
+- [Local Development](#local-development)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [API Endpoints](#api-endpoints)
@@ -59,7 +60,7 @@ The platform consists of two main components that run as separate systemd servic
 
 **RITAPI V-Sentinel (Django)** provides the web-based operations dashboard for configuration management, monitoring, and reporting. It connects to PostgreSQL for persistent storage and Redis for rate limiting and caching.
 
-**MiniFW-AI Service (FastAPI + daemon)** is the real-time security engine. It runs a continuous event loop that consumes DNS queries (from dnsmasq logs, UDP, or journald), tracks network flows via conntrack, scores threats using a multi-layer decision pipeline, and enforces blocking via nftables sets. It also exposes a FastAPI admin interface for managing allow/deny lists, policies, events, users, and audit logs.
+**MiniFW-AI Service (FastAPI + daemon)** is the real-time security engine. It runs a continuous event loop that consumes DNS queries (from dnsmasq logs, journald, or none/degraded), tracks network flows via conntrack, scores threats using a multi-layer decision pipeline, and enforces blocking via nftables sets. It also exposes a FastAPI admin interface for managing allow/deny lists, policies, events, users, and audit logs.
 
 ---
 
@@ -96,7 +97,7 @@ The platform consists of two main components that run as separate systemd servic
 
 ### Resilience
 - Graceful degradation: service continues without DNS telemetry (fail-open telemetry, fail-closed security)
-- Pluggable DNS backends: file, UDP, journald, or none
+- Pluggable DNS backends: file, journald, or none
 - Restart storm prevention via systemd StartLimitBurst
 - Deployment state tracking in `/var/log/ritapi/deployment_state.json`
 
@@ -123,8 +124,8 @@ The platform consists of two main components that run as separate systemd servic
 
 | Component | Technology |
 |-----------|-----------|
-| Web Framework | FastAPI with Uvicorn |
-| AI/ML | scikit-learn (MLP), NumPy, pandas, SciPy |
+| Web Framework | FastAPI 0.120 with Uvicorn |
+| AI/ML | scikit-learn (MLP), NumPy 1.26.4 (pinned for legacy CPU compat), pandas, SciPy |
 | Security Scanning | yara-python |
 | Authentication | python-jose (JWT), passlib + bcrypt, pyotp (TOTP) |
 | Database | SQLAlchemy with SQLite |
@@ -137,7 +138,7 @@ The platform consists of two main components that run as separate systemd servic
 |-----------|-----------|
 | Reverse Proxy | Nginx |
 | Process Manager | systemd |
-| DNS Telemetry | dnsmasq (optional) |
+| DNS Telemetry | dnsmasq or systemd-resolved (optional) |
 | Flow Tracking | Linux conntrack (`/proc/net/nf_conntrack`) |
 | CI/CD | GitHub Actions |
 | Log Rotation | logrotate |
@@ -161,7 +162,10 @@ ritapi-v-sentinel/
 |   |-- CARA_PAKAI.md                   # Usage guide (Indonesian)
 |   |-- DEGRADED_MODE_IMPLEMENTATION.md # Resilience architecture documentation
 |   |-- PANDUAN_INSTALASI_LENGKAP.md    # Full installation guide (Indonesian)
-|   `-- README_INSTALLER.md            # Installer reference
+|   |-- README_INSTALLER.md             # Installer reference
+|   |-- ROLLBACK_SOP.md                 # Rollback standard operating procedure
+|   |-- TEST_PROCEDURES_STAGING.md      # Staging test procedures
+|   `-- VERSION_PINNING.md              # Dependency version pinning policy
 |
 |-- scripts/
 |   |-- logrotate.d/                    # Logrotate configuration files
@@ -170,7 +174,9 @@ ritapi-v-sentinel/
 |   |-- vsentinel.env.example           # Environment variable example
 |   |-- vsentinel_selftest.sh           # Post-installation self-test with proof pack
 |   |-- vsentinel_runtime_guard.sh      # Runtime guard (ExecStartPre)
-|   `-- vsentinel_scope_gate.sh         # Scope gate script
+|   |-- vsentinel_scope_gate.sh         # Scope gate script
+|   |-- vsentinel_backup.sh             # Pre-upgrade backup script
+|   `-- vsentinel_rollback.sh           # Rollback script
 |
 |-- projects/
 |   |-- ritapi_django/                  # Django Operations Dashboard
@@ -212,7 +218,7 @@ ritapi-v-sentinel/
 |       |   |   |-- feeds.py           # Domain feed matcher
 |       |   |   |-- events.py          # Event model and writer
 |       |   |   |-- burst.py           # Burst/rate tracker
-|       |   |   |-- collector_dnsmasq.py  # DNS event stream (file/UDP)
+|       |   |   |-- collector_dnsmasq.py  # DNS event stream (file/journald)
 |       |   |   |-- collector_zeek.py  # Zeek TLS SNI collector
 |       |   |   |-- collector_flow.py  # Conntrack flow tracker
 |       |   |   |-- sector_lock.py     # Factory-set sector configuration
@@ -280,6 +286,13 @@ The installer presents an interactive menu:
 4. Exit
 ```
 
+You can also pass a subcommand directly:
+
+```bash
+sudo ./install.sh install   # Direct install (skip menu)
+sudo ./install.sh status    # Check service status
+```
+
 The installer will:
 1. Detect the web server user (www-data, nginx, or apache)
 2. Install all system dependencies (Python, PostgreSQL, Redis, Nginx, nftables, ipset)
@@ -301,20 +314,62 @@ Installation paths:
 
 ---
 
+## Local Development
+
+### Django Dashboard
+
+```bash
+cd projects/ritapi_django
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+The Django dev server starts on `http://127.0.0.1:8000`. In production, Gunicorn serves the application:
+
+```bash
+gunicorn --workers 3 --bind 127.0.0.1:8000 ritapi_v_sentinel.wsgi:application
+```
+
+### MiniFW-AI Service
+
+```bash
+cd projects/minifw_ai_service
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Required environment variables
+export MINIFW_SECRET_KEY=test-secret
+export MINIFW_ADMIN_PASSWORD=test-pass
+
+# Run the daemon (event loop + scoring pipeline)
+python -m minifw_ai
+
+# Or run the web admin only
+uvicorn app.web.app:app --host 0.0.0.0 --port 8000
+```
+
+Note: The daemon requires `PYTHONPATH` to include the `app/` directory. In production, the systemd unit sets `PYTHONPATH=/opt/minifw_ai/app`.
+
+---
+
 ## Configuration
 
 ### Environment Variables
 
 All configuration is managed through a unified environment file at `/etc/ritapi/vsentinel.env`. A template is provided at `scripts/vsentinel.env.template`.
 
+For local development, the Django project reads from `projects/ritapi_django/.env`. In production, `/etc/ritapi/vsentinel.env` takes priority and the local `.env` is ignored.
+
 #### Shared Secrets
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DJANGO_SECRET_KEY` | Django cryptographic signing key | (required) |
-| `MINIFW_SECRET_KEY` | MiniFW JWT signing secret | (required) |
-| `MINIFW_ADMIN_PASSWORD` | Admin bootstrap password for MiniFW | (required) |
-| `DB_PASSWORD` | PostgreSQL password | (required) |
+| `DJANGO_SECRET_KEY` | Django cryptographic signing key | (auto-generated by installer) |
+| `MINIFW_SECRET_KEY` | MiniFW JWT signing secret | (auto-generated by installer) |
+| `MINIFW_ADMIN_PASSWORD` | Admin bootstrap password for MiniFW | (auto-generated by installer) |
+| `DB_PASSWORD` | PostgreSQL password | (auto-generated by installer) |
 | `TELEGRAM_TOKEN` | Telegram bot token for alerts | (empty) |
 | `TELEGRAM_CHAT_ID` | Telegram chat ID for alerts | (empty) |
 
@@ -324,6 +379,8 @@ All configuration is managed through a unified environment file at `/etc/ritapi/
 |----------|-------------|---------|
 | `DJANGO_DEBUG` | Enable debug mode | `False` |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | `localhost,127.0.0.1` |
+| `PG_MODE` | PostgreSQL install mode: `auto`, `abort`, `reuse`, `external` | `auto` |
+| `DATABASE_URL` | Full DB URL for external mode (overrides individual DB_* vars) | (empty) |
 | `DB_NAME` | PostgreSQL database name | `ritapi_v_sentinel` |
 | `DB_USER` | PostgreSQL user | `ritapi` |
 | `DB_HOST` | PostgreSQL host | `127.0.0.1` |
@@ -339,12 +396,23 @@ All configuration is managed through a unified environment file at `/etc/ritapi/
 | `MINIFW_FEEDS` | Path to feeds directory | `/opt/minifw_ai/config/feeds` |
 | `MINIFW_LOG` | Path to events log | `/opt/minifw_ai/logs/events.jsonl` |
 | `MINIFW_FLOW_RECORDS` | Path to flow records log | `/opt/minifw_ai/logs/flow_records.jsonl` |
-| `MINIFW_DNS_SOURCE` | DNS telemetry source: `file`, `udp`, `journald`, `none` | `none` |
+| `MINIFW_DNS_SOURCE` | DNS telemetry source: `file`, `journald`, `none` | `none` |
 | `DEGRADED_MODE` | Telemetry mode flag (`0`=`AI_ENHANCED_PROTECTION`, `1`=`BASELINE_PROTECTION`) | `0` |
 | `MINIFW_DNS_LOG_PATH` | DNS log path (when source=file) | (empty) |
 | `MINIFW_YARA_RULES` | YARA rules directory | `/opt/minifw_ai/yara_rules` |
 | `MINIFW_MLP_MODEL` | MLP model file path | `/opt/minifw_ai/models/mlp_v2.joblib` |
+| `MODEL_NAME` | Policy engine model name | `v_sentinel_mlp` |
+| `MODEL_VERSION` | Policy engine model version | `mlp_v2` |
+| `POLICY_ID` | Regulatory policy identifier | `V-SENTINEL-GOV-01` |
+| `POLICY_VERSION` | Regulatory policy version | `1.0` |
 | `GAMBLING_ONLY` | Regulatory enforcement mode (must be `1`) | `1` |
+| `ALLOWED_DETECTION_TYPES` | Allowed detection type categories | `gambling` |
+| `MLP_ENABLED` | Enable MLP engine | `1` |
+
+The following variables are read from the environment at runtime but are not included in the template (they have sensible defaults):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `AI_ENABLED` | Enable/disable AI modules | `true` |
 | `MINIFW_MAX_FLOWS` | Maximum tracked flows (LRU) | `20000` |
 | `MINIFW_FLOW_FREQ_THRESHOLD` | Flow frequency threshold for hard gate | `200` |
@@ -468,29 +536,34 @@ sudo ./install.sh status
 ### Django Tests
 
 ```bash
-cd /opt/ritapi_v_sentinel  # or projects/ritapi_django
-python manage.py test
+cd projects/ritapi_django
+source venv/bin/activate
+python manage.py test              # All tests
+python manage.py test alert        # Single app
+python manage.py test asn
+python manage.py test ip_reputation
 ```
 
 Tests use an in-memory SQLite database (configured in `settings.py` when `test` is in `sys.argv`).
-
-Existing test directories include:
-- `alert/test/` -- Alert models, views, and services
-- `asn/test/` -- ASN models, views, and services
-- `ip_reputation/test/` -- IP reputation models, views, and services
 
 ### MiniFW-AI Tests
 
 ```bash
 cd projects/minifw_ai_service
-pip install pytest pytest-cov pytest-asyncio
+source venv/bin/activate
 
 # Set required environment variables
 export MINIFW_SECRET_KEY=test-secret-key
 export MINIFW_ADMIN_PASSWORD=test-admin-pass
 
-pytest testing/ -v
+# PYTHONPATH must include app/ since minifw_ai lives under app/
+PYTHONPATH=app pytest testing/ -v
+
+# With coverage
+PYTHONPATH=app pytest testing/ -v --cov=app --cov-report=term
 ```
+
+Note: `GAMBLING_ONLY=1` is set automatically by `testing/conftest.py` -- no need to export it manually.
 
 Test files include:
 - `test_baseline_hard_gates.py` -- Hard threat gate logic
@@ -500,7 +573,6 @@ Test files include:
 - `test_yara_scanner.py` -- YARA rule scanning
 - `test_sector_lock.py` -- Sector lock system
 - `test_standalone_integration.py` -- Standalone integration
-- Integration scripts for real traffic and flow collection
 
 ### CI Pipeline
 
@@ -553,6 +625,22 @@ The MiniFW-AI service unit includes:
 - Pre-start runtime guard (`vsentinel_runtime_guard.sh`)
 - Restart storm prevention (`StartLimitBurst=5`, `StartLimitIntervalSec=300`)
 - Automatic restart on failure (`RestartSec=10`)
+
+### Backup and Rollback
+
+A backup is automatically created during upgrades via `install.sh`. You can also run backups manually:
+
+```bash
+sudo scripts/vsentinel_backup.sh
+```
+
+To roll back to a previous backup:
+
+```bash
+sudo scripts/vsentinel_rollback.sh
+```
+
+See `docs/ROLLBACK_SOP.md` for the full rollback standard operating procedure.
 
 ### Post-Installation Verification
 
@@ -629,6 +717,8 @@ The Django application applies security middleware in this order:
 | `vsentinel_selftest.sh` | `scripts/` | Post-install self-test with proof pack generation |
 | `vsentinel_runtime_guard.sh` | `scripts/` | ExecStartPre runtime guard for MiniFW-AI |
 | `vsentinel_scope_gate.sh` | `scripts/` | Scope gate enforcement |
+| `vsentinel_backup.sh` | `scripts/` | Pre-upgrade backup |
+| `vsentinel_rollback.sh` | `scripts/` | Rollback to previous backup |
 | `fix_permissions.sh` | `scripts/minifw_fixed/` | Fix CRUD permissions for MiniFW |
 
 ### Log Locations
@@ -642,15 +732,6 @@ The Django application applies security middleware in this order:
 | MiniFW flow records | `/opt/minifw_ai/logs/flow_records.jsonl` |
 | Deployment state | `/var/log/ritapi/deployment_state.json` |
 | Self-test proof packs | `/var/log/ritapi/proof_packs/` |
-
-### Backup
-
-```bash
-sudo tar -czf backup_$(date +%Y%m%d).tar.gz \
-    /opt/ritapi_v_sentinel \
-    /opt/minifw_ai/config \
-    /etc/ritapi/vsentinel.env
-```
 
 ---
 
@@ -731,13 +812,16 @@ sudo journalctl -u ritapi-gunicorn -n 50
 
 | Document | Path | Description |
 |----------|------|-------------|
-| Quick Start | `QUICKSTART.md` | Three-step installation guide |
+| Quick Start | `QUICKSTART.md` | Fast-track installation guide |
 | Resilience Reference | `RESILIENCE_QUICKSTART.md` | BASELINE_PROTECTION implementation details |
 | VM Guide | `vm_guide.md` | Full VM installation walkthrough |
-| Usage Guide | `docs/CARA_PAKAI.md` | Step-by-step usage guide (Indonesian) |
-| Full Install Guide | `docs/PANDUAN_INSTALASI_LENGKAP.md` | Detailed installation documentation (Indonesian) |
+| Rollback SOP | `docs/ROLLBACK_SOP.md` | Backup and rollback procedures |
+| Test Procedures | `docs/TEST_PROCEDURES_STAGING.md` | Staging environment test procedures |
+| Version Pinning | `docs/VERSION_PINNING.md` | Dependency version pinning policy |
 | Baseline Protection | `docs/DEGRADED_MODE_IMPLEMENTATION.md` | Resilience architecture deep dive |
 | Installer Reference | `docs/README_INSTALLER.md` | Installer quick reference |
+| Usage Guide | `docs/CARA_PAKAI.md` | Step-by-step usage guide (Indonesian) |
+| Full Install Guide | `docs/PANDUAN_INSTALASI_LENGKAP.md` | Detailed installation documentation (Indonesian) |
 
 ---
 

@@ -28,6 +28,9 @@ build/
 *.egg-info/
 *.egg
 
+# Local dev tools
+.playwright-mcp/
+
 # IDE / editor
 .claude/
 .cursor/
