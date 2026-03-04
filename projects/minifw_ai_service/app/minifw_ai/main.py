@@ -330,11 +330,12 @@ def run():
     set_name = enf.get("ipset_name_v4", "minifw_block_v4")
     timeout = _safe_int_cast(enf.get("ip_timeout_seconds"), 86400)
     table = enf.get("nft_table", "inet")
+    table_name = enf.get("nft_table_name", "ritapi_minifw")
     chain = enf.get("nft_chain", "forward")
 
     try:
-        ipset_create(set_name, timeout)
-        nft_apply_forward_drop(set_name, table=table, chain=chain)
+        ipset_create(set_name, timeout, family=table, table_name=table_name)
+        nft_apply_forward_drop(set_name, table=table, table_name=table_name, chain=chain)
     except (ValueError, subprocess.CalledProcessError) as e:
         logging.critical(
             f"FATAL: Could not initialize firewall rules. Exiting. Error: {e}"
@@ -633,7 +634,7 @@ def run():
             )
 
             if action == "block":
-                ipset_add(set_name, client_ip, timeout)
+                ipset_add(set_name, client_ip, timeout, family=table, table_name=table_name)
 
             # NEW: Hospital sector IoMT high-priority alerting
             if sector_lock and sector_lock.is_hospital() and iomt_subnets:

@@ -243,6 +243,10 @@ ensure_firewall_deps() {
         exit 1
     fi
 
+    # Create dedicated MiniFW nftables table to avoid conflicts with other
+    # firewall managers (e.g. ARCHANGEL) that may flush the shared inet filter.
+    nft add table inet ritapi_minifw 2>/dev/null || true
+
     print_success "Firewall dependencies verified"
 }
 
@@ -337,6 +341,10 @@ verify_telemetry() {
 install_minifw_systemd() {
     print_step "Installing systemd unit: minifw-ai (with stability hardening)"
 
+    # Create dedicated service user with no login shell
+    useradd -r -s /bin/false -M -d /opt/minifw_ai minifw-ai 2>/dev/null || true
+    chown -R minifw-ai:minifw-ai /opt/minifw_ai
+
     cat >/etc/systemd/system/minifw-ai.service <<'EOF'
 [Unit]
 Description=MiniFW-AI Security Service (V-Sentinel)
@@ -350,7 +358,13 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=root
+User=minifw-ai
+Group=minifw-ai
+# ARCHANGEL integration: CAP_NET_ADMIN required for nftables/ipset enforcement.
+# CAP_NET_RAW required for raw socket access. Do not override these.
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=yes
 WorkingDirectory=/opt/minifw_ai
 
 # Critical: systemd default PATH may exclude /usr/sbin; nft/ipset often live there.
@@ -364,6 +378,8 @@ Environment="MINIFW_FEEDS=/opt/minifw_ai/config/feeds"
 Environment="MINIFW_LOG=/opt/minifw_ai/logs/events.jsonl"
 
 # Load environment configuration (includes DNS source and degraded mode)
+# EnvironmentFile is read by systemd (PID 1, root) before exec - minifw-ai user
+# does NOT need read access to /etc/ritapi/vsentinel.env.
 EnvironmentFile=-/etc/ritapi/vsentinel.env
 
 # Route Python stdout/stderr to journald so crash output is visible
@@ -486,6 +502,57 @@ check_root() {
         print_error "Script ini harus dijalankan sebagai root (gunakan sudo)"
         exit 1
     fi
+}
+
+check_archangel_compatibility() {
+    print_header "ARCHANGEL Co-Deployment Compatibility Check"
+
+    local archangel_detected=false
+
+    if [ -d "/opt/archangel" ] || dpkg -l "archangel*" 2>/dev/null | grep -q "^ii"; then
+        archangel_detected=true
+    fi
+
+    if [ "$archangel_detected" = false ]; then
+        print_warning "ARCHANGEL not detected — proceeding with standalone V-Sentinel deployment"
+        return 0
+    fi
+
+    print_step "ARCHANGEL detected — checking required hospital plugin packages..."
+
+    local plugins_ok=true
+    for pkg in hospital-plugins-v2 plugin-minifw-ipapi; do
+        if ! dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+            print_error "Required ARCHANGEL plugin not installed: $pkg"
+            plugins_ok=false
+        else
+            local file_count
+            file_count=$(dpkg -L "$pkg" 2>/dev/null | wc -l)
+            if [ "$file_count" -lt 5 ]; then
+                print_error "Plugin '$pkg' appears to be a placeholder (only $file_count files installed — expected >= 5)"
+                plugins_ok=false
+            fi
+        fi
+    done
+
+    if [ "$plugins_ok" = false ]; then
+        echo ""
+        print_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_error "ARCHANGEL INTEGRATION BLOCKED: Placeholder packages detected."
+        print_error ""
+        print_error "The ARCHANGEL engineer must deliver the following real (non-placeholder)"
+        print_error "packages before V-Sentinel can be co-deployed:"
+        print_error ""
+        print_error "  1. hospital_plugins_v2.deb   — real ARCHANGEL hospital plugin package"
+        print_error "  2. plugin-minifw-ipapi_1.0.deb — real MiniFW IP-API integration plugin"
+        print_error ""
+        print_error "Install them with: dpkg -i hospital_plugins_v2.deb plugin-minifw-ipapi_1.0.deb"
+        print_error "Then re-run this installer."
+        print_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        exit 1
+    fi
+
+    print_success "ARCHANGEL hospital plugins verified"
 }
 
 verify_package_structure() {
@@ -979,10 +1046,13 @@ configure_nginx() {
     print_header "Configuring Nginx"
     
     print_step "Creating Nginx configuration..."
-    cat > /etc/nginx/sites-available/ritapi << 'EOF'
+    # Load RITAPI_HOSTNAME from env file if set; fallback to first interface IP.
+    local _ritapi_hostname
+    _ritapi_hostname="${RITAPI_HOSTNAME:-$(hostname -I | awk '{print $1}')}"
+    cat > /etc/nginx/sites-available/ritapi << EOF
 server {
     listen 80;
-    server_name _;
+    server_name ${_ritapi_hostname};
 
     client_max_body_size 100M;
 
@@ -996,10 +1066,10 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_read_timeout 300s;
         proxy_connect_timeout 75s;
     }
@@ -1422,8 +1492,9 @@ install_full() {
     
     check_root
     verify_package_structure
+    check_archangel_compatibility
     detect_web_user
-    
+
     # Task 1: Detect DNS environment before configuration
     detect_dns_environment
     

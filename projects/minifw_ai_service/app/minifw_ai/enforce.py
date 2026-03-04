@@ -9,9 +9,14 @@ def is_valid_nft_object_name(name: str) -> bool:
     return re.match(r"^[a-zA-Z0-9_]{1,32}$", name) is not None
 
 
-def ipset_create(set_name: str, timeout: int) -> None:
+def ipset_create(
+    set_name: str,
+    timeout: int,
+    family: str = "inet",
+    table_name: str = "ritapi_minifw",
+) -> None:
     """
-    Creates a native nftables set in the 'inet filter' table.
+    Creates a native nftables set in the dedicated ritapi_minifw table (default).
     We enable the 'timeout' flag so IPs can expire automatically.
     """
     if not is_valid_nft_object_name(set_name):
@@ -20,7 +25,7 @@ def ipset_create(set_name: str, timeout: int) -> None:
     try:
         # 1. Ensure the table exists
         subprocess.run(
-            ["nft", "add", "table", "inet", "filter"], check=False
+            ["nft", "add", "table", family, table_name], check=False
         )  # This can fail benignly if it exists
 
         # 2. Create the named set
@@ -28,8 +33,8 @@ def ipset_create(set_name: str, timeout: int) -> None:
             "nft",
             "add",
             "set",
-            "inet",
-            "filter",
+            family,
+            table_name,
             set_name,
             "{",
             "type",
@@ -51,7 +56,13 @@ def ipset_create(set_name: str, timeout: int) -> None:
             raise
 
 
-def ipset_add(set_name: str, ip: str, timeout: int) -> None:
+def ipset_add(
+    set_name: str,
+    ip: str,
+    timeout: int,
+    family: str = "inet",
+    table_name: str = "ritapi_minifw",
+) -> None:
     """
     Adds an IP to the native nftables set.
     """
@@ -63,8 +74,8 @@ def ipset_add(set_name: str, ip: str, timeout: int) -> None:
             "nft",
             "add",
             "element",
-            "inet",
-            "filter",
+            family,
+            table_name,
             set_name,
             "{",
             ip,
@@ -79,30 +90,36 @@ def ipset_add(set_name: str, ip: str, timeout: int) -> None:
 
 
 def nft_apply_forward_drop(
-    set_name: str, table: str = "inet", chain: str = "forward"
+    set_name: str,
+    table: str = "inet",
+    table_name: str = "ritapi_minifw",
+    chain: str = "forward",
 ) -> None:
     """
     Creates the firewall rule that drops traffic from IPs in the set.
+    Uses a dedicated table (default: ritapi_minifw) to avoid conflicts with
+    other firewall managers (e.g. ARCHANGEL) that may flush inet filter.
     """
     if (
         not is_valid_nft_object_name(set_name)
         or not is_valid_nft_object_name(table)
+        or not is_valid_nft_object_name(table_name)
         or not is_valid_nft_object_name(chain)
     ):
         raise ValueError(
-            f"Invalid nftables object name provided: table='{table}', chain='{chain}', set='{set_name}'"
+            f"Invalid nftables object name provided: table='{table}', table_name='{table_name}', chain='{chain}', set='{set_name}'"
         )
 
     try:
         # 1. Ensure table and chain exist
-        subprocess.run(["nft", "add", "table", table, "filter"], check=False)
+        subprocess.run(["nft", "add", "table", table, table_name], check=False)
         subprocess.run(
             [
                 "nft",
                 "add",
                 "chain",
                 table,
-                "filter",
+                table_name,
                 chain,
                 "{",
                 "type",
@@ -121,11 +138,11 @@ def nft_apply_forward_drop(
         )  # Can fail benignly if it exists
 
         # 2. Ensure the set exists before we reference it
-        ipset_create(set_name, 3600)
+        ipset_create(set_name, 3600, family=table, table_name=table_name)
 
         # 3. Check if the rule already exists
         result = subprocess.run(
-            ["nft", "list", "chain", table, "filter", chain],
+            ["nft", "list", "chain", table, table_name, chain],
             capture_output=True,
             text=True,
             check=True,
@@ -140,7 +157,7 @@ def nft_apply_forward_drop(
                     "add",
                     "rule",
                     table,
-                    "filter",
+                    table_name,
                     chain,
                     "ip",
                     "saddr",
