@@ -72,6 +72,23 @@ After any structural change, verify: (1) `verify_package_structure` assertions s
 
 ## Build & Run Commands
 
+### Docker Demo Stack (no kernel dependencies)
+```bash
+docker compose up --build
+# Django hot-reload: http://localhost:8000
+# MiniFW web admin: http://localhost:8080
+
+# Seed demo data
+docker compose exec django python ../../demos/demo_ritapi_dashboard.py
+
+# Reset demo data
+docker compose exec django python ../../demos/demo_ritapi_dashboard.py --reset
+```
+
+Runs with `DEGRADED_MODE=1`, `MINIFW_DNS_SOURCE=none`, `MINIFW_ENFORCE=0` (observe-only — no nftables required). Config in `docker/demo.env`. Django templates and MiniFW app code reload on save via volume mounts.
+
+`MINIFW_ENFORCE=0` is a Docker/demo-only flag added to `main.py` that skips nftables init at startup and `ipset_add` in the event loop. Never use it in production.
+
 ### Django Dashboard
 ```bash
 cd projects/ritapi_django

@@ -149,6 +149,12 @@ The platform consists of two main components that run as separate systemd servic
 
 ```
 ritapi-v-sentinel/
+|-- docker-compose.yml                  # Docker demo stack (postgres, redis, django, minifw)
+|-- docker/
+|   |-- Dockerfile.django              # Django image (python:3.11-slim, deps only)
+|   |-- Dockerfile.minifw             # MiniFW image (python:3.11-slim, deps only)
+|   `-- demo.env                       # Pre-filled demo credentials (do not use in prod)
+|
 |-- install.sh                          # Main all-in-one installer (interactive menu)
 |-- install_fixed.sh                    # Alternative installer variant
 |-- vsentinel-audit.sh                  # Integration audit script (read-only diagnostics)
@@ -316,7 +322,36 @@ Installation paths:
 
 ## Local Development
 
-### Django Dashboard
+### Docker Demo Stack (Recommended for UI/UX Development)
+
+The fastest way to run the full stack locally without kernel dependencies (nftables, dnsmasq):
+
+```bash
+docker compose up --build
+```
+
+| URL | Service |
+|-----|---------|
+| `http://localhost:8000` | Django dashboard |
+| `http://localhost:8080` | MiniFW web admin |
+
+Django templates and MiniFW app code hot-reload on save — no rebuild needed.
+
+**Seed demo data:**
+```bash
+docker compose exec django python ../../demos/demo_ritapi_dashboard.py
+```
+
+**Reset demo data:**
+```bash
+docker compose exec django python ../../demos/demo_ritapi_dashboard.py --reset
+```
+
+The demo stack runs with `DEGRADED_MODE=1`, `MINIFW_DNS_SOURCE=none`, and `MINIFW_ENFORCE=0` (observe-only, no nftables). Credentials and paths are pre-filled in `docker/demo.env` — do not use those values in production.
+
+---
+
+### Django Dashboard (manual venv)
 
 ```bash
 cd projects/ritapi_django
@@ -408,6 +443,7 @@ For local development, the Django project reads from `projects/ritapi_django/.en
 | `GAMBLING_ONLY` | Regulatory enforcement mode (must be `1`) | `1` |
 | `ALLOWED_DETECTION_TYPES` | Allowed detection type categories | `gambling` |
 | `MLP_ENABLED` | Enable MLP engine | `1` |
+| `MINIFW_ENFORCE` | Enable nftables enforcement (`0` = observe-only, for Docker/demo use) | `1` |
 
 The following variables are read from the environment at runtime but are not included in the template (they have sensible defaults):
 
