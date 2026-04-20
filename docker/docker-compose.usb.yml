@@ -1,3 +1,6 @@
+# USB demo stack — images pre-loaded from images/vsentinel.tar
+# Run via: usb/demo.sh (handles image load, up, seed)
+
 services:
 
   postgres:
@@ -18,14 +21,11 @@ services:
     image: redis:7-alpine
 
   django:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.django
-    image: ritapi-v-sentinel/django:latest
+    image: ritapi-v-sentinel/django:usb
+    container_name: vsentinel-django
     command: sh /entrypoint.sh
     working_dir: /app
     volumes:
-      - ./projects/ritapi_django:/app
       - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
       - minifw_logs:/minifw/logs
     ports:
@@ -38,32 +38,23 @@ services:
         condition: service_started
 
   minifw-daemon:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.minifw
-    image: ritapi-v-sentinel/minifw:latest
+    image: ritapi-v-sentinel/minifw:usb
+    container_name: vsentinel-minifw-daemon
     command: >
       sh -c "mkdir -p /minifw/logs && python -m minifw_ai"
     working_dir: /minifw_app
     volumes:
-      - ./projects/minifw_ai_service:/minifw_app
       - minifw_logs:/minifw/logs
     env_file: docker/demo.env
 
   minifw-web:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.minifw
-    image: ritapi-v-sentinel/minifw:latest
+    image: ritapi-v-sentinel/minifw:usb
     command: >
       uvicorn app.web.app:app
       --host 0.0.0.0
       --port 8080
-      --reload
-      --reload-dir /minifw_app/app
     working_dir: /minifw_app
     volumes:
-      - ./projects/minifw_ai_service:/minifw_app
       - minifw_logs:/minifw/logs
     ports:
       - "8080:8080"
