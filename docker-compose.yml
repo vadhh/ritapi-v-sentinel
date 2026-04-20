@@ -1,0 +1,74 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ritapi_v_sentinel
+      POSTGRES_USER: ritapi
+      POSTGRES_PASSWORD: demo_db_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ritapi -d ritapi_v_sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+
+  django:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.django
+    command: >
+      sh -c "python manage.py migrate --no-input &&
+             python manage.py runserver 0.0.0.0:8000"
+    working_dir: /app
+    volumes:
+      - ./projects/ritapi_django:/app
+      - minifw_logs:/minifw/logs
+    ports:
+      - "8000:8000"
+    env_file: docker/demo.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  minifw-daemon:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.minifw
+    command: >
+      sh -c "mkdir -p /minifw/logs && python -m minifw_ai"
+    working_dir: /minifw_app
+    volumes:
+      - ./projects/minifw_ai_service:/minifw_app
+      - minifw_logs:/minifw/logs
+    env_file: docker/demo.env
+
+  minifw-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.minifw
+    command: >
+      uvicorn app.web.app:app
+      --host 0.0.0.0
+      --port 8080
+      --reload
+      --reload-dir /minifw_app/app
+    working_dir: /minifw_app
+    volumes:
+      - ./projects/minifw_ai_service:/minifw_app
+      - minifw_logs:/minifw/logs
+    ports:
+      - "8080:8080"
+    env_file: docker/demo.env
+    depends_on:
+      - minifw-daemon
+
+volumes:
+  postgres_data:
+  minifw_logs:

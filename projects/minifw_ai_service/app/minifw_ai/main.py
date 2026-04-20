@@ -332,15 +332,21 @@ def run():
     table = enf.get("nft_table", "inet")
     table_name = enf.get("nft_table_name", "ritapi_minifw")
     chain = enf.get("nft_chain", "forward")
+    enforce_enabled = os.environ.get("MINIFW_ENFORCE", "1") == "1"
 
-    try:
-        ipset_create(set_name, timeout, family=table, table_name=table_name)
-        nft_apply_forward_drop(set_name, table=table, table_name=table_name, chain=chain)
-    except (ValueError, subprocess.CalledProcessError) as e:
-        logging.critical(
-            f"FATAL: Could not initialize firewall rules. Exiting. Error: {e}"
+    if enforce_enabled:
+        try:
+            ipset_create(set_name, timeout, family=table, table_name=table_name)
+            nft_apply_forward_drop(set_name, table=table, table_name=table_name, chain=chain)
+        except (ValueError, subprocess.CalledProcessError) as e:
+            logging.critical(
+                f"FATAL: Could not initialize firewall rules. Exiting. Error: {e}"
+            )
+            return  # Exit if firewall can't be set up
+    else:
+        logging.warning(
+            "[DEMO] MINIFW_ENFORCE=0: nftables enforcement disabled — observe-only mode"
         )
-        return  # Exit if firewall can't be set up
 
     burst_cfg = pol.burst()
     monitor_qpm = _safe_int_cast(burst_cfg.get("dns_queries_per_minute_monitor"), 120)
@@ -633,7 +639,7 @@ def run():
                 pre_reasons=reasons,
             )
 
-            if action == "block":
+            if action == "block" and enforce_enabled:
                 ipset_add(set_name, client_ip, timeout, family=table, table_name=table_name)
 
             # NEW: Hospital sector IoMT high-priority alerting
