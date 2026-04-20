@@ -56,7 +56,7 @@ def seed():
         Alert.objects.create(
             alert_type=alert_types[i % len(alert_types)],
             ip_address=attacker_ips[i % len(attacker_ips)],
-            detail=f"Detected {alert_types[i % len(alert_types)].replace('_', ' ')} from source. "
+            detail=f"Detected {alert_types[i % len(alert_types)].replace(\"_\", \" \")} from source. "
                    f"Request count: {random.randint(10, 500)}. Threshold exceeded.",
             severity=severities[i % len(severities)],
             resolved=(i % 5 == 0),
@@ -182,7 +182,7 @@ def seed():
             user_role="ADMIN" if "admin" in audit_users[i] else "OPERATOR",
             action=audit_actions[i],
             severity="info" if i % 3 != 2 else "warning",
-            description=f"Action '{audit_actions[i]}' performed by {audit_users[i]}.",
+            description=f"Action \"{audit_actions[i]}\" performed by {audit_users[i]}.",
             ip_address=client_ips[i % len(client_ips)],
             success=True,
         )
