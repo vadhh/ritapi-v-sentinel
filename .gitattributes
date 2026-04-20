@@ -1,0 +1,9 @@
+* text=auto
+
+usb/demo.sh                     text eol=lf
+usb/stop.sh                     text eol=lf
+usb/demos/demo_ctl.sh           text eol=lf
+build_usb.sh                    text eol=lf
+docker/entrypoint-django.sh     text eol=lf
+demos/demo_ctl.sh               text eol=lf
+demos/demo_traffic_gen.sh       text eol=lf
