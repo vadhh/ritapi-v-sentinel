@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /minifw_app
+
+ENV PYTHONPATH=/minifw_app/app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY projects/minifw_ai_service/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY projects/minifw_ai_service/ /minifw_app/
