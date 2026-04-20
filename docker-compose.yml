@@ -21,12 +21,11 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.django
-    command: >
-      sh -c "python manage.py migrate --no-input &&
-             python manage.py runserver 0.0.0.0:8000"
+    command: sh /entrypoint.sh
     working_dir: /app
     volumes:
       - ./projects/ritapi_django:/app
+      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
       - minifw_logs:/minifw/logs
     ports:
       - "8000:8000"
