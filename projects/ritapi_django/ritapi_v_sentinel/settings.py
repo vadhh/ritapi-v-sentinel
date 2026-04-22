@@ -77,6 +77,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "authentication.dev_middleware.DevAutoLoginMiddleware",
     "middlewares.rate_limit.RateLimiterMiddleware",
     "middlewares.security_enforcement.SecurityEnforcementMiddleware",
     "django.middleware.security.SecurityMiddleware",
