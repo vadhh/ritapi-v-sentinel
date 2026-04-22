@@ -1,4 +1,4 @@
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, login
 from django.conf import settings
 
 class DevAutoLoginMiddleware:
@@ -16,11 +16,12 @@ class DevAutoLoginMiddleware:
             try:
                 admin_user = User.objects.filter(is_superuser=True).first()
                 if admin_user:
-                    # In Django middleware, we can just set request.user.
-                    # This bypasses the session requirement for that specific request.
-                    request.user = admin_user
-            except Exception:
-                # Fail silently if DB isn't ready or User model is missing
+                    # Use Django's login function to handle session storage
+                    # We specify the backend to avoid ambiguity
+                    admin_user.backend = 'django.contrib.auth.backends.ModelBackend'
+                    login(request, admin_user)
+            except Exception as e:
+                # Fail silently but could print for debugging
                 pass
                 
         return self.get_response(request)
