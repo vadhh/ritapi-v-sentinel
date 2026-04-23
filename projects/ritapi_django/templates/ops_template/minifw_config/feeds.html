@@ -22,28 +22,36 @@
     </div>
 
     <!-- Tabs -->
-    <ul class="nav nav-tabs mb-4" id="feedsTabs" role="tablist">
+    <ul class="nav nav-tabs mb-4 flex-nowrap overflow-auto" id="feedsTabs" role="tablist" style="scrollbar-width: none; -ms-overflow-style: none;">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="allow-domains-tab" data-bs-toggle="tab" data-bs-target="#allow-domains" type="button">
-                <i class="fas fa-check-circle text-success"></i> Allow Domains
+            <button class="nav-link active d-flex align-items-center gap-1" id="allow-domains-tab" data-bs-toggle="tab" data-bs-target="#allow-domains" type="button">
+                <i class="fas fa-check-circle text-success"></i> 
+                <span class="tab-label d-none d-md-inline">Allow Domains</span>
+                <span class="tab-label d-inline d-md-none">Allow Dom.</span>
                 <span class="badge bg-success">{{ allow_domains|length }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="deny-domains-tab" data-bs-toggle="tab" data-bs-target="#deny-domains" type="button">
-                <i class="fas fa-ban text-danger"></i> Deny Domains
+            <button class="nav-link d-flex align-items-center gap-1" id="deny-domains-tab" data-bs-toggle="tab" data-bs-target="#deny-domains" type="button">
+                <i class="fas fa-ban text-danger"></i> 
+                <span class="tab-label d-none d-md-inline">Deny Domains</span>
+                <span class="tab-label d-inline d-md-none">Deny Dom.</span>
                 <span class="badge bg-danger">{{ deny_domains|length }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="deny-ips-tab" data-bs-toggle="tab" data-bs-target="#deny-ips" type="button">
-                <i class="fas fa-network-wired text-danger"></i> Deny IPs
+            <button class="nav-link d-flex align-items-center gap-1" id="deny-ips-tab" data-bs-toggle="tab" data-bs-target="#deny-ips" type="button">
+                <i class="fas fa-network-wired text-danger"></i> 
+                <span class="tab-label d-none d-md-inline">Deny IPs</span>
+                <span class="tab-label d-inline d-md-none">D-IPs</span>
                 <span class="badge bg-danger">{{ deny_ips|length }}</span>
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="deny-asn-tab" data-bs-toggle="tab" data-bs-target="#deny-asn" type="button">
-                <i class="fas fa-globe text-danger"></i> Deny ASNs
+            <button class="nav-link d-flex align-items-center gap-1" id="deny-asn-tab" data-bs-toggle="tab" data-bs-target="#deny-asn" type="button">
+                <i class="fas fa-globe text-danger"></i> 
+                <span class="tab-label d-none d-md-inline">Deny ASNs</span>
+                <span class="tab-label d-inline d-md-none">D-ASNs</span>
                 <span class="badge bg-danger">{{ deny_asn|length }}</span>
             </button>
         </li>

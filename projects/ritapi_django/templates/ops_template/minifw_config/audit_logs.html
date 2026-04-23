@@ -5,16 +5,16 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fas fa-clipboard-list"></i> System Audit Logs</h2>
-        <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-success btn-sm" id="btnExportAudit">
-                <i class="fas fa-download"></i> Export JSON
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <h2 class="mb-0"><i class="fas fa-clipboard-list"></i> System Audit Logs</h2>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <button class="badge bg-success border-0 d-inline-flex align-items-center" id="btnExportAudit">
+                <i class="fas fa-download me-1"></i> Export JSON
             </button>
             {% if service_status.active %}
-                <span class="badge bg-success"><i class="fas fa-check-circle"></i> Service Running</span>
+                <span class="badge bg-success d-inline-flex align-items-center"><i class="fas fa-check-circle me-1"></i> Service Running</span>
             {% else %}
-                <span class="badge bg-danger"><i class="fas fa-times-circle"></i> Service Stopped</span>
+                <span class="badge bg-danger d-inline-flex align-items-center"><i class="fas fa-times-circle me-1"></i> Service Stopped</span>
             {% endif %}
         </div>
     </div>

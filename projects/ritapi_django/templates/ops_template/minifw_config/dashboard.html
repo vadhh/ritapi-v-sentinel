@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
             <h2><i class="fas fa-shield-alt" aria-hidden="true"></i> MiniFW-AI Dashboard</h2>
             <p class="text-muted mb-0">
@@ -14,37 +14,36 @@
             </p>
         </div>
         
-        <!-- Service Status Badge -->
-        <div id="serviceStatusContainer">
-            <span id="serviceStatusBadge" class="badge {% if service_status.active %}bg-success{% else %}bg-danger{% endif %}">
+        <!-- Service Status Badge & Buttons -->
+        <div id="serviceStatusContainer" class="d-flex align-items-center flex-wrap gap-2">
+            <span id="serviceStatusBadge" class="badge {% if service_status.active %}bg-success{% else %}bg-danger{% endif %} py-2 px-3 rounded-pill shadow-sm d-flex align-items-center gap-1" style="font-size: 0.875rem;">
                 <i class="fas {% if service_status.active %}fa-check-circle{% else %}fa-times-circle{% endif %}" aria-hidden="true"></i>
                 {% if service_status.active %}Service Running{% else %}Service Stopped{% endif %}
             </span>
-
-            <!-- Service Control Buttons -->
-            <div class="btn-group ms-2" id="serviceControlBtns">
-                <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
+            
+            <div class="d-flex gap-2" id="serviceControlBtns">
+                <form method="post" action="{% url 'minifw_service_control' %}" class="m-0">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="restart">
-                    <button type="submit" class="btn btn-sm btn-warning">
-                        <i class="fas fa-sync" aria-hidden="true"></i> Restart
+                    <button type="submit" class="badge bg-warning text-dark border-0 d-flex align-items-center gap-1 py-2 px-3 rounded-pill shadow-sm" style="font-size: 0.875rem;">
+                        <i class="fas fa-sync" aria-hidden="true"></i> <span>Restart</span>
                     </button>
                 </form>
 
                 {% if service_status.active %}
-                <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
+                <form method="post" action="{% url 'minifw_service_control' %}" class="m-0">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="stop">
-                    <button type="submit" class="btn btn-sm btn-danger">
-                        <i class="fas fa-stop" aria-hidden="true"></i> Stop
+                    <button type="submit" class="badge bg-danger border-0 d-flex align-items-center gap-1 py-2 px-3 rounded-pill shadow-sm" style="font-size: 0.875rem;">
+                        <i class="fas fa-stop" aria-hidden="true"></i> <span>Stop</span>
                     </button>
                 </form>
                 {% else %}
-                <form method="post" action="{% url 'minifw_service_control' %}" style="display: inline;">
+                <form method="post" action="{% url 'minifw_service_control' %}" class="m-0">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="start">
-                    <button type="submit" class="btn btn-sm btn-success">
-                        <i class="fas fa-play" aria-hidden="true"></i> Start
+                    <button type="submit" class="btn btn-sm btn-success d-flex align-items-center gap-1 py-2 px-3 rounded-pill shadow-sm">
+                        <i class="fas fa-play" aria-hidden="true"></i> <span>Start</span>
                     </button>
                 </form>
                 {% endif %}

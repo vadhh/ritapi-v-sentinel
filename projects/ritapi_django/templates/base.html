@@ -24,33 +24,38 @@
 
 
     
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style nonce="{{ request.csp_nonce }}">
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #34495e;
-            --accent-color: #3498db;
-            --danger-color: #e74c3c;
-            --warning-color: #f39c12;
-            --success-color: #27ae60;
-            --info-color: #3498db;
-            --dark-bg: #1a1a1a;
-            --card-bg: #2d3748;
-            --text-light: #cbd5e0; /* Improved contrast from #a0aec0 */
-            --border-color: #4a5568;
+            --primary-color: #0F172A;
+            --secondary-color: #1E293B;
+            --accent-color: #0EA5E9;
+            --accent-hover: #0284C7;
+            --danger-color: #EF4444;
+            --warning-color: #F59E0B;
+            --success-color: #10B981;
+            --info-color: #06B6D4;
+            --dark-bg: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --text-light: #0F172A;
+            --text-muted: #64748B;
+            --border-color: #E2E8F0;
+            --sidebar-width: 260px;
 
             /* Gradients */
-            --gradient-primary: linear-gradient(180deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            --gradient-accent: linear-gradient(135deg, var(--accent-color), var(--primary-color));
-            --gradient-danger: linear-gradient(135deg, #ff416c, #ff4b2b);
-            --gradient-warning: linear-gradient(135deg, #ffb347, #ffcc33);
-            --gradient-success: linear-gradient(135deg, #56ab2f, #a8e063);
-            --gradient-info: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-primary: linear-gradient(180deg, #0B1120 0%, #0F172A 100%);
+            --gradient-accent: linear-gradient(135deg, #0EA5E9 0%, #3B82F6 100%);
+            --gradient-danger: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
+            --gradient-warning: linear-gradient(135deg, #F59E0B 0%, #B45309 100%);
+            --gradient-success: linear-gradient(135deg, #10B981 0%, #047857 100%);
+            --gradient-info: linear-gradient(135deg, #06B6D4 0%, #0369A1 100%);
         }
         
         body {
             background-color: var(--dark-bg);
             color: var(--text-light);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 0.9rem;
         }
 
         .badge-medium {
@@ -76,130 +81,240 @@
         }
 
         
+        /* ── Sidebar ── */
         .sidebar {
             background: var(--gradient-primary);
-            min-height: 100vh;
+            height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            width: 250px;
-            z-index: 1000;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar.collapsed {
-            width: 70px;
-        }
-        
-        .sidebar.collapsed .nav-link {
-            text-align: center;
-            margin:0;
+            width: var(--sidebar-width);
+            z-index: 1050;
+            transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+            overflow-y: auto;
+            overflow-x: hidden !important;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.12);
+            display: flex;
+            flex-direction: column;
         }
 
-        .sidebar.collapsed .sidebar-monitoring {
+        .sidebar .nav {
+            display: flex !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            width: 100% !important;
+        }
+
+        .sidebar .nav-item {
+            width: 100% !important;
+            display: block !important;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(calc(-1 * var(--sidebar-width)));
+        }
+
+        /* Sidebar overlay for mobile */
+        #sidebarOverlay {
             display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1040;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-
-        .sidebar.collapsed .sidebar-logo {
-            display: none;
-        }
-
-        .sidebar.collapsed .nav-link i {
-            margin-right: 0;
-        }
-
-        .sidebar.collapsed .nav-link .sidebar-text {
-            display: none;
+        #sidebarOverlay.show {
+            display: block;
+            opacity: 1;
         }
 
         .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            padding: 12px 20px;
-            border-radius: 8px;
-            margin: 5px 15px;
-            transition: all 0.3s ease;
+            color: rgba(255,255,255,0.78);
+            padding: 10px 16px;
+            border-radius: 10px;
+            margin: 2px 10px;
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: normal;
+            word-break: break-word;
         }
-        
+
         .sidebar .nav-link:hover,
         .sidebar .nav-link.active {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: white;
-            transform: translateX(5px);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            transform: translateX(3px);
         }
-        
+
         .sidebar .nav-link i {
-            width: 20px;
-            margin-right: 10px;
+            width: 18px;
+            font-size: 0.9rem;
+            flex-shrink: 0;
         }
-        
+
+        /* ── Main Content ── */
         .main-content {
-            margin-left: 250px;
-            padding: 20px;
-            transition: margin-left 0.3s ease;
+            margin-left: var(--sidebar-width);
+            padding: 24px;
+            transition: margin-left 0.3s cubic-bezier(.4,0,.2,1);
+            min-height: 100vh;
         }
-        
+
         .main-content.expanded {
-            margin-left: 70px;
+            margin-left: 0;
         }
-        
+
+        /* ── Navbar ── */
+        .navbar.sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+        }
+
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 4px 16px rgba(37,99,235,0.04);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(37,99,235,0.12);
         }
-        
+
         .card-header {
             background: var(--gradient-accent);
             color: white;
             border-bottom: none;
-            border-radius: 12px 12px 0 0 !important;
+            border-radius: 16px 16px 0 0 !important;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        
+
+        /* ── Stat Cards ── */
+        .stats-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 100%;
+            min-height: 110px;
+            padding: 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .stats-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
         .stat-card {
-            background: linear-gradient(135deg, var(--card-bg), rgba(52, 152, 219, 0.1));
+            background: linear-gradient(135deg, #fff 60%, rgba(37,99,235,0.06) 100%);
             border-left: 4px solid var(--accent-color);
         }
-        
+
+        /* ── Responsive Utils ── */
+        @media (max-width: 768px) {
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 10px;
+            }
+            .card-tools, .card-tools form, .card-tools .input-group {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .stats-card {
+                min-height: 100px;
+                padding: 1rem;
+            }
+            .stats-card h3 {
+                font-size: 1.5rem;
+            }
+            .stats-card h6 {
+                font-size: 0.8rem;
+            }
+            
+            /* Navbar alignment fixes */
+            .navbar .container-fluid {
+                flex-wrap: nowrap !important;
+                justify-content: space-between;
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+            .navbar-brand {
+                font-size: 0.85rem !important;
+                margin-right: 5px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 110px;
+                flex-shrink: 1;
+            }
+            .navbar .d-flex.gap-3 {
+                gap: 0.35rem !important;
+                flex-shrink: 0;
+            }
+            #monitorStatus {
+                padding: 3px 6px !important;
+                font-size: 0.65rem !important;
+            }
+            #lastUpdate {
+                font-size: 0.65rem !important;
+                white-space: nowrap;
+            }
+            #sidebarToggleBtn1 {
+                width: 32px !important;
+                height: 32px !important;
+            }
+        }
+
         .stat-card.danger {
             border-left-color: var(--danger-color);
-            background: linear-gradient(135deg, var(--card-bg), rgba(231, 76, 60, 0.1));
+            background: linear-gradient(135deg, #fff 60%, rgba(239,68,68,0.07) 100%);
         }
-        
+
         .stat-card.warning {
             border-left-color: var(--warning-color);
-            background: linear-gradient(135deg, var(--card-bg), rgba(243, 156, 18, 0.1));
+            background: linear-gradient(135deg, #fff 60%, rgba(245,158,11,0.07) 100%);
         }
-        
+
         .stat-card.success {
             border-left-color: var(--success-color);
-            background: linear-gradient(135deg, var(--card-bg), rgba(39, 174, 96, 0.1));
+            background: linear-gradient(135deg, #fff 60%, rgba(16,185,129,0.07) 100%);
         }
-        
+
         .stat-number {
-            font-size: 2.5rem;
-            font-weight: bold;
+            font-size: 2.2rem;
+            font-weight: 800;
             background: var(--gradient-accent);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        
+
         .navbar {
-            background: var(--card-bg) !important;
+            background: #ffffff !important;
             border-bottom: 1px solid var(--border-color);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
         }
-        
+
         .navbar-brand {
-            color: white !important;
-            font-weight: bold;
+            color: var(--primary-color) !important;
+            font-weight: 700;
+            font-size: 1rem;
         }
         
         .btn-primary {
@@ -300,28 +415,37 @@
         }
         
         .sidebar-toggle {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 1001;
-            background: var(--accent-color);
-            border: none;
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
+            display: none;
         }
-        
-        @media (max-width: 768px) {
+
+        /* Hamburger button in navbar */
+        #sidebarToggleBtn1 {
+            background: #f3f4f6;
+            color: #1e3a5f;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, color 0.2s;
+            flex-shrink: 0;
+        }
+        #sidebarToggleBtn1:hover {
+            background: #1e3a5f;
+            color: #ffffff;
+        }
+
+        @media (max-width: 991px) {
             .sidebar {
-                transform: translateX(-100%);
+                transform: translateX(calc(-1 * var(--sidebar-width)));
             }
-            
             .sidebar.show {
                 transform: translateX(0);
             }
-            
             .main-content {
-                margin-left: 0;
+                margin-left: 0 !important;
             }
         }
         
@@ -366,10 +490,8 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- Sidebar Toggle Button -->
-    <button class="sidebar-toggle d-md-none" id="sidebarToggleBtn2" aria-label="Toggle Sidebar Navigation">
-        <i class="fas fa-bars" aria-hidden="true"></i>
-    </button>
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebarOverlay"></div>
 
     {% include "sidebar.html" %}
     
@@ -377,43 +499,37 @@
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
         <!-- Top Navigation -->
-        <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <nav class="navbar navbar-expand-lg sticky-top mb-4" style="background:#ffffff; border-bottom:1px solid #e5e7eb; box-shadow:0 1px 6px rgba(0,0,0,0.06);">
             <div class="container-fluid">
-                <span class="navbar-brand">
+                <!-- Page Title (left) -->
+                <span class="navbar-brand fw-semibold" style="color:#1e3a5f; font-size:1rem;">
                     {% block page_title %}Ritapi V-Sentinel{% endblock %}
                 </span>
-                
-                <div class="d-flex align-items-center">
-                    <!-- License / Demo -->
-                    {% comment %} <div class="me-3">
-                        {% if not is_licensed %}
-                            <a href="{% url 'demo-page' %}" class="btn btn-warning btn-sm">
-                                <i class="fas fa-play-circle" aria-hidden="true"></i> Demo Mode
-                            </a>
-                       {% else %}
-                        {% endif %}
-                    </div> {% endcomment %}
 
-                    <button class="btn btn-outline-light me-3" id="sidebarToggleBtn1" aria-label="Toggle Sidebar Expansion">
-                        <i class="fas fa-bars" aria-hidden="true"></i>
-                    </button>
-                    
+                <!-- Right side items -->
+                <div class="d-flex align-items-center gap-3 ms-auto">
                     <!-- Monitor Status -->
-                    <div class="me-3">
-                        <span class="badge bg-success" id="monitorStatus">
-                            <span class="status-indicator status-online" aria-hidden="true"></span>
-                            Online
-                        </span>
-                    </div>
-                    
+                    <span class="badge bg-success d-flex align-items-center gap-1" id="monitorStatus">
+                        <span class="status-indicator status-online" aria-hidden="true"></span>
+                        Online
+                    </span>
+
                     <!-- Last Update -->
-                    <small class="text-white" id="lastUpdate">
+                    <small id="lastUpdate" style="color:#000000; font-weight:600;">
                         Last update: <span id="updateTime">--:--</span>
                     </small>
 
+                    <!-- Hamburger Toggle (pojok kanan) -->
+                    <button class="btn btn-sm border-0 d-flex align-items-center justify-content-center"
+                            id="sidebarToggleBtn1"
+                            aria-label="Toggle Sidebar"
+                            style="background:#f3f4f6; color:#1e3a5f; width:36px; height:36px; border-radius:8px; transition:background 0.2s;">
+                        <i class="fas fa-bars" aria-hidden="true"></i>
+                    </button>
                 </div>
             </div>
         </nav>
+
         
         <!-- Alerts Container -->
         <div id="alertContainer"></div>
@@ -444,39 +560,47 @@
     
     <!-- Custom JavaScript -->
     <script nonce="{{ request.csp_nonce }}">
-        // Sidebar toggle functionality
+        // Sidebar toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
+            const overlay = document.getElementById('sidebarOverlay');
+            const isMobile = window.innerWidth < 992;
 
-            if (window.innerWidth > 768) {
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('expanded');
-                // Save state after toggling (desktop only)
-                localStorage.setItem('sidebarState', sidebar.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+            if (isMobile) {
+                const showing = sidebar.classList.toggle('show');
+                if (overlay) {
+                    overlay.classList.toggle('show', showing);
+                }
             } else {
-                sidebar.classList.toggle('show');
+                const hidden = sidebar.classList.toggle('hidden');
+                mainContent.classList.toggle('expanded', hidden);
+                localStorage.setItem('sidebarState', hidden ? 'hidden' : 'visible');
             }
         }
 
-        // Initialize the sidebar state
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
-            const isCollapsed = localStorage.getItem('sidebarState') === 'collapsed';
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-                mainContent.classList.add('expanded');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            // Restore desktop state
+            if (window.innerWidth >= 992) {
+                const isHidden = localStorage.getItem('sidebarState') === 'hidden';
+                if (isHidden) {
+                    sidebar.classList.add('hidden');
+                    mainContent.classList.add('expanded');
+                }
             }
-        });
 
-        document.addEventListener("DOMContentLoaded", function() {
-            // Bind tombol sidebar
-            document.getElementById("sidebarToggleBtn1")
-                ?.addEventListener("click", toggleSidebar);
+            document.getElementById('sidebarToggleBtn1')?.addEventListener('click', toggleSidebar);
+            document.getElementById('sidebarToggleBtn2')?.addEventListener('click', toggleSidebar);
 
-            document.getElementById("sidebarToggleBtn2")
-                ?.addEventListener("click", toggleSidebar);
+            // Close sidebar when overlay clicked (mobile)
+            overlay?.addEventListener('click', function() {
+                sidebar.classList.remove('show');
+                overlay.classList.remove('show');
+            });
         });
         
         // Update time display
@@ -602,8 +726,11 @@
         
         // Handle window resize
         window.addEventListener('resize', function() {
-            if (window.innerWidth > 768) {
-                document.getElementById('sidebar').classList.remove('show');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (window.innerWidth >= 992) {
+                sidebar.classList.remove('show');
+                overlay?.classList.remove('show');
             }
         });
 
@@ -615,6 +742,20 @@
                 logoutLink.addEventListener("click", function(e) {
                     e.preventDefault();
                     logoutForm.submit();
+                });
+            }
+        });
+
+        // Preserve sidebar scroll position
+        document.addEventListener("DOMContentLoaded", function() {
+            const sidebar = document.getElementById("sidebar");
+            if (sidebar) {
+                const scrollPos = sessionStorage.getItem("sidebarScrollPos");
+                if (scrollPos) {
+                    sidebar.scrollTop = parseInt(scrollPos, 10);
+                }
+                sidebar.addEventListener("scroll", function() {
+                    sessionStorage.setItem("sidebarScrollPos", sidebar.scrollTop);
                 });
             }
         });

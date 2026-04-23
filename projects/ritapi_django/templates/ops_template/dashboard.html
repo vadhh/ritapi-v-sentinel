@@ -96,44 +96,44 @@
                 <div class="card-body">
 
                     <!-- Statistik Cards -->
-                    <div class="row mb-4">
-                        <div class="col-md-3 col-6">
-                            <div class="stats-card stats-alerts d-flex align-items-center justify-content-between">
+                    <div class="row g-3 mb-4">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="stats-card stats-alerts h-100">
                                 <div>
-                                    <h6 class="mb-0">Total Alerts</h6>
-                                    <h3 class="mb-0">{{ total_alerts|default:"0" }}</h3>
+                                    <h6 class="mb-1">Total Alerts</h6>
+                                    <h3 class="mb-0 fw-bold">{{ total_alerts|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-exclamation-triangle fa-2x" aria-hidden="true"></i>
+                                <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
                             </div>
                         </div>
 
-                        <div class="col-md-3 col-6">
-                            <div class="stats-card stats-blocked d-flex align-items-center justify-content-between">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="stats-card stats-blocked h-100">
                                 <div>
-                                    <h6 class="mb-0">Blocked IPs</h6>
-                                    <h3 class="mb-0">{{ total_blocked|default:"0" }}</h3>
+                                    <h6 class="mb-1">Blocked IPs</h6>
+                                    <h3 class="mb-0 fw-bold">{{ total_blocked|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-shield-alt fa-2x" aria-hidden="true"></i>
+                                <i class="fas fa-shield-alt" aria-hidden="true"></i>
                             </div>
                         </div>
 
-                        <div class="col-md-3 col-6">
-                            <div class="stats-card stats-allowed d-flex align-items-center justify-content-between">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="stats-card stats-allowed h-100">
                                 <div>
-                                    <h6 class="mb-0">Total Requests Allowed</h6>
-                                    <h3 class="mb-0">{{ total_requests_allow|default:"0" }}</h3>
+                                    <h6 class="mb-1">Total Requests Allowed</h6>
+                                    <h3 class="mb-0 fw-bold">{{ total_requests_allow|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-check fa-2x" aria-hidden="true"></i>
+                                <i class="fas fa-check" aria-hidden="true"></i>
                             </div>
                         </div>
 
-                        <div class="col-md-3 col-6">
-                            <div class="stats-card stats-blocked-req d-flex align-items-center justify-content-between">
+                        <div class="col-xl-3 col-md-6">
+                            <div class="stats-card stats-blocked-req h-100">
                                 <div>
-                                    <h6 class="mb-0">Total Requests Blocked</h6>
-                                    <h3 class="mb-0">{{ total_requests_block|default:"0" }}</h3>
+                                    <h6 class="mb-1">Total Requests Blocked</h6>
+                                    <h3 class="mb-0 fw-bold">{{ total_requests_block|default:"0" }}</h3>
                                 </div>
-                                <i class="fas fa-times fa-2x" aria-hidden="true"></i>
+                                <i class="fas fa-times" aria-hidden="true"></i>
                             </div>
                         </div>
                     </div>

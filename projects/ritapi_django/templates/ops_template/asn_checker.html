@@ -15,8 +15,8 @@
                     <div class="card-tools">
                         <form method="post" action="{% url 'ops_asn_checker' %}" class="d-inline">
                             {% csrf_token %}
-                            <div class="input-group input-group-sm" style="width: 280px;">
-                                <input type="text" name="ip" class="form-control" placeholder="Enter IP e.g. 8.8.8.8" required>
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="ip" class="form-control" placeholder="Enter IP e.g. 8.8.8.8" required style="max-width: 200px;">
                                 <button type="submit" class="btn btn-success">
                                     <i class="fas fa-search"></i> Check
                                 </button>
@@ -61,8 +61,8 @@
                     <!-- History Search -->
                     <div class="d-flex justify-content-end">
                         <form method="get" class="mb-3">
-                            <div class="input-group input-group-sm" style="width: 260px;">
-                                <input type="text" name="search" value="{{ search_query }}" class="form-control" placeholder="Search IP">
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="search" value="{{ search_query }}" class="form-control" placeholder="Search IP" style="max-width: 200px;">
                                 <button type="submit" class="btn btn-outline-primary">
                                     <i class="fas fa-search"></i>
                                 </button>

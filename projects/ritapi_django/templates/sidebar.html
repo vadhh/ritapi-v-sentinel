@@ -1,28 +1,30 @@
 <!-- Sidebar -->
 <nav class="sidebar" id="sidebar">
-  <div class="overflow-auto p-3 d-flex flex-column" style="height: 100vh">
+  <div class="d-flex flex-column flex-grow-1" style="padding-bottom: 1rem;">
     <!-- Logo / Title -->
-    <h4 class="text-white text-center mb-4">
-      <i class="fas fa-shield-alt" aria-hidden="true"></i>
-      <span class="sidebar-logo">Ritapi V-Sentinel</span>
-    </h4>
+    <div class="d-flex align-items-center gap-2 px-4 py-4 border-bottom border-white border-opacity-10" style="min-height:68px;">
+      <i class="fas fa-shield-alt text-white" style="font-size:1.3rem;"></i>
+      <span class="text-white fw-bold" style="font-size:0.95rem; letter-spacing:0.02em;">Ritapi V-Sentinel</span>
+    </div>
+
 
     <!-- User Info -->
     {% if user.is_authenticated %}
-    <div class="text-center mb-3 pb-3 border-bottom border-secondary">
-      <div class="text-white">
-        <i class="fas fa-user-shield fa-2x mb-2" aria-hidden="true"></i>
-        <div class="sidebar-text">
-          <small class="text-white-50 d-block">Logged in as</small>
-          <strong>{{ user.username }}</strong>
-          <br />
+    <div class="px-4 py-3 border-bottom border-white border-opacity-10">
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle bg-white bg-opacity-20 d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;">
+          <i class="fas fa-user-shield text-white" style="font-size:0.9rem;"></i>
+        </div>
+        <div class="sidebar-text overflow-hidden">
+          <div style="font-size:0.7rem; color:rgba(255,255,255,0.55); line-height:1;">Logged in as</div>
+          <div class="text-white fw-semibold text-truncate" style="font-size:0.85rem;">{{ user.username }}</div>
           {% if user.profile %}
-          <span class="badge bg-danger mt-1">
-            <i class="fas fa-crown" aria-hidden="true"></i> {{ user.profile.role|default:"VIEWER" }}
+          <span class="badge mt-1" style="background:rgba(239,68,68,0.85); font-size:0.65rem;">
+            <i class="fas fa-crown me-1"></i>{{ user.profile.role|default:"VIEWER" }}
           </span>
           {% elif user.is_superuser %}
-          <span class="badge bg-danger mt-1">
-            <i class="fas fa-crown" aria-hidden="true"></i> SUPER_ADMIN
+          <span class="badge mt-1" style="background:rgba(239,68,68,0.85); font-size:0.65rem;">
+            <i class="fas fa-crown me-1"></i>SUPER_ADMIN
           </span>
           {% endif %}
         </div>
@@ -30,8 +32,9 @@
     </div>
     {% endif %}
 
+
     <!-- Menu -->
-    <ul class="nav flex-column">
+    <ul class="nav flex-column flex-grow-1 mt-2">
       <li class="nav-item">
         <a
           class="nav-link {% if request.resolver_match.url_name == 'ops_dashboard' %}active{% endif %}"
@@ -222,8 +225,8 @@
       </li>
 
       <!-- MiniFW-AI -->
-      <li class="nav-item mt-2">
-        <div class="sidebar-text px-4 small text-uppercase text-white-50 fw-bold">MiniFW-AI</div>
+      <li class="nav-item mt-3">
+        <div class="px-3 mb-1" style="font-size:0.65rem; font-weight:700; letter-spacing:0.08em; color:rgba(255,255,255,0.4); text-transform:uppercase;">MiniFW-AI</div>
       </li>
 
       <li class="nav-item">
@@ -318,12 +321,10 @@
   </div>
 
   <!-- Sidebar Footer -->
-  <div class="mt-auto p-3">
-    <div class="text-center">
-      <small class="text-white-50">
-        <span class="real-time-indicator" aria-hidden="true"></span>
-        <span class="sidebar-monitoring">IP/API Protection </span>
-      </small>
+  <div class="px-4 py-3 border-top border-white border-opacity-10">
+    <div class="d-flex align-items-center gap-2">
+      <span class="real-time-indicator" aria-hidden="true"></span>
+      <small style="color:rgba(255,255,255,0.45); font-size:0.72rem;">IP/API Protection Active</small>
     </div>
   </div>
 </nav>

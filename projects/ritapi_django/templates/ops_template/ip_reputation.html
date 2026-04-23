@@ -17,7 +17,7 @@
                     <div class="card-tools">
                         <form method="post" action="{% url 'ops_ip_reputation_check' %}" class="d-inline">
                             {% csrf_token %}
-                            <div class="input-group input-group-sm" style="width: 300px;">
+                            <div class="input-group input-group-sm" style="max-width: 320px;">
                                 <input type="text" name="ip_address" class="form-control" placeholder="Enter IP address..." required>
                                 <div class="input-group-append">
                                     <button type="submit" class="btn btn-success">
