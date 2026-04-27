@@ -1,208 +1,418 @@
 {% extends "base.html" %}
 
+{% block page_title %}Security Command Center{% endblock %}
+
 {% block extra_css %}
 <style>
-.approval-card {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    transition: box-shadow 0.3s ease;
+/* ── Overrides for SOC feel ── */
+.soc-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
 }
 
-.approval-card:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+.soc-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
 }
 
-.status-badge {
-    font-size: 0.875rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 0.375rem;
-}
-
-.status-pending { background-color: #fff3cd; color: #856404; }
-.status-approved { background-color: #d1e7dd; color: #0f5132; }
-.status-rejected { background-color: #f8d7da; color: #721c24; }
-.status-expired { background-color: #e2e3e5; color: #41464b; }
-
-.change-summary {
+.soc-card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
     font-weight: 600;
-    color: #495057;
-}
-
-.approval-actions {
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(90deg, rgba(248,250,252,1) 0%, rgba(255,255,255,1) 100%);
+    font-size: 1rem;
+    color: var(--primary-color);
 }
 
-.audit-log {
+.soc-card-header.critical { border-left: 4px solid var(--danger-color); }
+.soc-card-header.warning { border-left: 4px solid var(--warning-color); }
+.soc-card-header.info { border-left: 4px solid var(--accent-color); }
+
+/* ── Live Threat Feed ── */
+.live-feed-list {
     max-height: 400px;
     overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    padding: 1rem;
+}
+.live-feed-item {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.live-feed-item:last-child { border-bottom: none; }
+.live-feed-item:hover { background: #f8fafc; }
+.feed-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.35rem;
+}
+.feed-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.feed-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
+/* ── Threat Timeline ── */
+.soc-timeline {
+    position: relative;
+    padding-left: 1.5rem;
+    margin: 1rem 1.25rem;
+}
+.soc-timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border-color);
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.35rem;
+    top: 0.25rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--card-bg);
+    border: 2px solid var(--accent-color);
+    z-index: 1;
+}
+.timeline-item.critical::before { border-color: var(--danger-color); background: var(--danger-color); animation: pulse-ring 2s infinite; }
+.timeline-item.warning::before { border-color: var(--warning-color); }
+.timeline-item.success::before { border-color: var(--success-color); }
+.timeline-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+}
+.timeline-content {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* ── Risk Score Radial ── */
+.risk-gauge-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    position: relative;
+}
+.risk-circle {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: conic-gradient(var(--danger-color) 87%, #e2e8f0 0);
+    position: relative;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+    animation: glow-critical 3s infinite;
+}
+.risk-circle::before {
+    content: '';
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: var(--card-bg);
+}
+.risk-score-value {
+    position: relative;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--danger-color);
+    line-height: 1;
+}
+.risk-score-label {
+    position: relative;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-top: 5px;
+    letter-spacing: 1px;
+}
+.risk-radar {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 1px dashed rgba(239, 68, 68, 0.4);
+    animation: radar-scan 4s linear infinite;
+    pointer-events: none;
+}
+
+/* ── Stats Cards Enhancements ── */
 .stats-card {
-    background: var(--gradient-info);
-    color: white;
-    border-radius: 0.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--primary-color);
+    border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1rem;
-    transition: box-shadow 0.3s ease;
-    min-height: 100px;
+    transition: all 0.3s ease;
+    min-height: 110px;
+    position: relative;
+    overflow: hidden;
 }
-
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+}
 .stats-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
 }
-
 .stats-card i {
-    font-size: 2rem;
-    opacity: 0.75;
+    font-size: 2.5rem;
+    opacity: 0.1;
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1.25rem;
+    transition: all 0.3s ease;
 }
-.stats-alerts {
-    background: var(--gradient-warning);
-    color: black;
+.stats-card:hover i {
+    transform: scale(1.1);
+    opacity: 0.2;
 }
+.stats-alerts::before { background: var(--gradient-warning); }
+.stats-alerts h3 { color: var(--warning-color); }
+.stats-alerts i { color: var(--warning-color); opacity: 0.2; }
 
-.stats-blocked {
-    background: var(--gradient-info);
-    color: white;
-}
+.stats-blocked::before { background: var(--gradient-info); }
+.stats-blocked h3 { color: var(--info-color); }
+.stats-blocked i { color: var(--info-color); opacity: 0.2; }
 
-.stats-allowed {
-    background: var(--gradient-success);
-    color: white;
-}
+.stats-allowed::before { background: var(--gradient-success); }
+.stats-allowed h3 { color: var(--success-color); }
+.stats-allowed i { color: var(--success-color); opacity: 0.2; }
 
-.stats-blocked-req {
-    background: var(--gradient-danger);
-    color: white;
+.stats-blocked-req::before { background: var(--gradient-danger); }
+.stats-blocked-req h3 { color: var(--danger-color); }
+.stats-blocked-req i { color: var(--danger-color); opacity: 0.2; }
+
+/* Custom Accordion */
+.soc-accordion { padding: 1rem; }
+.soc-accordion .accordion-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+.soc-accordion .accordion-button {
+    font-weight: 600;
+    color: var(--primary-color);
+    background-color: #f8fafc;
+    box-shadow: none !important;
+    padding: 1rem;
+}
+.soc-accordion .accordion-button:not(.collapsed) {
+    background-color: rgba(239, 68, 68, 0.05);
+    color: var(--danger-color);
+}
+.soc-accordion .accordion-body {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    background: #ffffff;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+    <!-- ROW 1: SOC Panels (Risk Score, Live Feed, Decision Explanation) -->
+    <div class="row g-3 mb-4">
+        <!-- Risk Score & Timeline -->
+        <div class="col-xl-3 col-lg-4">
+            <div class="soc-card h-100">
+                <div class="soc-card-header critical">
+                    <i class="fas fa-crosshairs text-danger heartbeat" style="animation: blink-alert 2s infinite;"></i>
+                    System Risk Level
+                </div>
+                <div class="card-body p-0">
+                    <div class="risk-gauge-container border-bottom border-light">
+                        <div class="risk-circle">
+                            <div class="risk-radar"></div>
+                            <div class="risk-score-value">87%</div>
+                            <div class="risk-score-label">HIGH RISK</div>
+                        </div>
+                    </div>
+                    
+                    <div class="px-3 pt-3 pb-1">
+                        <h6 class="fw-bold mb-0 text-muted" style="font-size: 0.8rem; text-transform: uppercase;">Threat Activity Timeline</h6>
+                    </div>
+                    <div class="soc-timeline" id="mockTimeline">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Threat Detection -->
+        <div class="col-xl-5 col-lg-8">
+            <div class="soc-card h-100">
+                <div class="soc-card-header warning">
+                    <i class="fas fa-satellite-dish text-warning" style="animation: pulse-ring 2s infinite; border-radius: 50%;"></i>
+                    Live Threat Detection
+                    <span class="badge bg-danger ms-auto" style="animation: blink-alert 2s infinite;">LIVE</span>
+                </div>
+                <div class="live-feed-list" id="mockLiveFeed">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Decision Explanation -->
+        <div class="col-xl-4 col-lg-12">
+            <div class="soc-card h-100">
+                <div class="soc-card-header info">
+                    <i class="fas fa-brain text-info"></i>
+                    AI Decision Engine
+                </div>
+                <div class="accordion soc-accordion" id="decisionAccordion">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 2: Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-alerts h-100">
+                <div>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Total Alerts</h6>
+                    <h3 class="mb-0 fw-bold">{{ total_alerts|default:"0" }}</h3>
+                </div>
+                <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-blocked h-100">
+                <div>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Blocked IPs</h6>
+                    <h3 class="mb-0 fw-bold">{{ total_blocked|default:"0" }}</h3>
+                </div>
+                <i class="fas fa-shield-virus" aria-hidden="true"></i>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-allowed h-100">
+                <div>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Total Requests Allowed</h6>
+                    <h3 class="mb-0 fw-bold">{{ total_requests_allow|default:"0" }}</h3>
+                </div>
+                <i class="fas fa-check-circle" aria-hidden="true"></i>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-blocked-req h-100">
+                <div>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Total Requests Blocked</h6>
+                    <h3 class="mb-0 fw-bold">{{ total_requests_block|default:"0" }}</h3>
+                </div>
+                <i class="fas fa-times-circle" aria-hidden="true"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 3: Recent Alerts Table -->
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-lg rounded-3">
-                <div class="card-header bg-dark text-white">
-                    <h3 class="card-title mb-0">
-                        <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
-                        Security Dashboard
-                    </h3>
+            <div class="soc-card rounded-3">
+                <div class="soc-card-header bg-dark text-white border-0" style="background: var(--primary-color); color: white;">
+                    <i class="fas fa-list-alt me-2" aria-hidden="true"></i>Recent Threat Logs
                 </div>
-                <div class="card-body">
-
-                    <!-- Statistik Cards -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-xl-3 col-md-6">
-                            <div class="stats-card stats-alerts h-100">
-                                <div>
-                                    <h6 class="mb-1">Total Alerts</h6>
-                                    <h3 class="mb-0 fw-bold">{{ total_alerts|default:"0" }}</h3>
-                                </div>
-                                <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="stats-card stats-blocked h-100">
-                                <div>
-                                    <h6 class="mb-1">Blocked IPs</h6>
-                                    <h3 class="mb-0 fw-bold">{{ total_blocked|default:"0" }}</h3>
-                                </div>
-                                <i class="fas fa-shield-alt" aria-hidden="true"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="stats-card stats-allowed h-100">
-                                <div>
-                                    <h6 class="mb-1">Total Requests Allowed</h6>
-                                    <h3 class="mb-0 fw-bold">{{ total_requests_allow|default:"0" }}</h3>
-                                </div>
-                                <i class="fas fa-check" aria-hidden="true"></i>
-                            </div>
-                        </div>
-
-                        <div class="col-xl-3 col-md-6">
-                            <div class="stats-card stats-blocked-req h-100">
-                                <div>
-                                    <h6 class="mb-1">Total Requests Blocked</h6>
-                                    <h3 class="mb-0 fw-bold">{{ total_requests_block|default:"0" }}</h3>
-                                </div>
-                                <i class="fas fa-times" aria-hidden="true"></i>
-                            </div>
-                        </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="font-size: 0.9rem;">
+                            <thead style="background-color: #f8fafc; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">
+                                <tr>
+                                    <th width="20%" class="ps-4">Alert Type</th>
+                                    <th width="25%">IP Address</th>
+                                    <th width="15%">Severity</th>
+                                    <th width="20%">Timestamp</th>
+                                    <th width="20%">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in recent_alerts %}
+                                <tr>
+                                    <td class="ps-4 fw-medium">{{ a.alert_type }}</td>
+                                    <td>
+                                        <code class="text-sm bg-light px-2 py-1 rounded border">{{ a.ip_address }}</code>
+                                        <button class="btn btn-sm btn-light ms-2 border" 
+                                                onclick="copyToClipboard('{{ a.ip_address }}')" 
+                                                title="Copy IP"
+                                                aria-label="Copy IP address {{ a.ip_address }}">
+                                            <i class="fas fa-copy text-muted" aria-hidden="true"></i>
+                                        </button>
+                                    </td>
+                                    <td>
+                                        {% if a.severity == "critical" %}
+                                            <span class="badge bg-danger rounded-pill px-3">{{ a.severity|title }}</span>
+                                        {% elif a.severity == "high" %}
+                                            <span class="badge bg-warning text-dark rounded-pill px-3">{{ a.severity|title }}</span>
+                                        {% elif a.severity == "medium" %}
+                                            <span class="badge bg-info text-dark rounded-pill px-3">{{ a.severity|title }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success rounded-pill px-3">{{ a.severity|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-muted">{{ a.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td class="text-muted">{{ a.message|truncatechars:50|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-5">
+                                        <i class="fas fa-shield-alt fa-3x mb-3 opacity-25" aria-hidden="true"></i>
+                                        <h5 class="fw-bold">No threats detected</h5>
+                                        <p class="mb-0">System is currently operating normally.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-
-                    <!-- Recent Alerts Table -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card shadow-sm rounded-3">
-                                <div class="card-header bg-warning text-dark fw-bold">
-                                    <i class="fas fa-bell me-2" aria-hidden="true"></i>Recent Alerts
-                                </div>
-                                <div class="card-body p-0">
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped mb-0">
-                                            <thead class="table-dark">
-                                                <tr>
-                                                    <th width="20%">Alert Type</th>
-                                                    <th width="25%">IP Address</th>
-                                                    <th width="15%">Severity</th>
-                                                    <th width="20%">Timestamp</th>
-                                                    <th width="20%">Message</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for a in recent_alerts %}
-                                                <tr>
-                                                    <td>{{ a.alert_type }}</td>
-                                                    <td>
-                                                        <code class="text-sm">{{ a.ip_address }}</code>
-                                                        <button class="btn btn-sm btn-outline-secondary ms-2" 
-                                                                onclick="copyToClipboard('{{ a.ip_address }}')" 
-                                                                title="Copy IP"
-                                                                aria-label="Copy IP address {{ a.ip_address }}">
-                                                            <i class="fas fa-copy" aria-hidden="true"></i>
-                                                        </button>
-                                                    </td>
-                                                    <td>
-                                                        {% if a.severity == "critical" %}
-                                                            <span class="badge bg-danger">{{ a.severity|title }}</span>
-                                                        {% elif a.severity == "high" %}
-                                                            <span class="badge bg-warning text-dark">{{ a.severity|title }}</span>
-                                                        {% elif a.severity == "medium" %}
-                                                            <span class="badge bg-info text-dark">{{ a.severity|title }}</span>
-                                                        {% else %}
-                                                            <span class="badge bg-success">{{ a.severity|title }}</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>{{ a.timestamp|date:"M d, Y H:i" }}</td>
-                                                    <td>{{ a.message|truncatechars:50|default:"-" }}</td>
-                                                </tr>
-                                                {% empty %}
-                                                <tr>
-                                                    <td colspan="5" class="text-center text-muted py-4">
-                                                        <i class="fas fa-inbox fa-3x mb-3" aria-hidden="true"></i>
-                                                        <h5>No alerts found</h5>
-                                                        <p>System has not recorded any alerts yet.</p>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div> <!-- card-body -->
-            </div> <!-- card -->
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -212,20 +422,136 @@
 <script>
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(function() {
-        // Show a temporary success message
         const originalText = event.target.innerHTML;
-        event.target.innerHTML = '<i class="fas fa-check"></i>';
-        event.target.classList.add('btn-success');
-        event.target.classList.remove('btn-outline-secondary');
+        event.target.innerHTML = '<i class="fas fa-check text-success"></i>';
         
         setTimeout(function() {
             event.target.innerHTML = originalText;
-            event.target.classList.remove('btn-success');
-            event.target.classList.add('btn-outline-secondary');
         }, 1500);
     }, function(err) {
         console.error('Could not copy text: ', err);
     });
 }
+
+// ── Inject Mock Data for Demo SOC Features ──
+
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // 1. Mock Timeline
+    const timelineData = [
+        { time: "14:04:12", text: "Action executed: IP Blocked", status: "success" },
+        { time: "14:03:45", text: "Threat classified: Brute Force", status: "critical" },
+        { time: "14:02:10", text: "Risk evaluated: 87% HIGH", status: "warning" },
+        { time: "14:01:05", text: "Login anomaly detected", status: "info" }
+    ];
+    
+    const timelineContainer = document.getElementById("mockTimeline");
+    let timelineHTML = "";
+    timelineData.forEach(item => {
+        timelineHTML += `
+            <div class="timeline-item ${item.status}">
+                <div class="timeline-time">${item.time}</div>
+                <div class="timeline-content">${item.text}</div>
+            </div>
+        `;
+    });
+    timelineContainer.innerHTML = timelineHTML;
+
+
+    // 2. Mock Live Threat Feed
+    const feedData = [
+        { threat: "Suspicious API Access", source: "Mobile App", type: "Behavioral Anomaly", score: 87, action: "Blocked", time: "14:02:11", severity: "critical", badge: "bg-danger" },
+        { threat: "SQL Injection Payload", source: "192.168.1.45", type: "WAF Rule Trigger", score: 92, action: "Dropped", time: "13:58:02", severity: "critical", badge: "bg-danger" },
+        { threat: "Unusual Data Egress", source: "Internal DB", type: "DLP Alert", score: 65, action: "Flagged", time: "13:45:19", severity: "warning", badge: "bg-warning text-dark" },
+        { threat: "Multiple Failed Logins", source: "VPN Gateway", type: "Auth Anomaly", score: 45, action: "Challenged", time: "13:22:05", severity: "medium", badge: "bg-info text-dark" }
+    ];
+
+    const feedContainer = document.getElementById("mockLiveFeed");
+    let feedHTML = "";
+    feedData.forEach(item => {
+        feedHTML += `
+            <div class="live-feed-item">
+                <div>
+                    <div class="feed-title">${item.threat}</div>
+                    <div class="feed-meta">
+                        <span><i class="fas fa-network-wired"></i> ${item.source}</span>
+                        <span><i class="fas fa-tag"></i> ${item.type}</span>
+                        <span><i class="fas fa-clock"></i> ${item.time}</span>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <span class="badge ${item.badge} rounded-pill px-2 mb-1">${item.action}</span>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Risk: ${item.score}%</div>
+                </div>
+            </div>
+        `;
+    });
+    feedContainer.innerHTML = feedHTML;
+
+
+    // 3. Mock Decision Explanation (Accordion)
+    const decisionData = [
+        {
+            id: "dec1",
+            title: "Threat: Unusual API Request Frequency",
+            reason: "Repeated login attempts (150/min), Abnormal traffic pattern, High request burst",
+            decision: "Blocked automatically",
+            confidence: "92%",
+            expanded: true
+        },
+        {
+            id: "dec2",
+            title: "Threat: Admin Panel Access from Tor",
+            reason: "Source IP matched known Tor exit node list, Account lacks MFA",
+            decision: "Session Terminated",
+            confidence: "98%",
+            expanded: false
+        },
+        {
+            id: "dec3",
+            title: "Anomaly: Data Egress Volume",
+            reason: "User downloaded 5GB in 10 mins, Deviates from 30-day baseline (Max 50MB)",
+            decision: "Alerted SOC Team",
+            confidence: "76%",
+            expanded: false
+        }
+    ];
+
+    const accordionContainer = document.getElementById("decisionAccordion");
+    let accordionHTML = "";
+    decisionData.forEach((item, index) => {
+        const isExpanded = item.expanded ? "show" : "";
+        const isCollapsedBtn = item.expanded ? "" : "collapsed";
+        
+        accordionHTML += `
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading${item.id}">
+                    <button class="accordion-button ${isCollapsedBtn}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${item.id}" aria-expanded="${item.expanded}" aria-controls="collapse${item.id}">
+                        ${item.title}
+                    </button>
+                </h2>
+                <div id="collapse${item.id}" class="accordion-collapse collapse ${isExpanded}" aria-labelledby="heading${item.id}" data-bs-parent="#decisionAccordion">
+                    <div class="accordion-body">
+                        <div class="mb-2"><strong>Why flagged:</strong></div>
+                        <ul class="mb-3 ps-3 text-muted">
+                            ${item.reason.split(', ').map(r => `<li>${r}</li>`).join('')}
+                        </ul>
+                        <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border">
+                            <div>
+                                <span class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Decision Taken</span>
+                                <strong class="text-danger">${item.decision}</strong>
+                            </div>
+                            <div class="text-end">
+                                <span class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">AI Confidence</span>
+                                <strong class="text-primary">${item.confidence}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    accordionContainer.innerHTML = accordionHTML;
+});
 </script>
 {% endblock %}

@@ -40,8 +40,8 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops_dashboard' %}active{% endif %}"
           href="{% url 'ops_dashboard' %}"
         >
-          <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
-          <span class="sidebar-text">Dashboard</span>
+          <i class="fas fa-satellite-dish" aria-hidden="true"></i>
+          <span class="sidebar-text">Security Command Center</span>
         </a>
       </li>
 
@@ -150,8 +150,8 @@
           class="nav-link {% if request.resolver_match.url_name == 'requestlog_list' %}active{% endif %}"
           href="{% url 'requestlog_list' %}"
         >
-          <i class="fas fa-list" aria-hidden="true"></i>
-          <span class="sidebar-text">Logs</span>
+          <i class="fas fa-clipboard-list" aria-hidden="true"></i>
+          <span class="sidebar-text">Decision Logs</span>
         </a>
       </li>
 
@@ -172,8 +172,8 @@
           class="nav-link {% if request.resolver_match.url_name == 'ops.ops_alert' %}active{% endif %}"
           href="{% url 'ops.ops_alert' %}"
         >
-          <i class="fas fa-bell" aria-hidden="true"></i>
-          <span class="sidebar-text">Alerts</span>
+          <i class="fas fa-radar" aria-hidden="true"></i>
+          <span class="sidebar-text">Threat Intelligence</span>
         </a>
       </li>
 
@@ -186,8 +186,8 @@
           aria-expanded="{% if 'blocked_ip_map' in request.resolver_match.url_name or 'ops_blocked_ip_dashboard' in request.resolver_match.url_name or 'geo_block_dashboard' %}true{% else %}false{% endif %}"
           aria-controls="blockedIpMenu"
         >
-          <i class="fas fa-ban me-2" aria-hidden="true"></i>
-          <span class="sidebar-text">Blocking</span>
+          <i class="fas fa-shield-virus me-2" aria-hidden="true"></i>
+          <span class="sidebar-text">Risk Mitigation</span>
           <i class="fas fa-chevron-down ms-auto small" aria-hidden="true"></i>
         </button>
 
@@ -323,8 +323,8 @@
   <!-- Sidebar Footer -->
   <div class="px-4 py-3 border-top border-white border-opacity-10">
     <div class="d-flex align-items-center gap-2">
-      <span class="real-time-indicator" aria-hidden="true"></span>
-      <small style="color:rgba(255,255,255,0.45); font-size:0.72rem;">IP/API Protection Active</small>
+      <span class="real-time-indicator" aria-hidden="true" style="box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);"></span>
+      <small style="color:rgba(255,255,255,0.6); font-size:0.75rem; font-weight: 600; letter-spacing: 0.5px;">AI DECISION ENGINE ACTIVE</small>
     </div>
   </div>
 </nav>
