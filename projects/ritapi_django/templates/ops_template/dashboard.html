@@ -10,53 +10,89 @@
     border: 1px solid var(--border-color);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-    transition: all 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     margin-bottom: 1.5rem;
     position: relative;
     overflow: hidden;
+    z-index: 1;
 }
 
 .soc-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    transform: translateY(-4px) scale(1.005);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+    z-index: 10;
 }
 
 .soc-card-header {
-    padding: 1rem 1.25rem;
+    padding: 1.2rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
-    font-weight: 600;
+    font-weight: 700;
     display: flex;
     align-items: center;
     gap: 10px;
     background: linear-gradient(90deg, rgba(248,250,252,1) 0%, rgba(255,255,255,1) 100%);
-    font-size: 1rem;
+    font-size: 1.05rem;
     color: var(--primary-color);
+    letter-spacing: 0.3px;
 }
 
 .soc-card-header.critical { border-left: 4px solid var(--danger-color); }
 .soc-card-header.warning { border-left: 4px solid var(--warning-color); }
 .soc-card-header.info { border-left: 4px solid var(--accent-color); }
 
+/* Scan Line Animation */
+.scan-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+    animation: scan-vertical 4s linear infinite;
+    pointer-events: none;
+    z-index: 5;
+}
+@keyframes scan-vertical {
+    0% { top: 0; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+.blink-text { animation: blink-alert 2s infinite; }
+
 /* ── Live Threat Feed ── */
 .live-feed-list {
-    max-height: 400px;
     overflow-y: auto;
+    position: relative;
 }
 .live-feed-item {
-    padding: 1rem 1.25rem;
+    padding: 1.2rem 1.25rem;
     border-bottom: 1px solid var(--border-color);
-    transition: background 0.2s;
+    transition: all 0.3s ease;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    border-left: 3px solid transparent;
 }
 .live-feed-item:last-child { border-bottom: none; }
-.live-feed-item:hover { background: #f8fafc; }
+.live-feed-item:hover { 
+    background: #f8fafc; 
+    border-left-color: var(--primary-color);
+    padding-left: 1.5rem;
+}
+.live-feed-item.item-critical { border-left-color: var(--danger-color); background: rgba(239, 68, 68, 0.02); }
+.live-feed-item.item-critical:hover { background: rgba(239, 68, 68, 0.05); border-left-width: 6px; }
+
 .feed-title {
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--primary-color);
     margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 .feed-meta {
     font-size: 0.8rem;
@@ -64,12 +100,20 @@
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
+    font-weight: 500;
 }
 .feed-meta span {
     display: flex;
     align-items: center;
     gap: 4px;
 }
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.status-dot.critical { background-color: var(--danger-color); box-shadow: 0 0 6px var(--danger-color); animation: blink-alert 1s infinite; }
 
 /* ── Threat Timeline ── */
 .soc-timeline {
@@ -84,37 +128,44 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: var(--border-color);
+    background: linear-gradient(180deg, var(--danger-color) 0%, var(--border-color) 20%);
 }
 .timeline-item {
     position: relative;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s;
 }
+.timeline-item:hover { transform: translateX(5px); }
 .timeline-item::before {
     content: '';
     position: absolute;
-    left: -1.35rem;
+    left: -1.4rem;
     top: 0.25rem;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: var(--card-bg);
-    border: 2px solid var(--accent-color);
+    border: 3px solid var(--accent-color);
     z-index: 1;
 }
 .timeline-item.critical::before { border-color: var(--danger-color); background: var(--danger-color); animation: pulse-ring 2s infinite; }
-.timeline-item.warning::before { border-color: var(--warning-color); }
-.timeline-item.success::before { border-color: var(--success-color); }
+.timeline-item.warning::before { border-color: var(--warning-color); background: var(--card-bg); }
+.timeline-item.info::before { border-color: var(--info-color); background: var(--card-bg); }
 .timeline-time {
     font-size: 0.75rem;
     color: var(--text-muted);
-    font-weight: 600;
-    margin-bottom: 0.15rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.5px;
 }
 .timeline-content {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--primary-color);
-    font-weight: 500;
+    font-weight: 600;
+}
+.timeline-item.active .timeline-content {
+    color: var(--danger-color);
+    text-shadow: 0 0 1px rgba(239,68,68,0.3);
 }
 
 /* ── Risk Score Radial ── */
@@ -123,12 +174,12 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem;
+    padding: 2rem;
     position: relative;
 }
 .risk-circle {
-    width: 160px;
-    height: 160px;
+    width: 180px;
+    height: 180px;
     border-radius: 50%;
     display: flex;
     flex-direction: column;
@@ -136,38 +187,40 @@
     justify-content: center;
     background: conic-gradient(var(--danger-color) 87%, #e2e8f0 0);
     position: relative;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.2);
     animation: glow-critical 3s infinite;
 }
 .risk-circle::before {
     content: '';
     position: absolute;
-    width: 140px;
-    height: 140px;
+    width: 156px;
+    height: 156px;
     border-radius: 50%;
     background: var(--card-bg);
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.05);
 }
 .risk-score-value {
     position: relative;
-    font-size: 2.5rem;
-    font-weight: 800;
+    font-size: 3rem;
+    font-weight: 900;
     color: var(--danger-color);
     line-height: 1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .risk-score-label {
     position: relative;
-    font-size: 0.85rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 800;
     color: var(--primary-color);
     margin-top: 5px;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
 }
 .risk-radar {
     position: absolute;
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    border: 1px dashed rgba(239, 68, 68, 0.4);
+    border: 2px dashed rgba(239, 68, 68, 0.4);
     animation: radar-scan 4s linear infinite;
     pointer-events: none;
 }
@@ -180,7 +233,7 @@
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1rem;
-    transition: all 0.3s ease;
+    transition: all 0.4s ease;
     min-height: 110px;
     position: relative;
     overflow: hidden;
@@ -190,72 +243,93 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 4px;
+    width: 5px;
     height: 100%;
 }
 .stats-card:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+    transform: translateY(-4px);
 }
 .stats-card i {
-    font-size: 2.5rem;
-    opacity: 0.1;
+    font-size: 3rem;
+    opacity: 0.08;
     position: absolute;
     right: 1.5rem;
     bottom: 1.25rem;
-    transition: all 0.3s ease;
+    transition: all 0.4s ease;
 }
 .stats-card:hover i {
-    transform: scale(1.1);
-    opacity: 0.2;
+    transform: scale(1.15) rotate(-5deg);
+    opacity: 0.15;
 }
 .stats-alerts::before { background: var(--gradient-warning); }
 .stats-alerts h3 { color: var(--warning-color); }
-.stats-alerts i { color: var(--warning-color); opacity: 0.2; }
+.stats-alerts i { color: var(--warning-color); }
 
 .stats-blocked::before { background: var(--gradient-info); }
 .stats-blocked h3 { color: var(--info-color); }
-.stats-blocked i { color: var(--info-color); opacity: 0.2; }
+.stats-blocked i { color: var(--info-color); }
 
 .stats-allowed::before { background: var(--gradient-success); }
 .stats-allowed h3 { color: var(--success-color); }
-.stats-allowed i { color: var(--success-color); opacity: 0.2; }
+.stats-allowed i { color: var(--success-color); }
 
 .stats-blocked-req::before { background: var(--gradient-danger); }
 .stats-blocked-req h3 { color: var(--danger-color); }
-.stats-blocked-req i { color: var(--danger-color); opacity: 0.2; }
+.stats-blocked-req i { color: var(--danger-color); }
 
 /* Custom Accordion */
-.soc-accordion { padding: 1rem; }
+.soc-accordion { padding: 1.25rem; }
 .soc-accordion .accordion-item {
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 0.75rem;
+    border-radius: 10px;
+    margin-bottom: 0.85rem;
     overflow: hidden;
+    transition: all 0.3s;
+}
+.soc-accordion .accordion-item:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 .soc-accordion .accordion-button {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--primary-color);
     background-color: #f8fafc;
     box-shadow: none !important;
-    padding: 1rem;
+    padding: 1.25rem;
+    font-size: 0.95rem;
 }
 .soc-accordion .accordion-button:not(.collapsed) {
-    background-color: rgba(239, 68, 68, 0.05);
+    background-color: rgba(239, 68, 68, 0.04);
     color: var(--danger-color);
 }
 .soc-accordion .accordion-body {
-    font-size: 0.85rem;
-    color: var(--text-light);
     background: #ffffff;
+    border-top: 1px solid rgba(0,0,0,0.05);
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Security Status Bar (Task 5) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap align-items-center justify-content-between p-3 rounded-3 bg-white border shadow-sm" style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">
+                <div class="d-flex align-items-center gap-4">
+                    <span class="d-flex align-items-center"><i class="fas fa-shield-virus text-danger me-2" style="font-size: 1.1rem;"></i> Threat Level: <span class="text-danger fw-bold ms-1">CRITICAL</span></span>
+                    <span class="d-flex align-items-center"><i class="fas fa-brain text-info me-2" style="font-size: 1.1rem;"></i> AI Engine: <span class="text-primary fw-bold ms-1">ACTIVE</span></span>
+                    <span class="d-flex align-items-center"><i class="fas fa-satellite-dish text-success me-2" style="font-size: 1.1rem;"></i> Monitoring: <span class="text-success fw-bold ms-1 blink-text">LIVE</span></span>
+                </div>
+                <div class="d-flex align-items-center gap-4">
+                    <span class="d-flex align-items-center"><i class="fas fa-exclamation-circle text-warning me-2" style="font-size: 1.1rem;"></i> Active Threats: <span class="text-dark fw-bold ms-1">4</span></span>
+                    <span class="d-flex align-items-center"><i class="fas fa-clock text-muted me-2" style="font-size: 1.1rem;"></i> Last Scan: <span class="text-dark fw-bold ms-1">2 sec ago</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ROW 1: SOC Panels (Risk Score, Live Feed, Decision Explanation) -->
-    <div class="row g-3 mb-4">
+    <div class="row g-4 mb-4">
         <!-- Risk Score & Timeline -->
         <div class="col-xl-3 col-lg-4">
             <div class="soc-card h-100">
@@ -268,12 +342,14 @@
                         <div class="risk-circle">
                             <div class="risk-radar"></div>
                             <div class="risk-score-value">87%</div>
-                            <div class="risk-score-label">HIGH RISK</div>
+                            <div class="risk-score-label">CRITICAL</div>
+                            <div class="position-relative mt-1 text-danger fw-bold" style="font-size: 0.85rem;"><i class="fas fa-arrow-up"></i> +5% trend</div>
                         </div>
                     </div>
                     
-                    <div class="px-3 pt-3 pb-1">
-                        <h6 class="fw-bold mb-0 text-muted" style="font-size: 0.8rem; text-transform: uppercase;">Threat Activity Timeline</h6>
+                    <div class="px-3 pt-4 pb-2 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0 text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Threat Activity Timeline</h6>
+                        <span class="status-dot critical"></span>
                     </div>
                     <div class="soc-timeline" id="mockTimeline">
                         <!-- Populated by JS -->
@@ -283,25 +359,26 @@
         </div>
 
         <!-- Live Threat Detection -->
-        <div class="col-xl-5 col-lg-8">
-            <div class="soc-card h-100">
-                <div class="soc-card-header warning">
+        <div class="col-xl-4 col-lg-8">
+            <div class="soc-card h-100 d-flex flex-column">
+                <div class="scan-line"></div>
+                <div class="soc-card-header warning flex-shrink-0">
                     <i class="fas fa-satellite-dish text-warning" style="animation: pulse-ring 2s infinite; border-radius: 50%;"></i>
-                    Live Threat Detection
-                    <span class="badge bg-danger ms-auto" style="animation: blink-alert 2s infinite;">LIVE</span>
+                    Live Threat Feed
+                    <span class="badge bg-danger ms-auto d-flex align-items-center gap-1" style="animation: blink-alert 2s infinite;"><span class="status-dot bg-white"></span> LIVE</span>
                 </div>
-                <div class="live-feed-list" id="mockLiveFeed">
+                <div class="live-feed-list flex-grow-1" style="min-height: 0;" id="mockLiveFeed">
                     <!-- Populated by JS -->
                 </div>
             </div>
         </div>
 
         <!-- Decision Explanation -->
-        <div class="col-xl-4 col-lg-12">
+        <div class="col-xl-5 col-lg-12">
             <div class="soc-card h-100">
                 <div class="soc-card-header info">
                     <i class="fas fa-brain text-info"></i>
-                    AI Decision Engine
+                    AI Decision Engine Forensics
                 </div>
                 <div class="accordion soc-accordion" id="decisionAccordion">
                     <!-- Populated by JS -->
@@ -311,11 +388,11 @@
     </div>
 
     <!-- ROW 2: Statistics Cards -->
-    <div class="row g-3 mb-4">
+    <div class="row g-4 mb-4">
         <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-alerts h-100">
                 <div>
-                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Total Alerts</h6>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">Total Alerts</h6>
                     <h3 class="mb-0 fw-bold">{{ total_alerts|default:"0" }}</h3>
                 </div>
                 <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
@@ -325,7 +402,7 @@
         <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-blocked h-100">
                 <div>
-                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Blocked IPs</h6>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">Blocked IPs</h6>
                     <h3 class="mb-0 fw-bold">{{ total_blocked|default:"0" }}</h3>
                 </div>
                 <i class="fas fa-shield-virus" aria-hidden="true"></i>
@@ -335,7 +412,7 @@
         <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-allowed h-100">
                 <div>
-                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Total Requests Allowed</h6>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">Total Requests Allowed</h6>
                     <h3 class="mb-0 fw-bold">{{ total_requests_allow|default:"0" }}</h3>
                 </div>
                 <i class="fas fa-check-circle" aria-hidden="true"></i>
@@ -345,7 +422,7 @@
         <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-blocked-req h-100">
                 <div>
-                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem;">Total Requests Blocked</h6>
+                    <h6 class="mb-1 text-muted fw-bold text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">Total Requests Blocked</h6>
                     <h3 class="mb-0 fw-bold">{{ total_requests_block|default:"0" }}</h3>
                 </div>
                 <i class="fas fa-times-circle" aria-hidden="true"></i>
@@ -357,28 +434,28 @@
     <div class="row">
         <div class="col-12">
             <div class="soc-card rounded-3">
-                <div class="soc-card-header bg-dark text-white border-0" style="background: var(--primary-color); color: white;">
+                <div class="soc-card-header border-0" style="background: var(--primary-color); color: white;">
                     <i class="fas fa-list-alt me-2" aria-hidden="true"></i>Recent Threat Logs
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0" style="font-size: 0.9rem;">
-                            <thead style="background-color: #f8fafc; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">
+                        <table class="table table-hover align-middle mb-0" style="font-size: 0.9rem;">
+                            <thead style="background-color: #f1f5f9; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">
                                 <tr>
-                                    <th width="20%" class="ps-4">Alert Type</th>
-                                    <th width="25%">IP Address</th>
-                                    <th width="15%">Severity</th>
-                                    <th width="20%">Timestamp</th>
-                                    <th width="20%">Message</th>
+                                    <th width="20%" class="ps-4 py-3">Alert Type</th>
+                                    <th width="25%" class="py-3">IP Address / Source</th>
+                                    <th width="15%" class="py-3">Severity</th>
+                                    <th width="20%" class="py-3">Timestamp</th>
+                                    <th width="20%" class="py-3">Forensic Details</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for a in recent_alerts %}
                                 <tr>
-                                    <td class="ps-4 fw-medium">{{ a.alert_type }}</td>
+                                    <td class="ps-4 fw-bold text-dark"><i class="fas fa-bug text-muted me-2"></i>{{ a.alert_type }}</td>
                                     <td>
-                                        <code class="text-sm bg-light px-2 py-1 rounded border">{{ a.ip_address }}</code>
-                                        <button class="btn btn-sm btn-light ms-2 border" 
+                                        <code class="text-sm bg-light px-2 py-1 rounded border shadow-sm">{{ a.ip_address }}</code>
+                                        <button class="btn btn-sm btn-light ms-2 border shadow-sm" 
                                                 onclick="copyToClipboard('{{ a.ip_address }}')" 
                                                 title="Copy IP"
                                                 aria-label="Copy IP address {{ a.ip_address }}">
@@ -387,24 +464,26 @@
                                     </td>
                                     <td>
                                         {% if a.severity == "critical" %}
-                                            <span class="badge bg-danger rounded-pill px-3">{{ a.severity|title }}</span>
+                                            <span class="badge bg-danger rounded-pill px-3 py-2 shadow-sm"><i class="fas fa-fire me-1"></i> {{ a.severity|title }}</span>
                                         {% elif a.severity == "high" %}
-                                            <span class="badge bg-warning text-dark rounded-pill px-3">{{ a.severity|title }}</span>
+                                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2 shadow-sm"><i class="fas fa-exclamation me-1"></i> {{ a.severity|title }}</span>
                                         {% elif a.severity == "medium" %}
-                                            <span class="badge bg-info text-dark rounded-pill px-3">{{ a.severity|title }}</span>
+                                            <span class="badge bg-info text-dark rounded-pill px-3 py-2 shadow-sm">{{ a.severity|title }}</span>
                                         {% else %}
-                                            <span class="badge bg-success rounded-pill px-3">{{ a.severity|title }}</span>
+                                            <span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><i class="fas fa-check me-1"></i> {{ a.severity|title }}</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-muted">{{ a.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td class="text-muted fw-medium">{{ a.timestamp|date:"M d, Y H:i:s" }}</td>
                                     <td class="text-muted">{{ a.message|truncatechars:50|default:"-" }}</td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-5">
-                                        <i class="fas fa-shield-alt fa-3x mb-3 opacity-25" aria-hidden="true"></i>
-                                        <h5 class="fw-bold">No threats detected</h5>
-                                        <p class="mb-0">System is currently operating normally.</p>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="d-flex flex-column align-items-center justify-content-center opacity-75">
+                                            <i class="fas fa-shield-check fa-4x mb-3 text-success" aria-hidden="true"></i>
+                                            <h5 class="fw-bold text-dark">No active threats detected</h5>
+                                            <p class="mb-0 text-muted fw-medium">Monitoring system operating normally. Threat feed waiting for incoming activity.</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -424,7 +503,6 @@ function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(function() {
         const originalText = event.target.innerHTML;
         event.target.innerHTML = '<i class="fas fa-check text-success"></i>';
-        
         setTimeout(function() {
             event.target.innerHTML = originalText;
         }, 1500);
@@ -433,14 +511,14 @@ function copyToClipboard(text) {
     });
 }
 
-// ── Inject Mock Data for Demo SOC Features ──
+// ── Inject Mock Data for Enterprise Demo SOC Features ──
 
 document.addEventListener("DOMContentLoaded", function() {
     
     // 1. Mock Timeline
     const timelineData = [
-        { time: "14:04:12", text: "Action executed: IP Blocked", status: "success" },
-        { time: "14:03:45", text: "Threat classified: Brute Force", status: "critical" },
+        { time: "14:04:12", text: "Action executed: IP Blocked", status: "critical active" },
+        { time: "14:03:45", text: "Threat classified: Brute Force", status: "warning" },
         { time: "14:02:10", text: "Risk evaluated: 87% HIGH", status: "warning" },
         { time: "14:01:05", text: "Login anomaly detected", status: "info" }
     ];
@@ -450,7 +528,7 @@ document.addEventListener("DOMContentLoaded", function() {
     timelineData.forEach(item => {
         timelineHTML += `
             <div class="timeline-item ${item.status}">
-                <div class="timeline-time">${item.time}</div>
+                <div class="timeline-time"><i class="fas fa-clock me-1"></i> ${item.time}</div>
                 <div class="timeline-content">${item.text}</div>
             </div>
         `;
@@ -460,28 +538,30 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // 2. Mock Live Threat Feed
     const feedData = [
-        { threat: "Suspicious API Access", source: "Mobile App", type: "Behavioral Anomaly", score: 87, action: "Blocked", time: "14:02:11", severity: "critical", badge: "bg-danger" },
-        { threat: "SQL Injection Payload", source: "192.168.1.45", type: "WAF Rule Trigger", score: 92, action: "Dropped", time: "13:58:02", severity: "critical", badge: "bg-danger" },
-        { threat: "Unusual Data Egress", source: "Internal DB", type: "DLP Alert", score: 65, action: "Flagged", time: "13:45:19", severity: "warning", badge: "bg-warning text-dark" },
-        { threat: "Multiple Failed Logins", source: "VPN Gateway", type: "Auth Anomaly", score: 45, action: "Challenged", time: "13:22:05", severity: "medium", badge: "bg-info text-dark" }
+        { threat: "Suspicious Login Attempt", source: "Mobile App VPN", type: "Behavioral Anomaly", score: 92, action: "Blocked", time: "14:02:11", severity: "critical", badge: "bg-danger", isCritical: true },
+        { threat: "SQL Injection Payload", source: "192.168.1.45", type: "WAF Rule Trigger", score: 85, action: "Dropped", time: "13:58:02", severity: "critical", badge: "bg-danger", isCritical: true },
+        { threat: "Unusual Data Egress", source: "Internal DB Cluster", type: "DLP Alert", score: 65, action: "Flagged", time: "13:45:19", severity: "warning", badge: "bg-warning text-dark", isCritical: false },
+        { threat: "Multiple Failed Logins", source: "Gateway Edge", type: "Auth Anomaly", score: 45, action: "Challenged", time: "13:22:05", severity: "medium", badge: "bg-info text-dark", isCritical: false }
     ];
 
     const feedContainer = document.getElementById("mockLiveFeed");
     let feedHTML = "";
     feedData.forEach(item => {
+        const rowClass = item.isCritical ? "item-critical" : "";
+        const dotStatus = item.isCritical ? '<span class="status-dot critical me-2"></span>' : '<i class="fas fa-exclamation-triangle text-warning me-2"></i>';
         feedHTML += `
-            <div class="live-feed-item">
-                <div>
-                    <div class="feed-title">${item.threat}</div>
-                    <div class="feed-meta">
-                        <span><i class="fas fa-network-wired"></i> ${item.source}</span>
-                        <span><i class="fas fa-tag"></i> ${item.type}</span>
-                        <span><i class="fas fa-clock"></i> ${item.time}</span>
+            <div class="live-feed-item ${rowClass}">
+                <div class="flex-grow-1">
+                    <div class="feed-title">${dotStatus}${item.threat}</div>
+                    <div class="feed-meta mt-2">
+                        <span><i class="fas fa-network-wired text-info"></i> ${item.source}</span>
+                        <span><i class="fas fa-tag text-secondary"></i> ${item.type}</span>
+                        <span><i class="fas fa-clock text-secondary"></i> ${item.time}</span>
                     </div>
                 </div>
-                <div class="text-end">
-                    <span class="badge ${item.badge} rounded-pill px-2 mb-1">${item.action}</span>
-                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Risk: ${item.score}%</div>
+                <div class="text-end ms-3">
+                    <span class="badge ${item.badge} shadow-sm px-3 py-2 mb-2 d-inline-block" style="font-size:0.75rem; font-weight:700;">${item.action}</span>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px;">RISK: <span class="${item.isCritical ? 'text-danger' : 'text-dark'}">${item.score}%</span></div>
                 </div>
             </div>
         `;
@@ -493,26 +573,29 @@ document.addEventListener("DOMContentLoaded", function() {
     const decisionData = [
         {
             id: "dec1",
-            title: "Threat: Unusual API Request Frequency",
-            reason: "Repeated login attempts (150/min), Abnormal traffic pattern, High request burst",
+            title: "THREAT: Unusual API Request Frequency",
+            tags: ["API anomaly", "suspicious behavior", "rate limit"],
+            reason: ["Repeated login attempts (150/min)", "Abnormal traffic pattern", "High request burst"],
             decision: "Blocked automatically",
-            confidence: "92%",
+            confidence: 92,
             expanded: true
         },
         {
             id: "dec2",
-            title: "Threat: Admin Panel Access from Tor",
-            reason: "Source IP matched known Tor exit node list, Account lacks MFA",
+            title: "THREAT: Admin Panel Access from Tor",
+            tags: ["anonymizer", "login deviation"],
+            reason: ["Source IP matched known Tor exit node list", "Account lacks MFA verification"],
             decision: "Session Terminated",
-            confidence: "98%",
+            confidence: 98,
             expanded: false
         },
         {
             id: "dec3",
-            title: "Anomaly: Data Egress Volume",
-            reason: "User downloaded 5GB in 10 mins, Deviates from 30-day baseline (Max 50MB)",
+            title: "ANOMALY: Data Egress Volume",
+            tags: ["dlp", "behavioral deviation"],
+            reason: ["User downloaded 5GB in 10 mins", "Deviates from 30-day baseline (Max 50MB)"],
             decision: "Alerted SOC Team",
-            confidence: "76%",
+            confidence: 76,
             expanded: false
         }
     ];
@@ -523,27 +606,40 @@ document.addEventListener("DOMContentLoaded", function() {
         const isExpanded = item.expanded ? "show" : "";
         const isCollapsedBtn = item.expanded ? "" : "collapsed";
         
+        let tagsHTML = item.tags.map(t => `<span class="badge bg-light text-dark border me-2 shadow-sm text-capitalize"><i class="fas fa-hashtag text-muted me-1"></i> ${t}</span>`).join('');
+        let reasonsHTML = item.reason.map(r => `<li class="mb-1"><i class="fas fa-caret-right text-danger me-2"></i>${r}</li>`).join('');
+
         accordionHTML += `
-            <div class="accordion-item">
+            <div class="accordion-item shadow-sm">
                 <h2 class="accordion-header" id="heading${item.id}">
-                    <button class="accordion-button ${isCollapsedBtn}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${item.id}" aria-expanded="${item.expanded}" aria-controls="collapse${item.id}">
-                        ${item.title}
+                    <button class="accordion-button ${isCollapsedBtn} d-flex align-items-center" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${item.id}" aria-expanded="${item.expanded}" aria-controls="collapse${item.id}">
+                        <i class="fas fa-robot me-2 fs-5"></i>
+                        <span class="flex-grow-1">${item.title}</span>
                     </button>
                 </h2>
                 <div id="collapse${item.id}" class="accordion-collapse collapse ${isExpanded}" aria-labelledby="heading${item.id}" data-bs-parent="#decisionAccordion">
-                    <div class="accordion-body">
-                        <div class="mb-2"><strong>Why flagged:</strong></div>
-                        <ul class="mb-3 ps-3 text-muted">
-                            ${item.reason.split(', ').map(r => `<li>${r}</li>`).join('')}
-                        </ul>
-                        <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border">
-                            <div>
-                                <span class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">Decision Taken</span>
-                                <strong class="text-danger">${item.decision}</strong>
+                    <div class="accordion-body p-4 position-relative">
+                        <div class="row g-4">
+                            <div class="col-12">
+                                ${tagsHTML}
                             </div>
-                            <div class="text-end">
-                                <span class="d-block text-muted" style="font-size: 0.7rem; text-transform: uppercase;">AI Confidence</span>
-                                <strong class="text-primary">${item.confidence}</strong>
+                            <div class="col-md-6 border-end">
+                                <div class="mb-3 text-uppercase text-muted" style="font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;"><i class="fas fa-search me-1"></i> Detected Pattern & Why Flagged</div>
+                                <ul class="list-unstyled mb-0 text-dark" style="font-size: 0.85rem; font-weight: 500;">
+                                    ${reasonsHTML}
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 text-uppercase text-muted" style="font-size: 0.75rem; font-weight: 800; letter-spacing: 1px;"><i class="fas fa-shield-alt me-1"></i> Decision Output</div>
+                                <div class="text-danger fw-bold mb-3 d-flex align-items-center" style="font-size: 1rem;"><i class="fas fa-ban me-2 fs-5"></i> ${item.decision}</div>
+                                
+                                <div class="mb-2 d-flex justify-content-between text-uppercase text-muted" style="font-size: 0.7rem; font-weight: 800; letter-spacing: 0.5px;">
+                                    <span>AI Confidence Score</span>
+                                    <span class="text-primary fw-bold fs-6">${item.confidence}%</span>
+                                </div>
+                                <div class="progress" style="height: 8px; border-radius: 4px; background-color: #e2e8f0;">
+                                    <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" role="progressbar" style="width: ${item.confidence}%"></div>
+                                </div>
                             </div>
                         </div>
                     </div>

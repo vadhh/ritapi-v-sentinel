@@ -321,10 +321,20 @@
   </div>
 
   <!-- Sidebar Footer -->
-  <div class="px-4 py-3 border-top border-white border-opacity-10">
-    <div class="d-flex align-items-center gap-2">
-      <span class="real-time-indicator" aria-hidden="true" style="box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);"></span>
-      <small style="color:rgba(255,255,255,0.6); font-size:0.75rem; font-weight: 600; letter-spacing: 0.5px;">AI DECISION ENGINE ACTIVE</small>
+  <div class="px-4 py-3 border-top border-white border-opacity-10" style="background: rgba(0,0,0,0.15);">
+    <div class="d-flex flex-column gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="real-time-indicator" aria-hidden="true" style="box-shadow: 0 0 10px rgba(16, 185, 129, 0.9); animation: blink-alert 2s infinite;"></span>
+        <small style="color:rgba(255,255,255,0.85); font-size:0.7rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">AI Decision Engine Active</small>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <small style="color:rgba(255,255,255,0.5); font-size:0.65rem; text-transform: uppercase;">Monitoring</small>
+        <small style="color: rgba(255,255,255,0.7); font-size:0.65rem; font-weight: 600;">LIVE</small>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <small style="color:rgba(255,255,255,0.5); font-size:0.65rem; text-transform: uppercase;">System Health</small>
+        <small style="color: #10B981; font-size:0.65rem; font-weight: 600;">99.98%</small>
+      </div>
     </div>
   </div>
 </nav>
